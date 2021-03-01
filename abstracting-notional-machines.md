@@ -22,6 +22,11 @@ This framework can guide teachers through a rigourous process that will result i
 
 ...
 
+The specification of the notional machine requires as a starting point the specification of the language the notional machine is suppose to represent. Here we either refer to existing specifications of language subsets (CITE) or we specify these language subsets as needed.
+In fact, we find beneficial the process of specifying the subset of the language we want to represent because it helps us to refine the design of the corresponding notional machine.
+
+...
+
 
 pitch:
 - There are many notional machines out there... but how do you know they are correct? How can we know they are self consistent and consistent with the language aspect they aim to represent.
