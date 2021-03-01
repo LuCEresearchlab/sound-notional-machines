@@ -1,7 +1,6 @@
 module ExpressionTree where
 
 import Text.Read (readMaybe)
-import Control.Monad
 
 --------------------
 -- Bisimulation
@@ -95,39 +94,40 @@ ast2graph (exp, env) = a2g 0 exp
 
         mkLeaf node = ExpTreeDia [node] [] (Just node) env
         mkBranch id node exps = 
-          foldl (\dia exp -> combineGraphs dia (a2g (nextId id (nodes dia)) exp))
+          foldl (\dia exp -> merge dia (a2g (nextId id (nodes dia)) exp))
                 (mkLeaf node)
                 exps
-        combineGraphs (ExpTreeDia nodes1 edges1 (Just r1) env) (ExpTreeDia nodes2 edges2 (Just r2) _) =
+
+        merge (ExpTreeDia nodes1 edges1 (Just r1) env) (ExpTreeDia nodes2 edges2 (Just r2) _) =
           ExpTreeDia (nodes1 ++ nodes2) ((r1,r2):edges1 ++ edges2) (Just r1) env
         nextId id = foldl (\m (Node n _ _) -> 1 + (max m n)) id
 
 graph2ast :: ExpTreeDiagram -> Maybe AST
-graph2ast (ExpTreeDia _ _ Nothing env) = Nothing
+graph2ast (ExpTreeDia _ _ Nothing _) = Nothing
 graph2ast dia @ (ExpTreeDia _ _ _ env) = Just (spanningTree dia, env)
   where
     spanningTree (ExpTreeDia _ _ (Just (Node _ Varb label)) _) = Var label
     spanningTree (ExpTreeDia _ _ (Just (Node _ Numb label)) _) = Val (Num (read label))
-    spanningTree dia @ (ExpTreeDia _ _ (Just curNode @ (Node _ Appl label)) _) =
-      (App label . fmap spanningTree . diaNextNodes) dia
-    spanningTree dia @ (ExpTreeDia _ _ (Just curNode @ (Node _ Lamb label)) _) =
-      (Val . Lambda label . spanningTree . head . diaNextNodes) dia
+    spanningTree (ExpTreeDia nodes edges (Just curNode @ (Node _ Appl label)) _) =
+      (App label . fmap spanningTree . diaNextNodes nodes edges) curNode
+    spanningTree (ExpTreeDia nodes edges (Just curNode @ (Node _ Lamb label)) _) =
+      (Val . Lambda label . spanningTree . head . diaNextNodes nodes edges) curNode
 
-    diaNextNodes (ExpTreeDia nodes edges (Just root) env) =
+    diaNextNodes nodes edges root =
       [ExpTreeDia nodes edges (Just n2) env| (n1, n2) <- edges, nodeId n1 == nodeId root]
 
 
 eval :: AST -> Maybe AST
 eval ast @ (Val _, _) = Just ast
-eval ast @ (App name ((Val v):[]), env) =
+eval (App name ((Val v):[]), env) =
   case lookup name env of
     Just (Lambda var exp) -> eval (exp, (var, v):env)
     _ -> Nothing
-eval ast @ (App name (e1:[]), env) =
+eval (App name (e1:[]), env) =
   case eval (e1, env) of
     Just (e2, _) -> eval (App name (e2:[]), env)
     _ -> Nothing
-eval ast @ (Var name, env) =
+eval (Var name, env) =
   case lookup name env of
     Just val -> Just (Val val, env)
     _ -> Nothing
