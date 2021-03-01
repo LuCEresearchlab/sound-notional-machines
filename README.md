@@ -1,2 +1,2 @@
-# structured-expression-tree
-Basis for a correct-by-construction expression tree diagram
+# structured-notional-machines
+Basis for correct-by-construction notional machines
