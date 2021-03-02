@@ -1,2 +1,2 @@
 # structured-notional-machines
-Basis for correct-by-construction notional machines
+Foundations for correct-by-construction notional machines
