@@ -27,7 +27,7 @@ module Lib where
 ---- Data Types ------
 
 data Box = Box { boxLabel :: String
-               , contents :: Postit } deriving (Show, Eq)
+               , contents :: [Postit] } deriving (Show, Eq)
 data Postit = Postit Int deriving (Show, Eq)
 
 data Variable = Variable { name :: String
@@ -46,17 +46,17 @@ f' :: Variable -> Value
 f' = value
 
 alpha_A :: Variable -> Box
-alpha_A v = Box (name v) (Postit (value v))
+alpha_A v = Box (name v) [(Postit (value v))]
 
 f :: Box -> Postit
-f = contents
+f = head . contents
 
 alpha_B :: Value -> Postit
 alpha_B = Postit
 
 
 updateBox :: Int -> Box -> Box
-updateBox val (Box label contents) = Box label (Postit val)
+updateBox val (Box label contents) = Box label ((Postit val):contents)
 
 updateVariable :: Int -> Variable -> Variable
 updateVariable val (Variable name value) = Variable name val
