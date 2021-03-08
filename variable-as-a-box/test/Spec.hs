@@ -20,11 +20,18 @@ prop_commutation = property $ do
   v <- forAll genVariable
   (alpha_B . f') v === (f . alpha_A) v
 
+prop_commutation_update :: Property
+prop_commutation_update = property $ do
+  v <- forAll genVariable
+  value  <- forAll $ Gen.int (Range.linear 0 100)
+  (alpha_A . updateVariable value) v === (updateBox value . alpha_A) v
+
 
 tests :: IO Bool
 tests =
   checkParallel $ Group "Test.VariableAsABox" [
         ("prop_commutation", prop_commutation)
+      , ("prop_commutation_update", prop_commutation_update)
     ]
 
 main :: IO ()

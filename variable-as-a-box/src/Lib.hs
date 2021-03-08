@@ -54,6 +54,13 @@ f = contents
 alpha_B :: Value -> Postit
 alpha_B = Postit
 
+
+updateBox :: Int -> Box -> Box
+updateBox val (Box label contents) = Box label (Postit val)
+
+updateVariable :: Int -> Variable -> Variable
+updateVariable val (Variable name value) = Variable name val
+
 -----------------
 
 -- Commutation proof:
