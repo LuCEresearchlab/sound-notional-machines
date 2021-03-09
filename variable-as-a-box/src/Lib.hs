@@ -46,7 +46,7 @@ f' :: Variable -> Value
 f' = value
 
 alpha_A :: Variable -> Box
-alpha_A v = Box (name v) [(Postit (value v))]
+alpha_A v = Box (name v) ((Postit (value v)):[])
 
 f :: Box -> Postit
 f = head . contents
@@ -56,10 +56,10 @@ alpha_B = Postit
 
 
 updateBox :: Int -> Box -> Box
-updateBox val (Box label contents) = Box label ((Postit val):contents)
+updateBox val box = Box (boxLabel box) ((Postit val):(contents box))
 
 updateVariable :: Int -> Variable -> Variable
-updateVariable val (Variable name value) = Variable name val
+updateVariable val var = Variable (name var) val
 
 -----------------
 
@@ -86,3 +86,27 @@ f__alpha_A :: A' -> B
 -- f__alpha_A = \x -> contents (Box (name x) (Postit (value x)))
 -- f__alpha_A = \x -> Postit (value x)
 f__alpha_A = Postit . value
+
+
+--------- update semantics (showing that you can't stack postits) ---------
+
+alpha_cmp_updateVar :: Value -> Variable -> Box
+-- alpha_cmp_updateVar = (\v1 -> alpha_A . updateVariable v1)
+-- alpha_cmp_updateVar = (\v1 -> alpha_A . (\var -> Variable (name var) v1))
+-- alpha_cmp_updateVar = (\v1 -> (\v -> Box (name v) ((Postit (value v)):[])) . (\var -> Variable (name var) v1))
+-- alpha_cmp_updateVar = (\v1 -> \x -> (\v -> Box (name v) ((Postit (value v)):[])) ((\var -> Variable (name var) v1) x))
+-- alpha_cmp_updateVar = (\v1 -> \x -> (\v -> Box (name v) ((Postit (value v)):[])) (Variable (name x) v1))
+-- alpha_cmp_updateVar = (\v1 -> \x -> Box (name (Variable (name x) v1)) ((Postit (value (Variable (name x) v1))):[]))
+-- alpha_cmp_updateVar = (\v1 -> \x -> Box (name x) ((Postit (value (Variable (name x) v1))):[]))
+alpha_cmp_updateVar = (\v1 -> \x -> Box (name x) ((Postit v1):[]))
+
+updateBox_cmp_alpha :: Value -> Variable -> Box
+-- updateBox_cmp_alpha = (\v1 -> updateBox v1 . alpha_A)
+-- updateBox_cmp_alpha = (\v1 -> updateBox v1 . (\v -> Box (name v) [(Postit (value v))]))
+-- updateBox_cmp_alpha = (\v1 -> (\box -> Box (boxLabel box) ((Postit v1):(contents box))) . (\v -> Box (name v) [(Postit (value v))]))
+-- updateBox_cmp_alpha = (\v1 -> \x -> (\box -> Box (boxLabel box) ((Postit v1):(contents box))) ((\v -> Box (name v) [(Postit (value v))]) x))
+-- updateBox_cmp_alpha = (\v1 -> \x -> (\box -> Box (boxLabel box) ((Postit v1):(contents box))) (Box (name x) [(Postit (value x))]))
+-- updateBox_cmp_alpha = (\v1 -> \x -> Box (boxLabel (Box (name x) [(Postit (value x))])) ((Postit v1):(contents (Box (name x) [(Postit (value x))]))))
+-- updateBox_cmp_alpha = (\v1 -> \x -> Box (name x) ((Postit v1):(contents (Box (name x) [(Postit (value x))]))))
+-- updateBox_cmp_alpha = (\v1 -> \x -> Box (name x) ((Postit v1):[(Postit (value x))]))
+updateBox_cmp_alpha = (\v1 -> \x -> Box (name x) ((Postit v1):[(Postit (value x))]))
