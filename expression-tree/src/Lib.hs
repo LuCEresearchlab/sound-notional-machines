@@ -252,6 +252,8 @@ solveEvalActivity = fmap fst . fmap unparse . (=<<) eval . parse
 -- - Change language to BSL like
 --
 -- - eval done by labeling instead of rewrite
+--
+-- - small-step semantics
 
 
 -- Degrees of freedom:
