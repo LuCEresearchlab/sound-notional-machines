@@ -222,9 +222,6 @@ f__alpha_A = fmap ast2graph . (=<<) eval . parse
 solveParseActivity :: ExpressionEnv -> Maybe ExpTreeDiagram
 solveParseActivity = fmap ast2graph . parse
 
-checkParseActivity :: ExpressionEnv ->  Maybe ExpTreeDiagram -> Bool
-checkParseActivity question solution = solveParseActivity question == solution
-
 
 ---- Unparse activity ----
 
@@ -233,9 +230,6 @@ checkParseActivity question solution = solveParseActivity question == solution
 solveUnparseActivity :: ExpTreeDiagram -> Maybe String
 solveUnparseActivity = fmap fst . fmap unparse . graph2ast
 
-checkUnparseActivity :: ExpTreeDiagram -> String -> Bool
-checkUnparseActivity question solution = solveUnparseActivity question == Just solution
-
 
 ---- Parse activity ----
 
@@ -243,9 +237,6 @@ checkUnparseActivity question solution = solveUnparseActivity question == Just s
 
 solveEvalActivity :: ExpressionEnv -> Maybe String
 solveEvalActivity = fmap fst . fmap unparse . (=<<) eval . parse
-
-checkEvalActivity :: ExpressionEnv -> String -> Bool
-checkEvalActivity question solution = solveEvalActivity question == Just solution
 
 
 
