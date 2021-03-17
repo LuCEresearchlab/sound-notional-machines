@@ -252,7 +252,18 @@ checkEvalActivity question solution = solveEvalActivity question == Just solutio
 
 --------
 -- TODO
--- - timeout hedgehog to try to find hanging code
--- - Use views to restrict kinds of valid Nodes (e.g. App, Var, Lambda)
+-- - hedgehog: timeout to try to find hanging code
+-- - hedgehog: config tree max depth
+--
 -- - More realistic parse/unparse
+--
+-- - Use views to restrict kinds of valid Nodes (e.g. App, Var, Lambda)
 -- - Change language to BSL like
+--
+-- - eval done by labeling instead of rewrite
+
+
+-- Degrees of freedom:
+-- - different lang (lambda calculus, BSL) (delta in the impl?, do we abstract?)
+-- - different NM (rewrite, labeling)
+-- - different activities (parse, unparse, eval, type-check)
