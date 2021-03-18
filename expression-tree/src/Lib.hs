@@ -1,7 +1,8 @@
+{-# LANGUAGE TupleSections #-}
+
 module Lib where
 
 import Text.Read (readMaybe)
-import Data.List (intercalate)
 
 --------------------
 -- Bisimulation
@@ -49,11 +50,11 @@ data Edge = Edge Node Node deriving (Eq) -- the edge is directed from fst to snd
 
 instance Show Edge where
   show (Edge (Node id1 _) (Node id2 _)) =
-    intercalate " " ["Edge", show id1, show id2]
+    unwords ["Edge", show id1, show id2]
 
 -- instance Show Node where
 --   show (Node uid fragments) =
---     intercalate " " (fmap show fragments) ++ "(id=" ++ show uid ++ ")"
+--     unwords (fmap show fragments) ++ "(id=" ++ show uid ++ ")"
 
 -- instance Show Fragment where
 --   show (Token t) = t
@@ -92,23 +93,23 @@ initProgram :: Exp -> Program
 initProgram expr = (expr, [])
 
 eval :: Program -> Maybe Program
-eval (Var name     , env)  = fmap (\v -> (v, env)) (lookup name env)
+eval (Var name     , env)  = fmap (, env) (lookup name env)
 eval (Lambda name e, env)  = Just (Closure env name e, env)
 eval (App e1 e2    , env1) = do
   (Closure env2 name e3, _) <- eval (e1, env1)
   (e4, _)                   <- eval (e2, env1)
   eval (e3, (name, e4):env2)
-eval (Closure _ _ _, _)    = Nothing -- "malformed exp tree"
+eval (Closure {}, _)    = Nothing -- "malformed exp tree"
 
 isValue :: Exp -> Bool
-isValue (Lambda _ _) = True
-isValue (Closure _ _ _) = True
+isValue Lambda {} = True
+isValue Closure {} = True
 isValue _ = False
 
 
 -- parse :: (ExpText, Env) -> (Term, Env)
 parse :: ExpressionEnv -> Maybe Program
-parse (e, env) = fmap (flip (,) env) (runParser e)
+parse (e, env) = fmap (, env) (runParser e)
   where runParser = readMaybe
 
 unparse :: Program -> ExpressionEnv
@@ -132,15 +133,15 @@ ast2graph (expr, env) = mkDiagram (a2g 0 expr)
                 exps
 
         merge (nodes1, edges1, r1) (nodes2, edges2, r2) =
-          (nodes1 ++ nodes2, (edges1 ++ [Edge r1 r2] ++ edges2), r1)
+          (nodes1 ++ nodes2, edges1 ++ [Edge r1 r2] ++ edges2, r1)
 
-        nextId = foldl (\m (Node n _) -> 1 + (max m n))
+        nextId = foldl (\m (Node n _) -> 1 + max m n)
 
 graph2ast :: ExpTreeDiagram -> Maybe Program
 graph2ast (ExpTreeDia _ _ Nothing _) = Nothing
-graph2ast (ExpTreeDia ns es (Just r) env) = (\ast -> (ast, env)) <$> spanningTree (ns, es, r)
+graph2ast (ExpTreeDia ns es (Just r) env) = (, env) <$> spanningTree (ns, es, r)
   where
-    spanningTree (_,     _,               (Node _ [FragName name])) = Just (Var name)
+    spanningTree (_,     _,                Node _ [FragName name]) = Just (Var name)
     spanningTree (nodes, edges, curNode @ (Node _ [Whole, Whole])) =
       case diaNextNodes nodes edges curNode of
         [tuple1, tuple2] -> App <$> spanningTree tuple1 <*> spanningTree tuple2
@@ -161,7 +162,7 @@ graph2ast (ExpTreeDia ns es (Just r) env) = (\ast -> (ast, env)) <$> spanningTre
 --
 --    ^          ^
 --    |          |
---  alpha_A    alpha_B
+--  alphaA    alphaB
 --    |          |
 --    |          |
 --
@@ -176,20 +177,20 @@ type B  = Maybe ExpTreeDiagram
 f' :: ExpressionEnv -> Maybe ExpressionEnv
 f' = fmap unparse . (=<<) eval . parse
 
-alpha_A :: ExpressionEnv -> Maybe ExpTreeDiagram
-alpha_A = fmap ast2graph . parse
+alphaA :: ExpressionEnv -> Maybe ExpTreeDiagram
+alphaA = fmap ast2graph . parse
 
 f :: Maybe ExpTreeDiagram -> Maybe ExpTreeDiagram
 f = fmap ast2graph . (=<<) eval . (=<<) graph2ast
 
-alpha_B :: Maybe ExpressionEnv -> Maybe ExpTreeDiagram
-alpha_B = (=<<) alpha_A
+alphaB :: Maybe ExpressionEnv -> Maybe ExpTreeDiagram
+alphaB = (=<<) alphaA
 
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A
 
-alpha_B__f' :: A' -> B
+alphaBf' :: A' -> B
 -- alpha_B__f' = alpha_B . f'
 -- alpha_B__f' = (=<<) (fmap ast2graph . parse) . fmap unparse . (=<<) eval . parse
 -- alpha_B__f' = join . fmap (fmap ast2graph . parse) . fmap unparse . (=<<) eval . parse
@@ -197,16 +198,16 @@ alpha_B__f' :: A' -> B
 -- alpha_B__f' = join . fmap (fmap ast2graph) . fmap (parse . unparse) . (=<<) eval . parse
 -- alpha_B__f' = join . fmap (fmap ast2graph) . fmap return . (=<<) eval . parse
 -- alpha_B__f' = join . fmap (fmap ast2graph) . return . (=<<) eval . parse
-alpha_B__f' = fmap ast2graph . (=<<) eval . parse
+alphaBf' = fmap ast2graph . (=<<) eval . parse
 
-f__alpha_A :: A' -> B
+falphaA :: A' -> B
 -- f__alpha_A = f . alpha_A
 -- f__alpha_A = fmap ast2graph . (=<<) eval . ((=<<) graph2ast) . fmap ast2graph . parse
 -- f__alpha_A = fmap ast2graph . (=<<) eval . join . fmap graph2ast . fmap ast2graph . parse
 -- f__alpha_A = fmap ast2graph . (=<<) eval . join . fmap (graph2ast . ast2graph) . parse
 -- f__alpha_A = fmap ast2graph . (=<<) eval . join . fmap return . parse
 -- f__alpha_A = fmap ast2graph . (=<<) eval . join . return . parse
-f__alpha_A = fmap ast2graph . (=<<) eval . parse
+falphaA = fmap ast2graph . (=<<) eval . parse
 
 
 
@@ -228,7 +229,7 @@ solveParseActivity = fmap ast2graph . parse
 -- generateUnparseActivity = ... in the tests ...
 
 solveUnparseActivity :: ExpTreeDiagram -> Maybe String
-solveUnparseActivity = fmap fst . fmap unparse . graph2ast
+solveUnparseActivity = fmap (fst . unparse) . graph2ast
 
 
 ---- Parse activity ----
@@ -236,7 +237,7 @@ solveUnparseActivity = fmap fst . fmap unparse . graph2ast
 -- generateEvalActivity = ... in the tests ...
 
 solveEvalActivity :: ExpressionEnv -> Maybe String
-solveEvalActivity = fmap fst . fmap unparse . (=<<) eval . parse
+solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 
 
 

@@ -38,7 +38,7 @@ freeVars :: Exp -> [Name]
 freeVars (Var name) = [name]
 freeVars (Lambda name e) = freeVars e \\ [name]
 freeVars (App e1 e2) = freeVars e1 ++ freeVars e2
-freeVars (Closure _ _ _) = error "Closure should only exist at runtime"
+freeVars Closure {} = error "Closure should only exist at runtime"
 
 bindFreeVars :: Exp -> Exp
 bindFreeVars e = foldl (\en var -> App (Lambda var en) (Lambda "z" (Var "z"))) e (freeVars e)
@@ -90,13 +90,13 @@ sample :: Show a => Int -> Gen a -> IO ()
 sample n gen = forM_ [0..n] (\_ -> pPrint =<< Gen.sample gen)
 
 generateParseActivity :: MonadIO m => m ExpressionEnv
-generateParseActivity = unparse <$> (\e -> initProgram e) <$> Gen.sample genExp
+generateParseActivity = unparse . initProgram <$> Gen.sample genExp
 
 generateUnparseActivity :: MonadIO m => m ExpTreeDiagram
-generateUnparseActivity = ast2graph <$> (\e -> initProgram e) <$> Gen.sample genExp
+generateUnparseActivity = ast2graph . initProgram <$> Gen.sample genExp
 
 generateEvalActivity :: MonadIO m => m ExpressionEnv
-generateEvalActivity = unparse <$> (\e -> initProgram e) <$> Gen.sample genCombinator
+generateEvalActivity = unparse . initProgram <$> Gen.sample genCombinator
 
 genAndSolve :: (Show a, Show b) => IO a -> (a -> b) -> IO Doc
 genAndSolve gen solver =
