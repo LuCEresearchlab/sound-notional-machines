@@ -65,7 +65,7 @@ prop_commutation :: Property
 prop_commutation = property $ do
   e <- forAll genCombinator
   let expEnv = unparse (initProgram e)
-  (alpha_B . f') expEnv === (f . alpha_A) expEnv
+  (alphaB . f') expEnv === (f . alphaA) expEnv
 
 
 tests :: IO Bool
