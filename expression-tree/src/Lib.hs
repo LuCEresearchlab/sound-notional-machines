@@ -101,6 +101,26 @@ eval (App e1 e2    , env1) = do
   eval (e3, (name, e4):env2)
 eval (Closure {}, _)    = Nothing -- "malformed exp tree"
 
+step :: Program -> Maybe Program
+step (Var name     , env)  = fmap (, env) (lookup name env)
+step (Lambda name e, env)  = Just (Closure env name e, env)
+step (App (Closure env1 name e1) e2 @ (Closure _ _ _), _) =
+  Just (e1, (name, e2):env1)
+step (App e1 @ (Closure _ _ _) e2, env) = do
+  (e3, _) <- eval (e2, env)
+  return (App e1 e3, env)
+step (App e1 e2, env) = do
+  (e3, _) <- eval (e1, env)
+  return (App e3 e2, env)
+step p @ (e, _) | isValue e = Just p
+step (e, _) = error ("malformed exp: " ++ show e)
+
+bigStep :: Program -> Maybe Program
+bigStep p = case step p of
+              Nothing -> Nothing
+              p2 @ (Just ((Closure _ _ _), _)) -> p2
+              p2 -> bigStep =<< p2
+
 isValue :: Exp -> Bool
 isValue Lambda {} = True
 isValue Closure {} = True
