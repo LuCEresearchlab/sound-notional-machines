@@ -5,8 +5,9 @@
 import           Hedgehog hiding (Var, eval)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
+import           Hedgehog.Main (defaultMain)
 
-import Control.Monad (void, forM_)
+import Control.Monad (forM_)
 import Control.Monad.IO.Class (MonadIO)
 
 import Data.List ((\\))
@@ -79,7 +80,7 @@ tests =
 
 
 main :: IO ()
-main = void tests
+main = defaultMain [tests]
 
 
 
