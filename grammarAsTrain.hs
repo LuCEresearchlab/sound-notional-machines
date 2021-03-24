@@ -2,6 +2,37 @@ module GrammarAsTrainTrack where
 
 import Test.QuickCheck
 
+--------------------
+-- Bisimulation
+--------------------
+--
+--    A  --f-->  B
+--
+--    ^          ^
+--    |          |
+--  alpha_A    alpha_B
+--    |          |
+--    |          |
+--
+--    A' --f'--> B'
+--
+--
+--       A  - Abstract representation (E.g., abstract data structure: List) == Notional machine
+--
+--       A' - Concrete representation (E.g., concrete data structure: ArrayList) == Programming language
+--
+--       f  - Abstract program == Notional machine "process"
+--
+--       f' - Program state transition function (e.g. reduction)
+--
+--  alpha_X - Abstraction Function
+--
+--
+-- The abstraction is correct if:
+-- alpha_B . f' == f . alpha_A
+
+-----------------
+
 type A' = 
   (CFG Char
   ,SList Char -- Processed (recognized)
@@ -22,13 +53,32 @@ type B' = Maybe A'
 -- Maybe is added to represent potentially failing parsing steps
 
 parseT :: A' -> B'
-parseT (g,r,[],s)    =  Nothing
+parseT (_,_,[],_)    =  Nothing
 parseT (g,r,t:ts,s:ss) 
   | isT s && t == s  =  Just (g,Snoc r t,ts,ss) 
   | otherwise        =  Nothing
 
 parseN :: A' -> B'
-parseN = undefined 
+parseN (g,r,ts,s:ss) 
+  | isN s            =  case parseRhss (g,r,ts,selectRhss (snd g) s) of
+                             Just (g',r',ts',[]) -> Just (g',r',ts',ss)
+                             Nothing             -> Nothing
+  | otherwise        =  Nothing
+
+parseRhss (g,r,ts,[]) = Nothing
+parseRhss (g,r,ts,rhs:rhss) = case parseRhs (g,r,ts,rhs) of
+                                Just q -> Just q
+                                Nothing -> parseRhss (g,r,ts,rhss)
+
+parseRhs (g,r,ts,[]) = Just (g,r,ts,[])
+parseRhs (g,r,ts,s:ss) 
+  | isT s = case parseT (g,r,ts,s:ss) of
+              Just (g',r',ts',ss') -> parseRhs (g',r',ts',ss')
+              Nothing -> Nothing
+  | isN s = case parseN (g,r,ts,s:ss) of
+              Just (g',r',ts',ss') -> parseRhs (g',r',ts',ss')
+              Nothing -> Nothing
+
 
 type A = (LocationTrain,Input)
 
@@ -41,15 +91,59 @@ alphaB :: B' -> B
 alphaB = maybe Nothing (Just . draw) 
 
 draw :: A' -> A
-draw = undefined -- recursive def over grammar
+draw (g,r,ts,ss) = 
+  let start = cfg2traintrack g
+      tt = case start of NTunnel c r -> r -- removed start symbol nonterminal tunnel 
+      l = rev r 
+  in (trip (tt,Top) l,ts)
 
-move :: A -> B
-move = undefined
+-- trip takes a LocationTrain, and a number of input characters, 
+-- and moves the train through tunnels to obtain the position of the train 
+-- after parsing the input.
+trip :: LocationTrain -> [Char] -> LocationTrain
+trip t [] = t
+trip t (x:xs) = case move t x of
+                  Just t' -> trip t' xs
+                  Nothing -> error "Should be a parsing"
 
-desired_property :: A' -> Bool
-desired_property a = (alphaB . parseT) a == (move . alphaA) a
 
-main = quickCheck desired_property
+-- cfg2traintrack takes a CFG, and produces a Tunnel for the start symbol,
+-- including a traintrack for its rhss
+cfg2traintrack :: CFG Char -> Tunnel 
+cfg2traintrack g = nt2traintrack (fst g) g
+
+nt2traintrack :: Char -> CFG Char -> Tunnel
+nt2traintrack s g = 
+  let rhss = selectRhss (snd g) s
+      rhss2tt = makeSwitch $ map (makeSequence . map (\c -> if isT c then TTunnel c else nt2traintrack c g)) rhss
+  in NTunnel s rhss2tt
+  
+makeSequence :: [Tunnel] -> TrainTrack
+makeSequence = foldr Sequence End
+
+makeSwitch :: [TrainTrack] -> TrainTrack
+makeSwitch = foldr1 Switch 
+    
+move :: (TrainTrack,ContextTrainTrack) -> Char -> Maybe (TrainTrack,ContextTrainTrack) 
+move (Sequence (TTunnel c) r,ctt) c' = if c==c' then Just (r,CSequence ctt (CTTunnel c)) else Nothing
+move (Sequence (NTunnel c tt) r,ctt) c' = 
+  case move (tt,CSequence ctt (CNTunnel c)) c' of
+      Just (p,q) -> Just (concatSeq p r,q)
+      Nothing -> if noTTunnels tt then move (r,CSequence ctt (CNTunnel c)) c' else Nothing
+move (Switch t1 t2,ctt) c = undefined
+
+noTTunnels = undefined
+concatSeq = undefined
+
+desired_property_T, desired_property_N :: A' -> Bool
+desired_property_T (g,r,i,s) = 
+  let (l,i') = alphaA (g,r,i,s) 
+  in alphaB (parseT (g,r,i,s)) == Just (unJust $ move l (head i'),tail i')
+desired_property_N a = undefined -- (alphaB . parseN) a == (move . alphaA) a
+
+unJust (Just i) = i
+
+main = quickCheck desired_property_T
 
 
 -- Auxiliary types
@@ -58,6 +152,9 @@ data SList a = SNil | Snoc (SList a) a deriving Show
 -- Lists that add elements at the end 
 -- used to represent the input characters that have been processed
 
+rev :: SList a -> [a]
+rev SNil = []
+rev (Snoc l x) = x:rev l
 
 -- Types for context-free grammars
 
@@ -82,6 +179,10 @@ exGrammar  =
          ]
        )
 
+selectRhss [] s = []
+selectRhss ((s',rhs):prods) s = let rhss = selectRhss prods s 
+                                in if s'==s then rhs:rhss else rhss
+
 type Input = [Char]
 
 type Stack = [Char]
@@ -96,17 +197,19 @@ data TrainTrack =
   | Switch TrainTrack TrainTrack
   | Repeat TrainTrack
   | End 
-  deriving Eq
+  deriving (Eq,Show)
 
-data Tunnel = NTunnel Char | TTunnel Char deriving Eq
+data Tunnel = NTunnel Char TrainTrack | TTunnel Char deriving (Eq,Show)
 
 data ContextTrainTrack = 
     Top
-  | CSequence Tunnel ContextTrainTrack
+  | CSequence ContextTrainTrack CTunnel
   | CSwitchR ContextTrainTrack TrainTrack
   | CSwitchL TrainTrack ContextTrainTrack
   | CRepeat ContextTrainTrack
-  deriving Eq
+  deriving (Eq,Show)
+  
+data CTunnel = CNTunnel Char | CTTunnel Char deriving (Eq,Show) 
   
 
 -- QuickCheck
