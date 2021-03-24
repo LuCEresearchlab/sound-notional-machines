@@ -95,7 +95,7 @@ main = defaultMain [tests]
 ------- Ganerate activities ----------
 
 sample :: Show a => Int -> Gen a -> IO ()
-sample n gen = forM_ [0..n] (\_ -> pPrint =<< Gen.sample gen)
+sample n gen = forM_ [1..n] (\_ -> pPrint =<< Gen.sample gen)
 
 generateParseActivity :: MonadIO m => m ExpressionEnv
 generateParseActivity = unparse . initProgram <$> Gen.sample genExp
