@@ -10,7 +10,6 @@ import           Hedgehog.Main (defaultMain)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (MonadIO)
 
-import Data.List ((\\))
 import Data.Functor.Identity (Identity)
 
 import Text.Show.Pretty (pPrint, ppDoc)
@@ -35,22 +34,18 @@ genExp =
 genCombinator :: (MonadGen m, GenBase m ~ Identity) => m Exp
 genCombinator = fmap bindFreeVars genExp
 
-freeVars :: Exp -> [Name]
-freeVars (Var name) = [name]
-freeVars (Lambda name e) = freeVars e \\ [name]
-freeVars (App e1 e2) = freeVars e1 ++ freeVars e2
-freeVars Closure {} = error "Closure should only exist at runtime"
-
 bindFreeVars :: Exp -> Exp
-bindFreeVars e = foldl (\en var -> App (Lambda var en) (Lambda "z" (Var "z"))) e (freeVars e)
-
--- isCombinator = null . freeVars
+bindFreeVars e = foldl (\en var -> App (Lambda var en) (Lambda "a" (Var "a"))) e (freeVs e)
 
 
 prop_eval_to_value :: Property
 prop_eval_to_value = property $ do
   e <- forAll genCombinator
   (isValue . fst <$> (eval . initProgram) e) === Just True
+
+isValue :: Exp -> Bool
+isValue Lambda {} = True
+isValue _         = False
 
 prop_eval_equiv_step :: Property
 prop_eval_equiv_step = property $ do

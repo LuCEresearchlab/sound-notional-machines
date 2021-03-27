@@ -3,6 +3,7 @@
 module Lib where
 
 import Text.Read (readMaybe)
+import Data.List ((\\))
 
 --------------------
 -- Bisimulation
@@ -52,80 +53,62 @@ instance Show Edge where
   show (Edge (Node id1 _) (Node id2 _)) =
     unwords ["Edge", show id1, show id2]
 
--- instance Show Node where
---   show (Node uid fragments) =
---     unwords (fmap show fragments) ++ "(id=" ++ show uid ++ ")"
-
--- instance Show Fragment where
---   show (Token t) = t
---   show (FragName name) = name
---   show Whole = "#"
-
--- mkAppNode uid = Node uid [Whole, Whole]
-
--- isAppNode (Node _ [Whole, Whole]) = True
--- isAppNode _ = False
-
--- mkLambdaNode uid name = Node uid [Token "lambda", FragName name, Whole]
-
--- isLambdaNode (Node _ [Token "lambda", FragName _, Whole]) = True
--- isLambdaNode _ = False
-
--- mkVarNode uid name = Node uid [FragName name]
-
--- isVarNode (Node _ [FragName _]) = True
--- isVarNode _ = False
-
--- isValidNode node = or (fmap (\fun -> fun node) [isAppNode, isLambdaNode, isVarNode])
-
 --------------------
--- Lambda calculus
+-- Untyped Lambda Calculus
 type Program = (Exp, Env)
 data Exp = App Exp Exp
          | Lambda Name Exp
-         | Var Name
-         | Closure Env Name Exp deriving (Show, Read, Eq, Ord)
+         | Var Name deriving (Show, Read, Eq, Ord)
 type Name = String
 type Env = [(Name, Exp)]
---------------------
 
+--------------------
+-- Interpreter for Untyped Lambda Calculus
 initProgram :: Exp -> Program
 initProgram expr = (expr, [])
 
 eval :: Program -> Maybe Program
-eval (Var name     , env)  = fmap (, env) (lookup name env)
-eval (Lambda name e, env)  = Just (Closure env name e, env)
-eval (App e1 e2    , env1) = do
-  (Closure env2 name e3, _) <- eval (e1, env1)
-  (e4, _)                   <- eval (e2, env1)
-  eval (e3, (name, e4):env2)
-eval (Closure {}, _)    = Nothing -- "malformed exp tree"
+eval (App e1 e2    , env) = do
+  (Lambda name e3, _) <- eval (e1, env)
+  (e4, _)             <- eval (e2, env)
+  eval (subst name e4 e3, env)
+eval p @ (Lambda _ _, _)  = Just p
+eval (Var _, _) = Nothing -- "malformed exp tree"
 
 step :: Program -> Maybe Program
-step (Var name     , env)  = fmap (, env) (lookup name env)
-step (Lambda name e, env)  = Just (Closure env name e, env)
-step (App (Closure env1 name e1) e2 @ (Closure _ _ _), _) =
-  Just (e1, (name, e2):env1)
-step (App e1 @ (Closure _ _ _) e2, env) = do
-  (e3, _) <- eval (e2, env)
-  return (App e1 e3, env)
-step (App e1 e2, env) = do
-  (e3, _) <- eval (e1, env)
-  return (App e3 e2, env)
-step p @ (e, _) | isValue e = Just p
-step (e, _) = error ("malformed exp: " ++ show e)
+step (App      (Lambda name e1) e2 @ (Lambda _ _), env) = Just (subst name e2 e1, env)
+step (App e1 @ (Lambda _    _ ) e2               , env) = do (e3, _) <- eval (e2, env)
+                                                             return (App e1 e3, env)
+step (App e1 e2, env) = do (e3, _) <- eval (e1, env)
+                           return (App e3 e2, env)
+step p @ (Lambda _ _, _) = Just p
+step (Var _, _) = Nothing
 
 bigStep :: Program -> Maybe Program
-bigStep p = case step p of
-              Nothing -> Nothing
-              p2 @ (Just ((Closure _ _ _), _)) -> p2
-              p2 -> bigStep =<< p2
+bigStep = fixM step
 
-isValue :: Exp -> Bool
-isValue Lambda {} = True
-isValue Closure {} = True
-isValue _ = False
+-- successively apply f to x until the result doesn't change
+fixM :: (Monad m, Eq (m a)) => (a -> m a) -> a -> m a
+fixM g x | g x == return x = return x
+         | otherwise       = fixM g =<< g x
 
+subst :: Name -> Exp -> Exp -> Exp
+subst x v      (App e1 e2)                          = App (subst x v e1) (subst x v e2)
+subst x v  e @ (Var y)       | x == y               = v
+                             | otherwise            = e
+subst x v e1 @ (Lambda y e2) | x == y               = e1
+                             | notElem y (freeVs v) = Lambda y    (subst x v e2                     )
+                             | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
+  where newy = fresh y
+
+freeVs :: Exp -> [Name]
+freeVs (Var name) = [name]
+freeVs (Lambda name e) = freeVs e \\ [name]
+freeVs (App e1 e2) = freeVs e1 ++ freeVs e2
+
+fresh :: Name -> Name
+fresh a = "_" ++ a
+--------------------
 
 -- parse :: (ExpText, Env) -> (Term, Env)
 parse :: ExpressionEnv -> Maybe Program
@@ -144,7 +127,6 @@ ast2graph (expr, env) = mkDiagram (a2g 0 expr)
         a2g uid (App e1 e2)        = mkBranch uid (Node uid [Whole, Whole]) [e1, e2]
         a2g uid (Lambda name e)    = mkBranch uid (Node uid [Token "lambda", FragName name, Whole]) [e]
         a2g uid (Var name)         = mkLeaf       (Node uid [FragName name])
-        a2g uid (Closure _ name e) = a2g uid (Lambda name e)
 
         mkLeaf node = ([node], [], node)
         mkBranch uid node exps =
@@ -274,7 +256,8 @@ solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 --
 -- - eval done by labeling instead of rewrite
 --
--- - small-step semantics
+-- - Edge should be from Node to Hole
+-- - graph should contain sets (not lists) (shouldn't depend on the order) and see how far i can go
 
 
 -- Degrees of freedom:
