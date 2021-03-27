@@ -46,7 +46,7 @@ data ExpTreeDiagram = ExpTreeDia { diaNodes :: [Node]
                                  , diaEnv   :: Env } deriving (Show, Eq)
 data Node = Node { nodeId  :: Int
                  , content :: [Fragment] } deriving (Show, Eq)
-data Fragment = Token String | FragName String | Whole deriving (Show, Eq)
+data Fragment = Token String | FragName String | Hole deriving (Show, Eq)
 data Edge = Edge Node Node deriving (Eq) -- the edge is directed from fst to snd
 
 instance Show Edge where
@@ -124,8 +124,8 @@ ast2graph :: Program -> ExpTreeDiagram
 ast2graph (expr, env) = mkDiagram (a2g 0 expr)
   where mkDiagram (nodes, edges, root) = ExpTreeDia nodes edges (Just root) env
 
-        a2g uid (App e1 e2)        = mkBranch uid (Node uid [Whole, Whole]) [e1, e2]
-        a2g uid (Lambda name e)    = mkBranch uid (Node uid [Token "lambda", FragName name, Whole]) [e]
+        a2g uid (App e1 e2)        = mkBranch uid (Node uid [Hole, Hole]) [e1, e2]
+        a2g uid (Lambda name e)    = mkBranch uid (Node uid [Token "lambda", FragName name, Hole]) [e]
         a2g uid (Var name)         = mkLeaf       (Node uid [FragName name])
 
         mkLeaf node = ([node], [], node)
@@ -144,11 +144,11 @@ graph2ast (ExpTreeDia _ _ Nothing _) = Nothing
 graph2ast (ExpTreeDia ns es (Just r) env) = (, env) <$> spanningTree (ns, es, r)
   where
     spanningTree (_,     _,                Node _ [FragName name]) = Just (Var name)
-    spanningTree (nodes, edges, curNode @ (Node _ [Whole, Whole])) =
+    spanningTree (nodes, edges, curNode @ (Node _ [Hole, Hole])) =
       case diaNextNodes nodes edges curNode of
         [tuple1, tuple2] -> App <$> spanningTree tuple1 <*> spanningTree tuple2
         _ -> Nothing -- "incorrect diagram"
-    spanningTree (nodes, edges, curNode @ (Node _ [Token "lambda", FragName name, Whole])) =
+    spanningTree (nodes, edges, curNode @ (Node _ [Token "lambda", FragName name, Hole])) =
       case diaNextNodes nodes edges curNode of
         [tuple] -> Lambda name <$> spanningTree tuple
         _ -> Nothing -- "incorrect diagram"
