@@ -136,7 +136,7 @@ dia2rooted (ExpTreeDia nodes edges (Just root) env) = Just (RDia nodes edges roo
 dia2rooted ExpTreeDia {diaRoot = Nothing} = Nothing
 
 pattern DiaLeaf :: Node -> RDia
-pattern DiaLeaf n      <- RDia _ _ n @ (NodeVar _ _) _ where
+pattern DiaLeaf n <- RDia _ _ n @ (NodeVar _ _) _ where
   DiaLeaf n = RDia [n] [] n []
 
 pattern DiaBranch :: Node -> [RDia] -> RDia
@@ -152,11 +152,11 @@ diaNextNodes dia @ (RDia nodes edges root env) =
 
 ast2graph :: Program -> ExpTreeDiagram
 ast2graph expr = rooted2dia (a2g 0 expr)
-  where a2g uid (Var name)         = DiaLeaf   (NodeVar    uid name)
-        a2g uid (Lambda name e)    = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
-        a2g uid (App e1 e2)        = let d1 = a2g (uid      + 1) e1
-                                         d2 = a2g (maxId d1 + 1) e2
-                                     in DiaBranch (NodeApp uid) [d1, d2]
+  where a2g uid (Var name)      = DiaLeaf   (NodeVar    uid name)
+        a2g uid (Lambda name e) = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
+        a2g uid (App e1 e2)     = let d1 = a2g (uid      + 1) e1
+                                      d2 = a2g (maxId d1 + 1) e2
+                                  in DiaBranch (NodeApp uid) [d1, d2]
 
         maxId (RDia nodes _ _ _) = foldl (\m (Node n _) -> max m n) 0 nodes
 
@@ -261,9 +261,6 @@ solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 --
 -- - More realistic parse/unparse
 --
--- - Use views to restrict kinds of valid Nodes (e.g. App, Var, Lambda)
--- - Change language to BSL like
---
 -- - eval done by labeling instead of rewrite
 --
 -- - Edge should be from Node to Hole
@@ -272,6 +269,8 @@ solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 --
 -- - unit testing with specific examples
 -- - code coverage of hedgehog tests
+--
+-- - capture errors with Either
 
 
 -- Degrees of freedom:
