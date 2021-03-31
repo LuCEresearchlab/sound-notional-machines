@@ -4,7 +4,8 @@ module ControlFlowAsGraph where
 -- Bisimulation
 --------------------
 --
---    A  --f-->  B
+--    
+B
 --
 --    ^          ^
 --    |          |
@@ -24,17 +25,39 @@ module ControlFlowAsGraph where
 -- alpha_B . f' == f . alpha_A
 --------------------
 
+-- Just the static structure without modeling execution
+
 ---- Data Types ------
 
-data WorldState = WorldState {
-    cfg :: ControlFlowGraph
-  , programCounter :: Node }
+-- NM
 data ControlFlowGraph = ControlFlowGraph {
     entry :: Node
   , exit :: Node
-  , nodes :: ??
-  , edges :: ?? }
+  , nodes :: [Node]
+  , edges :: [Edge] }
+data Node = RectangleNode {
 
+} | DiamondNode {
+
+}
+data Edge = Edge {
+    fromNode :: Node
+  , toNode :: Node }
+
+-- PL
+data MethodBody = MethodBody {
+    statements :: [Statement]
+}
+data Statement = Statement {
+    to:: Statement
+} | Conditional {
+    ifthen:: Statement
+  , ifelse:: Statement
+} | Loop {
+    body:: Statement
+  , after:: Statement
+} | ReturnStatemet {
+}
 
 -- We need an abstract machine!
 -- More specifically, given that we model control-flow,
@@ -50,37 +73,29 @@ data ControlFlowGraph = ControlFlowGraph {
 -- * pointer machine (https://en.wikipedia.org/wiki/Pointer_machine)
 -- * random access machine: RAM (https://en.wikipedia.org/wiki/Random-access_machine)
 -- * random access stored program machine: RASP (https://en.wikipedia.org/wiki/Random-access_stored-program_machine)
-data ProgramState = ProgramState { variable :: Variable
-                                 , valueToAssign :: Value }
-data Variable = Variable { variableType :: Type
-                         , value  :: Value }
-data Value = Value Type Int
-type Type = Int
 
 
-type A' = ProgramState
-type B' = ProgramState
+type A' = MethodBody
+type B' = MethodBody
 
-type A  = WorldState
-type B  = WorldState
+type A  = ControlFlowGraph
+type B  = ControlFlowGraph
 
 ---- Functions -------
 
-f' :: ProgramState -> ProgramState
+f' :: MethodBody -> MethodBody
 -- f' = value
 -- f' var = case var of 
 --   Variable _ value -> value
-f' (ProgramState (Variable typ variableValue) (Value typ valueInt)) =
-  ProgramState (Variable typ (Value typ valueInt)) null
 
 
-alpha_A :: ProgramState -> WorldState
+alpha_A :: MethodBody -> ControlFlowGraph
 --alpha_A v = ...
 
-f :: WorldState -> WorldState
+f :: ControlFlowGraph -> ControlFlowGraph
 --f = ...
 
-alpha_B :: ProgramState -> WorldState
+alpha_B :: MethodBody -> ControlFlowGraph
 --alpha_B = alpha_A
 
 -----------------
