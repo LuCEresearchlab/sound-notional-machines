@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns #-}
 
 module Lib where
 
@@ -46,8 +46,15 @@ data ExpTreeDiagram = ExpTreeDia { diaNodes :: [Node]
                                  , diaEnv   :: Env } deriving (Show, Eq)
 data Node = Node { nodeId  :: Int
                  , content :: [Fragment] } deriving (Show, Eq)
-data Fragment = Token String | FragName String | Hole deriving (Show, Eq)
+data Fragment = Token String
+              | FragName String
+              | Hole
+              deriving (Show, Eq)
 data Edge = Edge Node Node deriving (Eq) -- the edge is directed from fst to snd
+
+pattern NodeVar    uid name = Node uid [FragName name]
+pattern NodeLambda uid name = Node uid [Token "lambda", FragName name, Hole]
+pattern NodeApp    uid      = Node uid [Hole, Hole]
 
 instance Show Edge where
   show (Edge (Node id1 _) (Node id2 _)) =
@@ -56,9 +63,12 @@ instance Show Edge where
 --------------------
 -- Untyped Lambda Calculus
 type Program = (Exp, Env)
+pattern Prog expr env = (expr, env)
+
 data Exp = App Exp Exp
          | Lambda Name Exp
-         | Var Name deriving (Show, Read, Eq, Ord)
+         | Var Name
+         deriving (Show, Read, Eq, Ord)
 type Name = String
 type Env = [(Name, Exp)]
 
@@ -81,7 +91,7 @@ step (App e1 @ (Lambda _    _ ) e2               , env) = do (e3, _) <- eval (e2
                                                              return (App e1 e3, env)
 step (App e1 e2, env) = do (e3, _) <- eval (e1, env)
                            return (App e3 e2, env)
-step p @ (Lambda _ _, _) = Just p
+step p @ (Lambda _ _, _) = Just p -- probably dont need
 step (Var _, _) = Nothing
 
 bigStep :: Program -> Maybe Program
@@ -94,8 +104,8 @@ fixM g x | g x == return x = return x
 
 subst :: Name -> Exp -> Exp -> Exp
 subst x v      (App e1 e2)                          = App (subst x v e1) (subst x v e2)
-subst x v  e @ (Var y)       | x == y               = v
-                             | otherwise            = e
+subst x v  e @ (Var y) | x == y                     = v
+                       | otherwise                  = e
 subst x v e1 @ (Lambda y e2) | x == y               = e1
                              | notElem y (freeVs v) = Lambda y    (subst x v e2                     )
                              | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
@@ -120,42 +130,47 @@ unparse (e, env) = (runPrettyPrinter e, env)
   where runPrettyPrinter = show
 
 
+-- rooted (right) diagram
+data RDia = RDia [Node] [Edge] Node Env
+
+rooted2dia :: RDia -> ExpTreeDiagram
+rooted2dia (RDia nodes edges root env) = ExpTreeDia nodes edges (Just root) env
+
+dia2rooted :: ExpTreeDiagram -> Maybe RDia
+dia2rooted (ExpTreeDia nodes edges (Just root) env) = Just (RDia nodes edges root env)
+dia2rooted ExpTreeDia {diaRoot = Nothing} = Nothing
+
+pattern DiaLeaf :: Node -> RDia
+pattern DiaLeaf n      <- RDia _ _ n @ (NodeVar _ _) _ where
+  DiaLeaf n = RDia [n] [] n []
+
+pattern DiaBranch :: Node -> [RDia] -> RDia
+pattern DiaBranch r ns <- (diaNextNodes -> (RDia _ _ r _):ns) where
+  DiaBranch n = foldl merge (DiaLeaf n)
+    where merge (RDia nodes1 edges1 r1 env1) (RDia nodes2 edges2 r2 env2) =
+            RDia (nodes1 ++ nodes2) (edges1 ++ [Edge r1 r2] ++ edges2) r1 (env1 ++ env2)
+
+diaNextNodes :: RDia -> [RDia]
+diaNextNodes dia @ (RDia nodes edges root env) =
+  dia : [RDia nodes edges n2 env | Edge n1 n2 <- edges, nodeId n1 == nodeId root]
+
+
 ast2graph :: Program -> ExpTreeDiagram
-ast2graph (expr, env) = mkDiagram (a2g 0 expr)
-  where mkDiagram (nodes, edges, root) = ExpTreeDia nodes edges (Just root) env
+ast2graph (expr, _) = rooted2dia (a2g 0 expr)
+  where a2g uid (Var name)         = DiaLeaf   (NodeVar    uid name)
+        a2g uid (Lambda name e)    = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
+        a2g uid (App e1 e2)        = let d1 = a2g (uid      + 1) e1
+                                         d2 = a2g (maxId d1 + 1) e2
+                                     in DiaBranch (NodeApp uid) [d1, d2]
 
-        a2g uid (App e1 e2)        = mkBranch uid (Node uid [Hole, Hole]) [e1, e2]
-        a2g uid (Lambda name e)    = mkBranch uid (Node uid [Token "lambda", FragName name, Hole]) [e]
-        a2g uid (Var name)         = mkLeaf       (Node uid [FragName name])
-
-        mkLeaf node = ([node], [], node)
-        mkBranch uid node exps =
-          foldl (\tuple @ (nodes, _, _) e -> merge tuple (a2g (nextId uid nodes) e))
-                (mkLeaf node)
-                exps
-
-        merge (nodes1, edges1, r1) (nodes2, edges2, r2) =
-          (nodes1 ++ nodes2, edges1 ++ [Edge r1 r2] ++ edges2, r1)
-
-        nextId = foldl (\m (Node n _) -> 1 + max m n)
+        maxId (RDia nodes _ _ _) = foldl (\m (Node n _) -> max m n) 0 nodes
 
 graph2ast :: ExpTreeDiagram -> Maybe Program
-graph2ast (ExpTreeDia _ _ Nothing _) = Nothing
-graph2ast (ExpTreeDia ns es (Just r) env) = (, env) <$> spanningTree (ns, es, r)
-  where
-    spanningTree (_,     _,                Node _ [FragName name]) = Just (Var name)
-    spanningTree (nodes, edges, curNode @ (Node _ [Hole, Hole])) =
-      case diaNextNodes nodes edges curNode of
-        [tuple1, tuple2] -> App <$> spanningTree tuple1 <*> spanningTree tuple2
-        _ -> Nothing -- "incorrect diagram"
-    spanningTree (nodes, edges, curNode @ (Node _ [Token "lambda", FragName name, Hole])) =
-      case diaNextNodes nodes edges curNode of
-        [tuple] -> Lambda name <$> spanningTree tuple
-        _ -> Nothing -- "incorrect diagram"
-    spanningTree _ = Nothing -- "incorrect diagram"
-
-    diaNextNodes nodes edges root =
-      [(nodes, edges, n2)| Edge n1 n2 <- edges, nodeId n1 == nodeId root]
+graph2ast dia = (fmap (, diaEnv dia) . (=<<) spanningTree . dia2rooted) dia
+  where spanningTree (DiaLeaf   (NodeVar    _ name))          = Just (Var name)
+        spanningTree (DiaBranch (NodeLambda _ name) [n])      = Lambda name <$> spanningTree n
+        spanningTree (DiaBranch (NodeApp _)         [n1, n2]) = App <$> spanningTree n1 <*> spanningTree n2
+        spanningTree _ = Nothing -- "incorrect diagram"
 
 
 ------------------
@@ -234,7 +249,7 @@ solveUnparseActivity :: ExpTreeDiagram -> Maybe String
 solveUnparseActivity = fmap (fst . unparse) . graph2ast
 
 
----- Parse activity ----
+---- Eval activity ----
 
 -- generateEvalActivity = ... in the tests ...
 
@@ -258,9 +273,20 @@ solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 --
 -- - Edge should be from Node to Hole
 -- - graph should contain sets (not lists) (shouldn't depend on the order) and see how far i can go
+-- - generate diagram directly (not from exp) - closer to real-world cases
 
 
 -- Degrees of freedom:
 -- - different lang (lambda calculus, BSL) (delta in the impl?, do we abstract?)
 -- - different NM (rewrite, labeling)
 -- - different activities (parse, unparse, eval, type-check)
+--
+--
+-- ✗ eval returns a value: failed
+--   after 57 tests.
+--
+--   stack overflow
+--
+--   This failure can be reproduced by running:
+--   > recheck (Size 56) (Seed 16402291810627727854 9477610571844893389) eval returns a value:
+-- 
