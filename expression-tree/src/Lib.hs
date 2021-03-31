@@ -62,9 +62,7 @@ instance Show Edge where
 
 --------------------
 -- Untyped Lambda Calculus
-type Program = (Exp, Env)
-pattern Prog expr env = (expr, env)
-
+type Program = Exp
 data Exp = App Exp Exp
          | Lambda Name Exp
          | Var Name
@@ -74,25 +72,22 @@ type Env = [(Name, Exp)]
 
 --------------------
 -- Interpreter for Untyped Lambda Calculus
-initProgram :: Exp -> Program
-initProgram expr = (expr, [])
-
 eval :: Program -> Maybe Program
-eval (App e1 e2    , env) = do
-  (Lambda name e3, _) <- eval (e1, env)
-  (e4, _)             <- eval (e2, env)
-  eval (subst name e4 e3, env)
-eval p @ (Lambda _ _, _)  = Just p
-eval (Var _, _) = Nothing -- "malformed exp tree"
+eval (App e1 e2) = do
+  Lambda name e3 <- eval e1
+  e4             <- eval e2
+  eval (subst name e4 e3)
+eval p @ (Lambda _ _) = Just p
+eval (Var _) = Nothing -- "malformed exp tree"
 
 step :: Program -> Maybe Program
-step (App      (Lambda name e1) e2 @ (Lambda _ _), env) = Just (subst name e2 e1, env)
-step (App e1 @ (Lambda _    _ ) e2               , env) = do (e3, _) <- eval (e2, env)
-                                                             return (App e1 e3, env)
-step (App e1 e2, env) = do (e3, _) <- eval (e1, env)
-                           return (App e3 e2, env)
-step p @ (Lambda _ _, _) = Just p -- probably dont need
-step (Var _, _) = Nothing
+step (App      (Lambda name e1) e2 @ (Lambda _ _)) = Just (subst name e2 e1)
+step (App e1 @ (Lambda _    _ ) e2)                = do e3 <- step e2
+                                                        return (App e1 e3)
+step (App e1 e2) = do e3 <- step e1
+                      return (App e3 e2)
+step p @ (Lambda _ _) = Just p
+step (Var _) = Nothing
 
 bigStep :: Program -> Maybe Program
 bigStep = fixM step
@@ -107,7 +102,7 @@ subst x v      (App e1 e2)                          = App (subst x v e1) (subst 
 subst x v  e @ (Var y) | x == y                     = v
                        | otherwise                  = e
 subst x v e1 @ (Lambda y e2) | x == y               = e1
-                             | notElem y (freeVs v) = Lambda y    (subst x v e2                     )
+                             | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
                              | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
   where newy = fresh y
 
@@ -118,17 +113,17 @@ freeVs (App e1 e2) = freeVs e1 ++ freeVs e2
 
 fresh :: Name -> Name
 fresh a = "_" ++ a
---------------------
 
--- parse :: (ExpText, Env) -> (Term, Env)
+--------------------
+-- Parsing and unparsing
 parse :: ExpressionEnv -> Maybe Program
-parse (e, env) = fmap (, env) (runParser e)
-  where runParser = readMaybe
+parse (e, _) = readMaybe e
 
 unparse :: Program -> ExpressionEnv
-unparse (e, env) = (runPrettyPrinter e, env)
-  where runPrettyPrinter = show
+unparse e = (show e, [])
 
+--------------------
+-- AST to Graph and back
 
 -- rooted (right) diagram
 data RDia = RDia [Node] [Edge] Node Env
@@ -156,7 +151,7 @@ diaNextNodes dia @ (RDia nodes edges root env) =
 
 
 ast2graph :: Program -> ExpTreeDiagram
-ast2graph (expr, _) = rooted2dia (a2g 0 expr)
+ast2graph expr = rooted2dia (a2g 0 expr)
   where a2g uid (Var name)         = DiaLeaf   (NodeVar    uid name)
         a2g uid (Lambda name e)    = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
         a2g uid (App e1 e2)        = let d1 = a2g (uid      + 1) e1
@@ -166,7 +161,7 @@ ast2graph (expr, _) = rooted2dia (a2g 0 expr)
         maxId (RDia nodes _ _ _) = foldl (\m (Node n _) -> max m n) 0 nodes
 
 graph2ast :: ExpTreeDiagram -> Maybe Program
-graph2ast dia = (fmap (, diaEnv dia) . (=<<) spanningTree . dia2rooted) dia
+graph2ast = (=<<) spanningTree . dia2rooted
   where spanningTree (DiaLeaf   (NodeVar    _ name))          = Just (Var name)
         spanningTree (DiaBranch (NodeLambda _ name) [n])      = Lambda name <$> spanningTree n
         spanningTree (DiaBranch (NodeApp _)         [n1, n2]) = App <$> spanningTree n1 <*> spanningTree n2
@@ -274,6 +269,9 @@ solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 -- - Edge should be from Node to Hole
 -- - graph should contain sets (not lists) (shouldn't depend on the order) and see how far i can go
 -- - generate diagram directly (not from exp) - closer to real-world cases
+--
+-- - unit testing with specific examples
+-- - code coverage of hedgehog tests
 
 
 -- Degrees of freedom:
