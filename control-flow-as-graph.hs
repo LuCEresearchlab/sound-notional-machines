@@ -5,7 +5,7 @@ module ControlFlowAsGraph where
 --------------------
 --
 --    
-B
+--    A  --f-->  B
 --
 --    ^          ^
 --    |          |
