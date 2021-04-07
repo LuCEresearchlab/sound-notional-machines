@@ -25,7 +25,33 @@ module ControlFlowAsGraph where
 -- alpha_B . f' == f . alpha_A
 --------------------
 
--- Just the static structure without modeling execution
+{- 
+What to model?
+1. Just the syntactic structure? (pointless...)
+2. Just static properties (e.g., all possible paths) without modeling execution?
+3. The full burrito including modeling execution?
+
+How to model variant 2?
+* Represent B and B' as "all possible execution paths"
+* Represent f as a function from CFG to RegEx representing all possible paths
+* Represent f' as a function from MethodBody to RegEx representing all possible paths
+
+How to convert a MethodBody to a RegEx?
+* Each Sequence is a RegEx sequence "ab"
+* Each Conditional is a RegEx alternative "a|b"
+* Each Loop is a RegEx Kleene star "a*"
+
+How to convert a CFG to a RegEx?
+* Loop nest tree (dominator analysis) or algorithm Dima used in Essence paper
+
+Questions to ask, i.e., (static) properties / f / f' to check:
+* Is the incPart executed at the end of a loop?
+  * trivial in PL -- true
+  * in NM: check in CFG
+* Is there a loop?
+  * in PL: check for presence of ForLoop or WhileLoop
+  * in NM: check for cycle in CFG
+-}
 
 ---- Data Types ------
 
@@ -51,13 +77,23 @@ data MethodBody = MethodBody {
 data Statement = Statement {
     to:: Statement
 } | Conditional {
-    ifthen:: Statement
+    cond:: Expression
+  , ifthen:: Statement
   , ifelse:: Statement
-} | Loop {
-    body:: Statement
+} | WhileLoop {
+    cond:: Expression
+  , body:: Statement
+  , after:: Statement
+} | ForLoop {
+    cond:: Expression
+  , initPart :: Statement
+  , incPart :: Statement
+  , body:: Statement
   , after:: Statement
 } | ReturnStatemet {
 }
+
+data Expression = 
 
 -- We need an abstract machine!
 -- More specifically, given that we model control-flow,
