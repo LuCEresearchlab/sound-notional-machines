@@ -45,8 +45,16 @@ How to convert a CFG to a RegEx?
 * Loop nest tree (dominator analysis) or algorithm Dima used in Essence paper
 
 How to check that the two RegExes are equivalent?
-* i.e., alpha_B . f' == f . alpha_A
-* Proof Pearl: https://www21.in.tum.de/~krauss/papers/rexp.pdf
+* either change our goal to show they are equivalent:
+  * alpha_B . f' ==equivalent== f . alpha_A
+  * Proof Pearl: https://www21.in.tum.de/~krauss/papers/rexp.pdf
+* or ensure that both, alpha_B . f' and f . alpha_A,
+  produce a canonical form of the RegEx, and then keep our goal of checking equality
+  * i.e., f' and f could convert their RegEx to its unique minimal DFA
+    or to a specific member (e.g., the "minimal xor automaton")
+    of the family of "canonical" NFAs
+    https://link.springer.com/chapter/10.1007/978-3-662-44124-4_11 
+    (but that seems complex and costly)
 
 Questions to ask, i.e., (static) properties / f / f' to check:
 * Is the incPart executed at the end of a loop?
