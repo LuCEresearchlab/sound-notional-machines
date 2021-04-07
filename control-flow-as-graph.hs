@@ -44,6 +44,10 @@ How to convert a MethodBody to a RegEx?
 How to convert a CFG to a RegEx?
 * Loop nest tree (dominator analysis) or algorithm Dima used in Essence paper
 
+How to check that the two RegExes are equivalent?
+* i.e., alpha_B . f' == f . alpha_A
+* Proof Pearl: https://www21.in.tum.de/~krauss/papers/rexp.pdf
+
 Questions to ask, i.e., (static) properties / f / f' to check:
 * Is the incPart executed at the end of a loop?
   * trivial in PL -- true
