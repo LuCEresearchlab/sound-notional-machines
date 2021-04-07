@@ -55,6 +55,25 @@ How to check that the two RegExes are equivalent?
     of the family of "canonical" NFAs
     https://link.springer.com/chapter/10.1007/978-3-662-44124-4_11 
     (but that seems complex and costly)
+  * see also here, where they similarly create RegExes to represent all possible CFG paths
+    and try to minimize them:
+    https://cstheory.stackexchange.com/questions/12361/minimizing-size-of-regular-expression
+  * this somewhat chaotic write-up seems relevant as well:
+    http://www.gpcet.ac.in/wp-content/uploads/2017/03/UNIT-4-2-files-merged.pdf
+  * Dima's ECOOP'11 paper on essence (incl. loop identification in irreducible graphs)
+    http://sape.inf.usi.ch/publications/ecoop11
+  * Another paper using regex on CFG paths, for visualization!
+    https://www.eecis.udel.edu/~cavazos/cisc850-spring2017/papers/Lightweight-Structured-Visualization.pdf
+    > —regVIS is a tool for viewing directed graphs with
+    > start and end nodes. It applies a new visualization technique,
+    > which uses regular expressions as a meta-representation of all the
+    > paths in an input graph; the result is a containment-based and
+    > structured visualization of that graph. The tool can be configured
+    > to derive these regular expressions from the input graph using
+    > either the Brzozowski algebraic method or the transitive closure
+    > method."
+    \cite{toprakLightweightStructuredVisualization2014}
+    https://www.tuhh.de/sts/research/programming-languages-program-reconstruction/regvis.html
   * or maybe the RegEx representing execution paths actually
     are "deterministic RegEx", which can directly be translated into DFAs?
     https://docs.racket-lang.org/rex/
