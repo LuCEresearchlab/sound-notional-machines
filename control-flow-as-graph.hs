@@ -55,6 +55,9 @@ How to check that the two RegExes are equivalent?
     of the family of "canonical" NFAs
     https://link.springer.com/chapter/10.1007/978-3-662-44124-4_11 
     (but that seems complex and costly)
+  * or maybe the RegEx representing execution paths actually
+    are "deterministic RegEx", which can directly be translated into DFAs?
+    https://docs.racket-lang.org/rex/
 
 Questions to ask, i.e., (static) properties / f / f' to check:
 * Is the incPart executed at the end of a loop?
