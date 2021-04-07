@@ -31,3 +31,10 @@ $ ghcid --command="stack ghci variable-as-a-box:lib variable-as-a-box:test:varia
     * That students correctly operate inside the NM (use `f`)
 * Ask students to do this formalization / implement ("programming to learn")
   * E.g., as we do in the CFG and AST labs of PF2
+
+
+## Related Work / Resources
+
+* [Bisimulation: Relating reduction systems](https://plfa.inf.ed.ac.uk/Bisimulation/)
+  in the "Programming Language Foundations in Agda" online book
+  by Wadler, Kokke, and Siek.
