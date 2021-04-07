@@ -1,5 +1,8 @@
 # structured-notional-machines
 
+We work on the POPL submission in Overleaf:
+https://www.overleaf.com/project/606d69ee5dd3039f53edf23e
+
 Foundations for correct-by-construction notional machines.
 
 Run the bare bone haskell files in continuous compilation with
@@ -31,7 +34,6 @@ $ ghcid --command="stack ghci variable-as-a-box:lib variable-as-a-box:test:varia
     * That students correctly operate inside the NM (use `f`)
 * Ask students to do this formalization / implement ("programming to learn")
   * E.g., as we do in the CFG and AST labs of PF2
-
 
 ## Related Work / Resources
 
