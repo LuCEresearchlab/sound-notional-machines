@@ -33,19 +33,41 @@ What to model?
 
 How to model variant 2?
 * Represent B and B' as "all possible execution paths"
-* Represent f as a function from CFG to RegEx representing all possible paths
-* Represent f' as a function from MethodBody to RegEx representing all possible paths
+* To represent "all possible execution paths", use a RegEx (or, better, a DFA)
+* Represent f as a function from CFG to DFA representing all possible paths
+* Represent f' as a function from MethodBody to DFA representing all possible paths
+
+RegEx or DFA?
+* RegEx are a representation that's very close to structured source code
+  and they neatly model the set of possible execution paths/traces
+  * Sequence of statements: sequence of RegEx
+  * Selection of statements: selection of RegEx
+  * Repetition of statements: repetition of RegEx
+* However:
+  * deciding whether two RegEx are equivalent is hard
+  * canonicalizing a RegEx is hard
+* DFAs are a representation that's very close to the CFG
+  * Map 1:1 from CFG node to DFA state
+  * Each DFA state receives a unique ID
+  * CFG entry node becomes DFA start state
+  * CFG exit node becomes DFA final state
+  * DFA alphabet is set of all unique IDs
+  * Map 1:1 from CFG edges to DFA transitions
+  * Label each DFA transition with ID of target state
+* DFAs can be efficiently minimized into a canonical form (and thus tested for equivalence)
 
 How to convert a MethodBody to a RegEx?
+(we may want to produce a DFA instead)
 * Each Sequence is a RegEx sequence "ab"
 * Each Conditional is a RegEx alternative "a|b"
 * Each Loop is a RegEx Kleene star "a*"
 
 How to convert a CFG to a RegEx?
+(we may want to produce a DFA instead)
 * Loop nest tree (dominator analysis) or algorithm Dima used in Essence paper
 
-How to check that the two RegExes are equivalent?
-* either change our goal to show they are equivalent:
+How to check alpha_B . f' == f . alpha_A?
+* either change our goal to show they are *equivalent*:
   * alpha_B . f' ==equivalent== f . alpha_A
   * Proof Pearl: https://www21.in.tum.de/~krauss/papers/rexp.pdf
 * or ensure that both, alpha_B . f' and f . alpha_A,
