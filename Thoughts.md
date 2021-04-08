@@ -9,6 +9,11 @@ One end of the spectrum: `alpha` is reversible (1:1 mapping).
 
 Other end of the spectrum: `alpha` maps to `unit`.
 
+## About `f`
+
+It seems that our `f` (from `expression-tree` and from `grammarAsTrain`)
+are from `A` to `Maybe A`.
+
 ## What is the abstraction `A` good for?
 
 ---
