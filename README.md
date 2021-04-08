@@ -1,9 +1,13 @@
 # structured-notional-machines
 
+Foundations for correct-by-construction notional machines.
+
+## Paper
+
 We work on the POPL submission in Overleaf:
 https://www.overleaf.com/project/606d69ee5dd3039f53edf23e
 
-Foundations for correct-by-construction notional machines.
+## Run the code
 
 Run the bare bone haskell files in continuous compilation with
 
@@ -40,3 +44,8 @@ $ ghcid --command="stack ghci variable-as-a-box:lib variable-as-a-box:test:varia
 * [Bisimulation: Relating reduction systems](https://plfa.inf.ed.ac.uk/Bisimulation/)
   in the "Programming Language Foundations in Agda" online book
   by Wadler, Kokke, and Siek.
+* Example of bisimulation as a tools to prove correctness of abstraction:
+  M. Wang, J. Gibbons, K. Matsuda, and Z. Hu, “[Refactoring pattern matching](https://dl.acm.org/doi/10.1016/j.scico.2012.07.014),” Science of Computer Programming, vol. 78, no. 11, pp. 2216–2242, Nov. 2013
+* R. Milner, “An algebraic definition of simulation between programs,” in Proceedings of the 2nd international joint conference on Artificial intelligence, San Francisco, CA, USA, Sep. 1971
+* R. S. Bird, “The promotion and accumulation strategies in transformational programming,” ACM Trans. Program. Lang. Syst., vol. 6, no. 4, pp. 487–504, Oct. 1984
+* C. A. Hoare, “Proof of correctness of data representations,” Acta Inf., vol. 1, no. 4, pp. 271–281, Dec. 1972
