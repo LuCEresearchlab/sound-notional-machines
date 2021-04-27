@@ -31,7 +31,12 @@ What to model?
 2. Just static properties (e.g., all possible paths) without modeling execution?
 3. The full burrito including modeling execution?
 
-How to model variant 2?
+How to model variant 2? a:
+* f and f' are simple predicates
+  * on well-formedness (all nodes have >0 out-edges, >0 in-edges)
+  * on reachability (all nodes are reachable from start)
+
+How to model variant 2? b:
 * Represent B and B' as "all possible execution paths"
 * To represent "all possible execution paths", use a RegEx (or, better, a DFA)
 * Represent f as a function from CFG to DFA representing all possible paths
