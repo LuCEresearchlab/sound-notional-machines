@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures #-}
+
 {-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns #-}
 
 module Lib where
@@ -30,16 +32,8 @@ import Data.List ((\\))
 --------------------
 
 --------------------
----- Data Types ------
+-- Expression Tree Diagram
 --------------------
-
---------------------
--- Expression     -- A', B'
-type ExpText = String
-type ExpressionEnv = (ExpText, Env)
-
---------------------
--- Expression Tree Diagram -- A , B
 data ExpTreeDiagram = ExpTreeDia { diaNodes :: [Node]
                                  , diaEdges :: [Edge]
                                  , diaRoot  :: Maybe Node
@@ -62,6 +56,7 @@ instance Show Edge where
 
 --------------------
 -- Untyped Lambda Calculus
+--------------------
 type Program = Exp
 data Exp = App Exp Exp
          | Lambda Name Exp
@@ -72,6 +67,7 @@ type Env = [(Name, Exp)]
 
 --------------------
 -- Interpreter for Untyped Lambda Calculus
+--------------------
 eval :: Program -> Maybe Program
 eval (App e1 e2) = do
   Lambda name e3 <- eval e1
@@ -82,10 +78,10 @@ eval (Var _) = Nothing -- "malformed exp tree"
 
 step :: Program -> Maybe Program
 step (App      (Lambda name e1) e2 @ (Lambda _ _)) = Just (subst name e2 e1)
-step (App e1 @ (Lambda _    _ ) e2)                = do e3 <- step e2
-                                                        return (App e1 e3)
-step (App e1 e2) = do e3 <- step e1
-                      return (App e3 e2)
+step (App e1 @ (Lambda _    _ ) e2               ) = do newe <- step e2
+                                                        return (App e1 newe)
+step (App e1                    e2               ) = do newe <- step e1
+                                                        return (App newe e2)
 step p @ (Lambda _ _) = Just p
 step (Var _) = Nothing
 
@@ -116,14 +112,16 @@ fresh a = "_" ++ a
 
 --------------------
 -- Parsing and unparsing
-parse :: ExpressionEnv -> Maybe Program
-parse (e, _) = readMaybe e
+--------------------
+parse :: String -> Maybe Program
+parse = readMaybe
 
-unparse :: Program -> ExpressionEnv
-unparse e = (show e, [])
+unparse :: Program -> String
+unparse = show
 
 --------------------
 -- AST to Graph and back
+--------------------
 
 -- rooted (right) diagram
 data RDia = RDia [Node] [Edge] Node Env
@@ -180,22 +178,22 @@ graph2ast = (=<<) spanningTree . dia2rooted
 --
 --    A' --f'--> B'
 
-type A' = ExpressionEnv
-type B' = Maybe ExpressionEnv
+type A' = String
+type B' = Maybe String
 
 type A  = Maybe ExpTreeDiagram
 type B  = Maybe ExpTreeDiagram
 
-f' :: ExpressionEnv -> Maybe ExpressionEnv
+f' :: String -> Maybe String
 f' = fmap unparse . (=<<) eval . parse
 
-alphaA :: ExpressionEnv -> Maybe ExpTreeDiagram
+alphaA :: String -> Maybe ExpTreeDiagram
 alphaA = fmap ast2graph . parse
 
 f :: Maybe ExpTreeDiagram -> Maybe ExpTreeDiagram
 f = fmap ast2graph . (=<<) eval . (=<<) graph2ast
 
-alphaB :: Maybe ExpressionEnv -> Maybe ExpTreeDiagram
+alphaB :: Maybe String -> Maybe ExpTreeDiagram
 alphaB = (=<<) alphaA
 
 
@@ -232,7 +230,7 @@ falphaA = fmap ast2graph . (=<<) eval . parse
 
 -- generateParseActivity = ... in the tests ...
 
-solveParseActivity :: ExpressionEnv -> Maybe ExpTreeDiagram
+solveParseActivity :: String -> Maybe ExpTreeDiagram
 solveParseActivity = fmap ast2graph . parse
 
 
@@ -241,15 +239,15 @@ solveParseActivity = fmap ast2graph . parse
 -- generateUnparseActivity = ... in the tests ...
 
 solveUnparseActivity :: ExpTreeDiagram -> Maybe String
-solveUnparseActivity = fmap (fst . unparse) . graph2ast
+solveUnparseActivity = fmap unparse . graph2ast
 
 
 ---- Eval activity ----
 
 -- generateEvalActivity = ... in the tests ...
 
-solveEvalActivity :: ExpressionEnv -> Maybe String
-solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
+solveEvalActivity :: String -> Maybe String
+solveEvalActivity = fmap unparse . (=<<) eval . parse
 
 
 
@@ -271,6 +269,8 @@ solveEvalActivity = fmap (fst . unparse) . (=<<) eval . parse
 -- - code coverage of hedgehog tests
 --
 -- - capture errors with Either
+--
+-- Finally, how much time would it take to extend your untyped lambda calculus – expression trees formalization to include alligator eggs as a second visualization? I reread Victor’s write up (see Teams posts to you yesterday night for links), and I think it would be a neat and geeky alternative NM to ET, and it would demonstrate a different kind of reusability of your model/framework/methodology: developing a new NM given an existing PL (and, in your specific current formalization, AST/intermediate layer). Bret Victor and his NM are well known and respected, so it would be an attractive demonstration of your tool framework. As I posted in Teams, there already are at least two interactive web-based alligator egg implementations (one includes parse, both include evaluate). However, they are for demonstration only: they don’t allow mistakes, and only one allows some kind of editing of the NM representation. If you spit out the data structure needed for these visualizations, then someone could maybe develop a complete UI that also allows one to make mistakes. While this is not on the critical path of your research, I think modeling the alligator eggs NM inside your existing framework, and spitting out something that could be used to generate the visualizations, would be worth a day or two of your time. Is this doable in that amount of time?
 
 
 -- Degrees of freedom:

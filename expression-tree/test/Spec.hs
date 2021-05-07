@@ -91,13 +91,13 @@ main = defaultMain [tests]
 sample :: Show a => Int -> Gen a -> IO ()
 sample n gen = forM_ [1..n] (\_ -> pPrint =<< Gen.sample gen)
 
-generateParseActivity :: MonadIO m => m ExpressionEnv
+generateParseActivity :: MonadIO m => m String
 generateParseActivity = unparse <$> Gen.sample genExp
 
 generateUnparseActivity :: MonadIO m => m ExpTreeDiagram
 generateUnparseActivity = ast2graph <$> Gen.sample genExp
 
-generateEvalActivity :: MonadIO m => m ExpressionEnv
+generateEvalActivity :: MonadIO m => m String
 generateEvalActivity = unparse <$> Gen.sample genCombinator
 
 genAndSolve :: (Show a, Show b) => IO a -> (a -> b) -> IO Doc
