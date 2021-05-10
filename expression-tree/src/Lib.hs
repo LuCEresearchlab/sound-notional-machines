@@ -1,10 +1,12 @@
-{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures #-}
+{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
+
 
 {-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns #-}
 
 module Lib where
 
-import Text.Read (readMaybe)
+import Text.ParserCombinators.Parsec hiding (parse)
+import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Data.List ((\\))
 
 --------------------
@@ -114,10 +116,29 @@ fresh a = "_" ++ a
 -- Parsing and unparsing
 --------------------
 parse :: String -> Maybe Program
-parse = readMaybe
+parse s = case Parsec.parse pProg "(unknown)" s of
+          Left _ -> Nothing
+          Right e -> Just e
+  where pProg = pExp <* eof
+        pExp = pLambda
+           <|> try pApp
+           <|> pAtom
+        pAtom = pVar
+            <|> parens pExp
+        pVar = Var <$> pName
+        pLambda = do char '\\'
+                     var <- pName
+                     char '.'
+                     e <- pExp
+                     return $ Lambda var e
+        pApp = foldl1 App <$> pAtom `sepBy1` spaces
+        pName = many1 (letter <|> char '_')
+        parens = between (char '(') (char ')')
 
 unparse :: Program -> String
-unparse = show
+unparse (App e1 e2) = "(" ++ unparse e1 ++ " " ++ unparse e2 ++ ")"
+unparse (Lambda name e) = "(\\" ++ name ++ "." ++ unparse e ++ ")"
+unparse (Var name) = name
 
 --------------------
 -- AST to Graph and back
@@ -257,8 +278,6 @@ solveEvalActivity = fmap unparse . (=<<) eval . parse
 -- - hedgehog: timeout to try to find hanging code
 -- - hedgehog: config tree max depth
 --
--- - More realistic parse/unparse
---
 -- - eval done by labeling instead of rewrite
 --
 -- - Edge should be from Node to Hole
@@ -286,4 +305,14 @@ solveEvalActivity = fmap unparse . (=<<) eval . parse
 --
 --   This failure can be reproduced by running:
 --   > recheck (Size 56) (Seed 16402291810627727854 9477610571844893389) eval returns a value:
+--
+--
+-- ✗ eval is equivalent to bigStep: failed
+--   after 26 tests.
+--
+--   stack overflow
+--
+--   This failure can be reproduced by running:
+--   > recheck (Size 25) (Seed 11466113076951511145 2415080421448164445) eval is equivalent to bigStep:
+-- 
 -- 
