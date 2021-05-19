@@ -96,12 +96,14 @@ fixM g x | g x == return x = return x
          | otherwise       = fixM g =<< g x
 
 subst :: Name -> Exp -> Exp -> Exp
-subst x v      (App e1 e2)                          = App (subst x v e1) (subst x v e2)
-subst x v  e @ (Var y) | x == y                     = v
-                       | otherwise                  = e
-subst x v e1 @ (Lambda y e2) | x == y               = e1
-                             | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
-                             | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
+subst x v (App e1 e2)    = App (subst x v e1) (subst x v e2)
+subst x v e  @ (Var y)
+  | x == y               = v
+  | otherwise            = e
+subst x v e1 @ (Lambda y e2)
+  | x == y               = e1
+  | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
+  | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
   where newy = fresh y
 
 freeVs :: Exp -> [Name]
@@ -315,4 +317,5 @@ solveEvalActivity = fmap unparse . (=<<) eval . parse
 --   This failure can be reproduced by running:
 --   > recheck (Size 25) (Seed 11466113076951511145 2415080421448164445) eval is equivalent to bigStep:
 -- 
--- 
+-- 2021-05-19:
+--
