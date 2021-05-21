@@ -5,9 +5,15 @@
 
 module Lib where
 
+import Control.Monad (mplus, join)
+
 import Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
-import Data.List ((\\))
+
+import Data.List ((\\), uncons)
+
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 --------------------
 -- Bisimulation
@@ -23,10 +29,10 @@ import Data.List ((\\))
 --
 --    A' --f'--> B'
 --
---       A  - Abstract representation (E.g., abstract data structure: List)      == Notional machine
---       A' - Concrete representation (E.g., concrete data structure: ArrayList) == Programming language
---       f  - Abstract program  state transition function                        == Notional machine "process"
---       f' - Concrete program state transition function (e.g. reduction)
+--  A  - Abstract representation (E.g., List)        == Notional machine
+--  A' - Concrete representation (E.g., ArrayList)   == Programming language
+--  f  - Abstract program state transition function  == Notional machine "process"
+--  f' - Concrete program state transition function (e.g. reduction)
 --  alpha_X - Abstraction function
 --
 -- The abstraction is correct if:
@@ -36,25 +42,33 @@ import Data.List ((\\))
 --------------------
 -- Expression Tree Diagram
 --------------------
-data ExpTreeDiagram = ExpTreeDia { diaNodes :: [Node]
-                                 , diaEdges :: [Edge]
-                                 , diaRoot  :: Maybe Node
-                                 , diaEnv   :: Env } deriving (Show, Eq)
-data Node = Node { nodeId  :: Int
-                 , content :: [Fragment] } deriving (Show, Eq)
+data ExpTreeDiagram = ExpTreeDiagram { nodes :: Set Node
+                                     , edges :: Set Edge
+                                     , root  :: Maybe Node } deriving (Show, Eq)
+data Node = Node { nodePlug :: Plug
+                 , content  :: [Fragment] } deriving (Show, Eq, Ord)
 data Fragment = Token String
               | FragName String
-              | Hole
-              deriving (Show, Eq)
-data Edge = Edge Node Node deriving (Eq) -- the edge is directed from fst to snd
+              | Hole Plug
+              deriving (Show, Eq, Ord)
+data Plug = Plug Int Int deriving (Show, Eq, Ord)
+data Edge = Edge Plug Plug deriving (Show)
 
-pattern NodeVar    uid name = Node uid [FragName name]
-pattern NodeLambda uid name = Node uid [Token "lambda", FragName name, Hole]
-pattern NodeApp    uid      = Node uid [Hole, Hole]
+-- the graph is undirected
+instance Eq Edge where
+  (Edge p1 p2) == (Edge p3 p4) = (p1 == p3 && p2 == p4) || (p1 == p4 && p2 == p3)
+instance Ord Edge where
+  compare (Edge p1 p2) (Edge p3 p4) = compare (Set.fromList [p1,p2]) (Set.fromList [p3,p4])
 
-instance Show Edge where
-  show (Edge (Node id1 _) (Node id2 _)) =
-    unwords ["Edge", show id1, show id2]
+holes :: Node -> [Plug]
+holes (Node _ fragments) = [plug | Hole plug <- fragments]
+
+pattern NodeVar i name <- Node (Plug i _) [FragName name] where
+        NodeVar i name =  Node (Plug i 0) [FragName name]
+pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
+        NodeLambda i name =  Node (Plug i 0) [Token "lambda", FragName name, Hole (Plug i 1)]
+pattern NodeApp i <- Node (Plug i _) [Hole _         , Hole _] where
+        NodeApp i =  Node (Plug i 0) [Hole (Plug i 1), Hole (Plug i 2)]
 
 --------------------
 -- Untyped Lambda Calculus
@@ -119,14 +133,14 @@ fresh a = "_" ++ a
 --------------------
 parse :: String -> Maybe Program
 parse s = case Parsec.parse pProg "(unknown)" s of
-          Left _ -> Nothing
-          Right e -> Just e
+            Left _ -> Nothing
+            Right e -> Just e
   where pProg = pExp <* eof
         pExp = pLambda
            <|> try pApp
            <|> pAtom
         pAtom = pVar
-            <|> parens pExp
+            <|> pParens pExp
         pVar = Var <$> pName
         pLambda = do char '\\'
                      var <- pName
@@ -135,58 +149,65 @@ parse s = case Parsec.parse pProg "(unknown)" s of
                      return $ Lambda var e
         pApp = foldl1 App <$> pAtom `sepBy1` spaces
         pName = many1 (letter <|> char '_')
-        parens = between (char '(') (char ')')
+        pParens = between (char '(') (char ')')
 
 unparse :: Program -> String
-unparse (App e1 e2) = "(" ++ unparse e1 ++ " " ++ unparse e2 ++ ")"
-unparse (Lambda name e) = "(\\" ++ name ++ "." ++ unparse e ++ ")"
-unparse (Var name) = name
+unparse (App e1 e2)     = parens (unwords [unparse e1, unparse e2])
+unparse (Lambda name e) = parens (concat ["\\", name, ".", unparse e])
+unparse (Var name)      = name
+
+parens :: String -> String
+parens x = "(" ++ x ++ ")"
 
 --------------------
 -- AST to Graph and back
 --------------------
 
--- rooted (right) diagram
-data RDia = RDia [Node] [Edge] Node Env
+pattern DiaLeaf :: Node -> ExpTreeDiagram
+pattern DiaLeaf n <- ExpTreeDiagram _ _ (Just n @ (NodeVar _ _)) where
+  DiaLeaf n = ExpTreeDiagram (Set.singleton n) Set.empty (Just n)
 
-rooted2dia :: RDia -> ExpTreeDiagram
-rooted2dia (RDia nodes edges root env) = ExpTreeDia nodes edges (Just root) env
-
-dia2rooted :: ExpTreeDiagram -> Maybe RDia
-dia2rooted (ExpTreeDia nodes edges (Just root) env) = Just (RDia nodes edges root env)
-dia2rooted ExpTreeDia {diaRoot = Nothing} = Nothing
-
-pattern DiaLeaf :: Node -> RDia
-pattern DiaLeaf n <- RDia _ _ n @ (NodeVar _ _) _ where
-  DiaLeaf n = RDia [n] [] n []
-
-pattern DiaBranch :: Node -> [RDia] -> RDia
-pattern DiaBranch r ns <- (diaNextNodes -> (RDia _ _ r _):ns) where
+pattern DiaBranch :: Node -> [ExpTreeDiagram] -> ExpTreeDiagram
+pattern DiaBranch r ns <- (diaBranch -> Just (r, ns)) where
   DiaBranch n = foldl merge (DiaLeaf n)
-    where merge (RDia nodes1 edges1 r1 env1) (RDia nodes2 edges2 r2 env2) =
-            RDia (nodes1 ++ nodes2) (edges1 ++ [Edge r1 r2] ++ edges2) r1 (env1 ++ env2)
+    where
+      merge :: ExpTreeDiagram -> ExpTreeDiagram -> ExpTreeDiagram
+      merge d1 @ (ExpTreeDiagram ns1 es1 r1) (ExpTreeDiagram ns2 es2 r2) =
+        ExpTreeDiagram (Set.union ns1 ns2) (Set.unions [es1, es2, newEdge]) (mplus r1 r2)
+        where -- create a singleton set with an edge connecting both roots if possible
+              newEdge = maybe Set.empty Set.singleton (join $ mkEdge d1 <$> r1 <*> r2)
+              -- Make an edge between the next available hole of n1 and the plug of n2
+              mkEdge d n1 n2 = Edge (nodePlug n2) <$> maybeHead (emptyHoles d n1)
+              -- plugs from a node that are not present in any edge
+              emptyHoles d = filter (\p -> all (not . inEdge p) (edges d)) . holes
+              inEdge p (Edge p1 p2) = p1 == p || p2 == p
 
-diaNextNodes :: RDia -> [RDia]
-diaNextNodes dia @ (RDia nodes edges root env) =
-  dia : [RDia nodes edges n2 env | Edge n1 n2 <- edges, nodeId n1 == nodeId root]
+-- returns the root node and a list of diagrams rooted at its children
+diaBranch :: ExpTreeDiagram -> Maybe (Node, [ExpTreeDiagram])
+diaBranch d = (\r -> (r, children r)) <$> root d
+  where
+    children n = [d { root = Just node } | node <- Set.elems (nodes d), node `isChild` n]
+    isChild (Node nPlug _) = any (\p -> Set.member (Edge nPlug p) (edges d)) . holes
+
+maybeHead :: [a] -> Maybe a
+maybeHead = fmap fst . uncons
 
 
 ast2graph :: Program -> ExpTreeDiagram
-ast2graph expr = rooted2dia (a2g 0 expr)
+ast2graph = a2g 0
   where a2g uid (Var name)      = DiaLeaf   (NodeVar    uid name)
         a2g uid (Lambda name e) = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
         a2g uid (App e1 e2)     = let d1 = a2g (uid      + 1) e1
                                       d2 = a2g (maxId d1 + 1) e2
                                   in DiaBranch (NodeApp uid) [d1, d2]
 
-        maxId (RDia nodes _ _ _) = foldl (\m (Node n _) -> max m n) 0 nodes
+        maxId = foldl (\m (Node (Plug n _) _) -> max m n) 0 . nodes
 
 graph2ast :: ExpTreeDiagram -> Maybe Program
-graph2ast = (=<<) spanningTree . dia2rooted
-  where spanningTree (DiaLeaf   (NodeVar    _ name))          = Just (Var name)
-        spanningTree (DiaBranch (NodeLambda _ name) [n])      = Lambda name <$> spanningTree n
-        spanningTree (DiaBranch (NodeApp _)         [n1, n2]) = App <$> spanningTree n1 <*> spanningTree n2
-        spanningTree _ = Nothing -- "incorrect diagram"
+graph2ast (DiaLeaf   (NodeVar    _ name))          = Just (Var name)
+graph2ast (DiaBranch (NodeLambda _ name) [n])      = Lambda name <$> graph2ast n
+graph2ast (DiaBranch (NodeApp _)         [n1, n2]) = App <$> graph2ast n1 <*> graph2ast n2
+graph2ast _ = Nothing -- "incorrect diagram"
 
 
 ------------------
@@ -318,4 +339,3 @@ solveEvalActivity = fmap unparse . (=<<) eval . parse
 --   > recheck (Size 25) (Seed 11466113076951511145 2415080421448164445) eval is equivalent to bigStep:
 -- 
 -- 2021-05-19:
---

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 13dbe2730c22a42d4d41abbd3e95730d662d1ada77ec507ad2cd8c01eed28586
+-- hash: 2e19f1de459ab063df4178deec2b929a9f3c8bbd00e3f491f502f4529df63f38
 
 name:           expression-tree
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , containers
     , parsec
   default-language: Haskell2010
 
@@ -46,6 +47,7 @@ executable expression-tree-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , expression-tree
     , parsec
   default-language: Haskell2010
@@ -60,6 +62,7 @@ test-suite expression-tree-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , expression-tree
     , hedgehog
     , parsec
