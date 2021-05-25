@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
-
 {-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns #-}
 
 module Lib where
@@ -14,9 +13,6 @@ import Data.List ((\\), uncons)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
-
--- import Debug.Trace
--- import Text.Show.Pretty (ppShow)
 
 --------------------
 -- Bisimulation
@@ -207,77 +203,6 @@ ast2diagram = a2g 0
         maxId = foldl (\m (Node (Plug n _) _) -> max m n) 0 . nodes
 
 
-
--- original
-
--- diagram2ast :: ExpTreeDiagram -> Maybe Program
--- diagram2ast d = fst (g2a d Set.empty)
---   where
---     g2a :: ExpTreeDiagram -> Set Int -> (Maybe Program, Set Int)
-
---     g2a (DiaLeaf   (NodeVar    i name)) visited =
---       (Just (Var name), Set.insert i visited)
-
---     g2a (DiaBranch (NodeLambda i name) [n]) visited =
---       if Set.member i visited then (Nothing, visited)
---                   else let (p, visited2) = g2a n (Set.insert i visited)
---                        in (Lambda name <$> p, visited2)
-
---     g2a (DiaBranch (NodeApp    i)      [n1, n2]) visited =
---       if Set.member i visited then (Nothing, visited)
---                   else let (p1, visited2) = g2a n1 (Set.insert i visited)
---                            (p2, visited3) = g2a n2 visited2
---                        in (App <$> p1 <*> p2, visited3)
-
---     g2a _ visited = (Nothing, visited) -- "incorrect diagram"
-
--- v1
-
--- diagram2ast :: ExpTreeDiagram -> Maybe Program
--- diagram2ast d = fst (runState (g2a d) Set.empty)
---   where
---     g2a :: ExpTreeDiagram -> State (Set Int) (Maybe Program)
-
---     g2a (DiaLeaf   (NodeVar    i name)) =
---       -- state $ \visited -> (Just (Var name), Set.insert i visited)
---       -- do visited <- get
---       --    put $ Set.insert i visited
---       --    return $ Just (Var name)
---       -- do modify (Set.insert i)
---       --    return $ Just (Var name)
---       modify (Set.insert i) >> return (Just (Var name))
---       -- withState (Set.insert i) (return (Just (Var name)))
-
---     g2a (DiaBranch (NodeLambda i name) [n]) =
---       -- state $ \visited -> if Set.member i visited then (Nothing, visited)
---       --                     else let (p, visited2) = runState (g2a n) (Set.insert i visited)
---       --                          in (Lambda name <$> p, visited2)
---       -- do visited <- get
---       --    if Set.member i visited then return Nothing
---       --    else do put (Set.insert i visited)
---       --            -- p <- g2a n
---       --            -- return (Lambda name <$> p)
---       --            fmap (fmap (Lambda name)) (g2a n)
---       do visited <- get
---          if Set.member i visited then return Nothing
---          else withState (Set.insert i) $ fmap (fmap (Lambda name)) (g2a n)
-
---     g2a (DiaBranch (NodeApp    i)      [n1, n2]) =
---       -- state $ \visited -> if Set.member i visited then (Nothing, visited)
---       --                     else let (p1, visited2) = runState (g2a n1) (Set.insert i visited)
---       --                              (p2, visited3) = runState (g2a n2) visited2
---       --                          in (App <$> p1 <*> p2, visited3)
---       do visited <- get
---          if Set.member i visited then return Nothing
---          else do put (Set.insert i visited)
---                  p1 <- g2a n1
---                  p2 <- g2a n2
---                  return (App <$> p1 <*> p2)
-
---     g2a _ = return Nothing -- "incorrect diagram"
-
--- v2 - monad transformers (StateT)
-
 diagram2ast :: ExpTreeDiagram -> Maybe Program
 diagram2ast d = evalStateT (g2a d) Set.empty
   where
@@ -293,15 +218,6 @@ diagram2ast d = evalStateT (g2a d) Set.empty
                           if Set.member i visited then StateT (const Nothing)
                                                   else withStateT (Set.insert i) a
 
--- v3 - monad transformers (MaybeT)
--- not good because we need State info to determine Maybe (if visited return Nothing)
--- interestingly, the other Nothing depends on the structure of Diagram (not State)
-
--- v4 - flip arguments from v1
--- not good because we get State -> Diagram -> Maybe and we can't combine State and Maybe
-
--- v5,v6 - transformers on v4
--- not good because v4 is not good
 
 ------------------
 
