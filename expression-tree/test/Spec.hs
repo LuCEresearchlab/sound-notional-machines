@@ -57,10 +57,10 @@ prop_parse_is_inverse_upparse = property $ do
   e <- forAll genExp
   tripping e unparse parse
 
-prop_ast2graph_is_inverse_graph2ast :: Property
-prop_ast2graph_is_inverse_graph2ast = property $ do
+prop_ast2diagram_is_inverse_diagram2ast :: Property
+prop_ast2diagram_is_inverse_diagram2ast = property $ do
   e <- forAll genExp
-  tripping e ast2graph graph2ast
+  tripping e ast2diagram diagram2ast
 
 prop_commutation :: Property
 prop_commutation = property $ do
@@ -75,7 +75,7 @@ tests =
         ("eval returns a value:", prop_eval_to_value)
       , ("eval is equivalent to bigStep:", prop_eval_equiv_step)
       , ("parse is the inverse of unparse:", prop_parse_is_inverse_upparse)
-      , ("ast2graph is the inverse of graph2ast:", prop_ast2graph_is_inverse_graph2ast)
+      , ("ast2diagram is the inverse of diagram2ast:", prop_ast2diagram_is_inverse_diagram2ast)
       , ("commutation proof:", prop_commutation)
     ]
 
@@ -95,7 +95,7 @@ generateParseActivity :: MonadIO m => m String
 generateParseActivity = unparse <$> Gen.sample genExp
 
 generateUnparseActivity :: MonadIO m => m ExpTreeDiagram
-generateUnparseActivity = ast2graph <$> Gen.sample genExp
+generateUnparseActivity = ast2diagram <$> Gen.sample genExp
 
 generateEvalActivity :: MonadIO m => m String
 generateEvalActivity = unparse <$> Gen.sample genCombinator

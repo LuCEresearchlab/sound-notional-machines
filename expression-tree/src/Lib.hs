@@ -5,15 +5,18 @@
 
 module Lib where
 
-import Control.Monad (mplus, join)
-
-import Text.ParserCombinators.Parsec hiding (parse)
+import Text.ParserCombinators.Parsec hiding (parse, State)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+
+import Control.Monad.State.Lazy
 
 import Data.List ((\\), uncons)
 
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+-- import Debug.Trace
+-- import Text.Show.Pretty (ppShow)
 
 --------------------
 -- Bisimulation
@@ -62,13 +65,6 @@ instance Ord Edge where
 
 holes :: Node -> [Plug]
 holes (Node _ fragments) = [plug | Hole plug <- fragments]
-
-pattern NodeVar i name <- Node (Plug i _) [FragName name] where
-        NodeVar i name =  Node (Plug i 0) [FragName name]
-pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
-        NodeLambda i name =  Node (Plug i 0) [Token "lambda", FragName name, Hole (Plug i 1)]
-pattern NodeApp i <- Node (Plug i _) [Hole _         , Hole _] where
-        NodeApp i =  Node (Plug i 0) [Hole (Plug i 1), Hole (Plug i 2)]
 
 --------------------
 -- Untyped Lambda Calculus
@@ -163,6 +159,13 @@ parens x = "(" ++ x ++ ")"
 -- AST to Graph and back
 --------------------
 
+pattern NodeVar    i name <- Node (Plug i _) [FragName name] where
+        NodeVar    i name =  Node (Plug i 0) [FragName name]
+pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
+        NodeLambda i name =  Node (Plug i 0) [Token "lambda", FragName name, Hole (Plug i 1)]
+pattern NodeApp    i      <- Node (Plug i _) [Hole _         , Hole _] where
+        NodeApp    i      =  Node (Plug i 0) [Hole (Plug i 1), Hole (Plug i 2)]
+
 pattern DiaLeaf :: Node -> ExpTreeDiagram
 pattern DiaLeaf n <- ExpTreeDiagram _ _ (Just n @ (NodeVar _ _)) where
   DiaLeaf n = ExpTreeDiagram (Set.singleton n) Set.empty (Just n)
@@ -193,8 +196,8 @@ maybeHead :: [a] -> Maybe a
 maybeHead = fmap fst . uncons
 
 
-ast2graph :: Program -> ExpTreeDiagram
-ast2graph = a2g 0
+ast2diagram :: Program -> ExpTreeDiagram
+ast2diagram = a2g 0
   where a2g uid (Var name)      = DiaLeaf   (NodeVar    uid name)
         a2g uid (Lambda name e) = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
         a2g uid (App e1 e2)     = let d1 = a2g (uid      + 1) e1
@@ -203,12 +206,102 @@ ast2graph = a2g 0
 
         maxId = foldl (\m (Node (Plug n _) _) -> max m n) 0 . nodes
 
-graph2ast :: ExpTreeDiagram -> Maybe Program
-graph2ast (DiaLeaf   (NodeVar    _ name))          = Just (Var name)
-graph2ast (DiaBranch (NodeLambda _ name) [n])      = Lambda name <$> graph2ast n
-graph2ast (DiaBranch (NodeApp _)         [n1, n2]) = App <$> graph2ast n1 <*> graph2ast n2
-graph2ast _ = Nothing -- "incorrect diagram"
 
+
+-- original
+
+-- diagram2ast :: ExpTreeDiagram -> Maybe Program
+-- diagram2ast d = fst (g2a d Set.empty)
+--   where
+--     g2a :: ExpTreeDiagram -> Set Int -> (Maybe Program, Set Int)
+
+--     g2a (DiaLeaf   (NodeVar    i name)) visited =
+--       (Just (Var name), Set.insert i visited)
+
+--     g2a (DiaBranch (NodeLambda i name) [n]) visited =
+--       if Set.member i visited then (Nothing, visited)
+--                   else let (p, visited2) = g2a n (Set.insert i visited)
+--                        in (Lambda name <$> p, visited2)
+
+--     g2a (DiaBranch (NodeApp    i)      [n1, n2]) visited =
+--       if Set.member i visited then (Nothing, visited)
+--                   else let (p1, visited2) = g2a n1 (Set.insert i visited)
+--                            (p2, visited3) = g2a n2 visited2
+--                        in (App <$> p1 <*> p2, visited3)
+
+--     g2a _ visited = (Nothing, visited) -- "incorrect diagram"
+
+-- v1
+
+-- diagram2ast :: ExpTreeDiagram -> Maybe Program
+-- diagram2ast d = fst (runState (g2a d) Set.empty)
+--   where
+--     g2a :: ExpTreeDiagram -> State (Set Int) (Maybe Program)
+
+--     g2a (DiaLeaf   (NodeVar    i name)) =
+--       -- state $ \visited -> (Just (Var name), Set.insert i visited)
+--       -- do visited <- get
+--       --    put $ Set.insert i visited
+--       --    return $ Just (Var name)
+--       -- do modify (Set.insert i)
+--       --    return $ Just (Var name)
+--       modify (Set.insert i) >> return (Just (Var name))
+--       -- withState (Set.insert i) (return (Just (Var name)))
+
+--     g2a (DiaBranch (NodeLambda i name) [n]) =
+--       -- state $ \visited -> if Set.member i visited then (Nothing, visited)
+--       --                     else let (p, visited2) = runState (g2a n) (Set.insert i visited)
+--       --                          in (Lambda name <$> p, visited2)
+--       -- do visited <- get
+--       --    if Set.member i visited then return Nothing
+--       --    else do put (Set.insert i visited)
+--       --            -- p <- g2a n
+--       --            -- return (Lambda name <$> p)
+--       --            fmap (fmap (Lambda name)) (g2a n)
+--       do visited <- get
+--          if Set.member i visited then return Nothing
+--          else withState (Set.insert i) $ fmap (fmap (Lambda name)) (g2a n)
+
+--     g2a (DiaBranch (NodeApp    i)      [n1, n2]) =
+--       -- state $ \visited -> if Set.member i visited then (Nothing, visited)
+--       --                     else let (p1, visited2) = runState (g2a n1) (Set.insert i visited)
+--       --                              (p2, visited3) = runState (g2a n2) visited2
+--       --                          in (App <$> p1 <*> p2, visited3)
+--       do visited <- get
+--          if Set.member i visited then return Nothing
+--          else do put (Set.insert i visited)
+--                  p1 <- g2a n1
+--                  p2 <- g2a n2
+--                  return (App <$> p1 <*> p2)
+
+--     g2a _ = return Nothing -- "incorrect diagram"
+
+-- v2 - monad transformers (StateT)
+
+diagram2ast :: ExpTreeDiagram -> Maybe Program
+diagram2ast d = evalStateT (g2a d) Set.empty
+  where
+    -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
+    g2a :: ExpTreeDiagram -> StateT (Set Int) Maybe Program
+    g2a (DiaLeaf   (NodeVar    i name))          = ifNotVisited i (return (Var name))
+    g2a (DiaBranch (NodeLambda i name) [n])      = ifNotVisited i (Lambda name <$> g2a n)
+    g2a (DiaBranch (NodeApp    i)      [n1, n2]) = ifNotVisited i (App <$> g2a n1 <*> g2a n2)
+    g2a _ = StateT (const Nothing) -- "incorrect diagram"
+
+    -- if `i` was not visited, add it to the state and perform `a` (Nothing otherwise)
+    ifNotVisited i a = do visited <- get
+                          if Set.member i visited then StateT (const Nothing)
+                                                  else withStateT (Set.insert i) a
+
+-- v3 - monad transformers (MaybeT)
+-- not good because we need State info to determine Maybe (if visited return Nothing)
+-- interestingly, the other Nothing depends on the structure of Diagram (not State)
+
+-- v4 - flip arguments from v1
+-- not good because we get State -> Diagram -> Maybe and we can't combine State and Maybe
+
+-- v5,v6 - transformers on v4
+-- not good because v4 is not good
 
 ------------------
 
@@ -232,10 +325,10 @@ f' :: String -> Maybe String
 f' = fmap unparse . (=<<) eval . parse
 
 alphaA :: String -> Maybe ExpTreeDiagram
-alphaA = fmap ast2graph . parse
+alphaA = fmap ast2diagram . parse
 
 f :: Maybe ExpTreeDiagram -> Maybe ExpTreeDiagram
-f = fmap ast2graph . (=<<) eval . (=<<) graph2ast
+f = fmap ast2diagram . (=<<) eval . (=<<) diagram2ast
 
 alphaB :: Maybe String -> Maybe ExpTreeDiagram
 alphaB = (=<<) alphaA
@@ -246,22 +339,22 @@ alphaB = (=<<) alphaA
 
 alphaBf' :: A' -> B
 -- alpha_B__f' = alpha_B . f'
--- alpha_B__f' = (=<<) (fmap ast2graph . parse) . fmap unparse . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2graph . parse) . fmap unparse . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2graph) . fmap parse . fmap unparse . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2graph) . fmap (parse . unparse) . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2graph) . fmap return . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2graph) . return . (=<<) eval . parse
-alphaBf' = fmap ast2graph . (=<<) eval . parse
+-- alpha_B__f' = (=<<) (fmap ast2diagram . parse) . fmap unparse . (=<<) eval . parse
+-- alpha_B__f' = join . fmap (fmap ast2diagram . parse) . fmap unparse . (=<<) eval . parse
+-- alpha_B__f' = join . fmap (fmap ast2diagram) . fmap parse . fmap unparse . (=<<) eval . parse
+-- alpha_B__f' = join . fmap (fmap ast2diagram) . fmap (parse . unparse) . (=<<) eval . parse
+-- alpha_B__f' = join . fmap (fmap ast2diagram) . fmap return . (=<<) eval . parse
+-- alpha_B__f' = join . fmap (fmap ast2diagram) . return . (=<<) eval . parse
+alphaBf' = fmap ast2diagram . (=<<) eval . parse
 
 falphaA :: A' -> B
 -- f__alpha_A = f . alpha_A
--- f__alpha_A = fmap ast2graph . (=<<) eval . ((=<<) graph2ast) . fmap ast2graph . parse
--- f__alpha_A = fmap ast2graph . (=<<) eval . join . fmap graph2ast . fmap ast2graph . parse
--- f__alpha_A = fmap ast2graph . (=<<) eval . join . fmap (graph2ast . ast2graph) . parse
--- f__alpha_A = fmap ast2graph . (=<<) eval . join . fmap return . parse
--- f__alpha_A = fmap ast2graph . (=<<) eval . join . return . parse
-falphaA = fmap ast2graph . (=<<) eval . parse
+-- f__alpha_A = fmap ast2diagram . (=<<) eval . ((=<<) diagram2ast) . fmap ast2diagram . parse
+-- f__alpha_A = fmap ast2diagram . (=<<) eval . join . fmap diagram2ast . fmap ast2diagram . parse
+-- f__alpha_A = fmap ast2diagram . (=<<) eval . join . fmap (diagram2ast . ast2diagram) . parse
+-- f__alpha_A = fmap ast2diagram . (=<<) eval . join . fmap return . parse
+-- f__alpha_A = fmap ast2diagram . (=<<) eval . join . return . parse
+falphaA = fmap ast2diagram . (=<<) eval . parse
 
 
 
@@ -275,7 +368,7 @@ falphaA = fmap ast2graph . (=<<) eval . parse
 -- generateParseActivity = ... in the tests ...
 
 solveParseActivity :: String -> Maybe ExpTreeDiagram
-solveParseActivity = fmap ast2graph . parse
+solveParseActivity = fmap ast2diagram . parse
 
 
 ---- Unparse activity ----
@@ -283,7 +376,7 @@ solveParseActivity = fmap ast2graph . parse
 -- generateUnparseActivity = ... in the tests ...
 
 solveUnparseActivity :: ExpTreeDiagram -> Maybe String
-solveUnparseActivity = fmap unparse . graph2ast
+solveUnparseActivity = fmap unparse . diagram2ast
 
 
 ---- Eval activity ----
@@ -303,8 +396,6 @@ solveEvalActivity = fmap unparse . (=<<) eval . parse
 --
 -- - eval done by labeling instead of rewrite
 --
--- - Edge should be from Node to Hole
--- - graph should contain sets (not lists) (shouldn't depend on the order) and see how far i can go
 -- - generate diagram directly (not from exp) - closer to real-world cases
 --
 -- - unit testing with specific examples
