@@ -1,0 +1,71 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 9f755786f3714f43f6f01dc5b559f77495a236f4a47a843e2c7876ffa38f4360
+
+name:           reduct
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/reduct#readme>
+homepage:       https://github.com/githubuser/reduct#readme
+bug-reports:    https://github.com/githubuser/reduct/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2021 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/reduct
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Paths_reduct
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5
+    , mtl
+    , parsec
+  default-language: Haskell2010
+
+executable reduct-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_reduct
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , mtl
+    , parsec
+    , reduct
+  default-language: Haskell2010
+
+test-suite reduct-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_reduct
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , hedgehog
+    , mtl
+    , parsec
+    , pretty
+    , pretty-show
+    , reduct
+  default-language: Haskell2010
