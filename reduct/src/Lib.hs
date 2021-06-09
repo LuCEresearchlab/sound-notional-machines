@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
-{-# LANGUAGE TupleSections, DeriveFunctor #-}
+{-# LANGUAGE TupleSections, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 module Lib where
 
@@ -9,10 +9,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
 import Control.Monad.State.Lazy
 
-import Data.Monoid
-
-import Data.List ((\\), find, delete)
-
+import Data.List ((\\), delete, uncons)
 import Data.Maybe (fromMaybe, mapMaybe)
 
 --------------------
@@ -130,22 +127,49 @@ data ReductGame = ReductGame [ReductLevel]
 data ReductLevel = ReductLevel { nodeStage  :: [ReductExp] -- roots of expressions
                                , isReducing :: Bool
                                , nodeBench  :: [ReductExp]
-                               , goal       :: ReductTerm
+                               , goal       :: ReductExp
                                , counter    :: Uid
                                , won        :: Bool }
 
-type ReductExp = (ReductTerm, Uid)
 type Uid = Int
 
 -- The actual JS abstraction. Type Maybe indicates holes may be empty.
-data ReductTerm = HolePlug (Maybe ReductExp) (Maybe ReductExp)
-                | HolePipe Name (Maybe ReductExp)
-                | Pipe Name
-                deriving (Show, Read, Eq, Ord)
+data ReductExpF a = HolePlug (Maybe (ReductExpF a)) (Maybe (ReductExpF a)) a
+                  | HolePipe Name (Maybe (ReductExpF a)) a
+                  | Pipe Name a
+                  deriving (Show, Read, Eq, Ord, Functor, Foldable, Traversable)
 
+type ReductExp = ReductExpF Uid
+
+rUid :: ReductExp -> Uid
+rUid (HolePlug _ _ uid) = uid
+rUid (HolePipe _ _ uid) = uid
+rUid (Pipe _       uid) = uid
+
+sEqual :: ReductExp -> ReductExp -> Bool
+sEqual (HolePlug a1 b1 _) (HolePlug a2 b2 _) = msEqual a1 a2 && msEqual b1 b2
+sEqual (HolePipe n1 a1 _) (HolePipe n2 a2 _) = n1 == n2 && msEqual a1 a2
+sEqual (Pipe n1 _)        (Pipe n2 _)        = n1 == n2
+sEqual _ _ = False
+
+msEqual :: Maybe ReductExp -> Maybe ReductExp -> Bool
+msEqual Nothing  Nothing  = True
+msEqual (Just a) (Just b) = sEqual a b
+msEqual _        _        = False
+
+-- | Returns the first subtree we can find where `p` is `True`.
+findSubtree :: (ReductExpF a -> Bool) -> ReductExpF a -> Maybe (ReductExpF a)
+findSubtree p e = if p e then Just e else recur e
+  where recur (HolePlug me1 me2 _) = mplus (findSubtree p =<< me1) (findSubtree p =<< me2)
+        recur (HolePipe _   me  _) = findSubtree p =<< me
+        recur (Pipe _           _) = Nothing
 
 findNode :: Uid -> [ReductExp] -> Maybe ReductExp
-findNode uid = find ((== uid) . snd)
+findNode uid = maybeHead . mapMaybe (findSubtree ((== uid) . rUid))
+
+maybeHead :: [a] -> Maybe a
+maybeHead = fmap fst . uncons
+
 
 -- Updates the uid in `e` and all its children to uniquely increasing values
 -- starting from `n`.
@@ -154,25 +178,10 @@ updateUids n e = evalState (prepareNewUids e) n
 
 -- Prepare a State monad that sets all uids to uniquely increasing values.
 prepareNewUids :: ReductExp -> State Int ReductExp
-prepareNewUids = mapR setNextId
-  where
-    mapR :: (ReductExp -> State Int ReductExp) -> ReductExp -> State Int ReductExp
-    mapR baseC e = case e of
-                 (HolePlug t1 t2 , _) -> baseC =<< (, snd e) <$> (return HolePlug <*> recC t1 <*> recC t2)
-                 (HolePipe name t, _) -> baseC =<< (, snd e) <$> (return (HolePipe name) <*> recC t)
-                 (Pipe _         , _) -> baseC e
-      where recC  = recF (mapR baseC)
-            recF  = mapM
-            -- merge = (++)
-
-    setNextId :: ReductExp -> State Int ReductExp
-    setNextId (t, _) = do modify succ
-                          n <- get
-                          return (t, n)
-
+prepareNewUids = mapM (const (withState succ get))
 
 -- Make new a Reduct level.
-mkReductLevel :: [ReductExp] -> [ReductExp] -> ReductTerm -> ReductLevel
+mkReductLevel :: [ReductExp] -> [ReductExp] -> ReductExp -> ReductLevel
 mkReductLevel stageNodes benchNodes g = evalState go 0
   where go = do nodes1 <- mapM prepareNewUids stageNodes
                 nodes2 <- mapM prepareNewUids benchNodes
@@ -186,8 +195,8 @@ mkReductLevel stageNodes benchNodes g = evalState go 0
 
 -- Check if player won.
 rWon :: ReductLevel -> Bool
-rWon ReductLevel { nodeStage = [(term, _)], goal = g } = term == g
-rWon _                                                 = False
+rWon ReductLevel { nodeStage = [e], goal = g } = sEqual e g
+rWon _                                         = False
 
 -- Apply action `a` to leval `l` and update the won field.
 rApplyAction :: (ReductLevel -> ReductLevel) -> ReductLevel -> ReductLevel
@@ -201,9 +210,9 @@ aReduce e l = fromMaybe l (newLevel <$> stepReduct e)
         stepReduct = fmap (updateUids (counter l) . jslc2reduct . step) . reduct2jslc
 
         updateNode old new xs = new : (delete old xs)
-        newLevel newNode @ (_, n) = l { nodeStage  = updateNode e newNode (nodeStage l)
-                                      , isReducing = True
-                                      , counter    = n }
+        newLevel newNode = l { nodeStage  = updateNode e newNode (nodeStage l)
+                             , isReducing = True
+                             , counter    = rUid newNode }
 
 
 
@@ -213,10 +222,10 @@ aConnect a i b l = if any (`notElem` (nodeStage l)) [a, b] then l
                    else l { nodeStage = tryMergeAt a b (connect i) (nodeStage l) }
   where
     connect :: Int -> ReductExp -> ReductExp -> Maybe ReductExp
-    connect 0 n1 (HolePlug Nothing child, uid) = Just (HolePlug (Just n1) child, uid)
-    connect 1 n1 (HolePlug child Nothing, uid) = Just (HolePlug child (Just n1), uid)
-    connect 0 n1 (HolePipe name Nothing , uid) = Just (HolePipe name (Just n1) , uid)
-    connect _ _  _                             = Nothing
+    connect 0 n1 (HolePlug Nothing child uid) = Just (HolePlug (Just n1) child uid)
+    connect 1 n1 (HolePlug child Nothing uid) = Just (HolePlug child (Just n1) uid)
+    connect 0 n1 (HolePipe name Nothing  uid) = Just (HolePipe name (Just n1)  uid)
+    connect _ _  _                            = Nothing
 
     -- try to merge elements x1 and x2 of xs using g, replacing them by the new
     -- element otherwise return xs.
@@ -232,31 +241,22 @@ aBenchTake e l = if e `notElem` (nodeBench l) then l
 
 -- Disconnect a node from the expression putting it back in the stage.
 rDisconnect :: ReductExp -> ReductLevel -> ReductLevel
-rDisconnect n l = if any (notPresent n) (nodeStage l) then l
-                  else l { nodeStage = n : (mapMaybe (disconnect n) (nodeStage l)) }
+rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
+                  else l { nodeStage = n : (fmap (disconnect n) (nodeStage l)) }
   where
-    isPresent :: ReductExp -> ReductExp -> Bool
-    isPresent a = getAny . foldMM (Any . (== a))
-    notPresent a = not . (isPresent a)
+    disconnect :: ReductExp -> ReductExp -> ReductExp
+    disconnect t = mapME go
+      where go mt = eitherOr ((tryDisconnect t) =<< mt) (disconnect t <$> mt)
+            tryDisconnect t1 t2 = if t1 == t2 then Nothing else Just t2
+            -- If the first is not Nothing take the second.
+            eitherOr :: Maybe b -> Maybe a -> Maybe a
+            eitherOr = liftM2 (flip const)
 
-    disconnect :: ReductExp -> ReductExp -> Maybe ReductExp
-    disconnect a = mapMM (\b c -> if a == b then Nothing else Just c)
-
-    mapMM :: (ReductExp -> ReductExp -> Maybe ReductExp) -> ReductExp -> Maybe ReductExp
-    mapMM h e = case e of
-                  (HolePlug t1 t2 , _) -> h e $ (, snd e) $ HolePlug (recC t1) (recC t2)
-                  (HolePipe name t, _) -> h e $ (, snd e) $ HolePipe name (recC t)
-                  (Pipe _         , _) -> h e e
-      where recC = recF (mapMM h)
-            recF = (=<<)
-
-foldMM :: Monoid m => (ReductExp -> m) -> ReductExp -> m
-foldMM baseC e = case e of
-             (HolePlug t1 t2 , _) -> recC t1 <> recC t2 <> baseC e
-             (HolePipe _ t   , _) -> recC t <> baseC e
-             (Pipe _         , _) -> baseC e
-  where recC = recF (foldMM baseC)
-        recF = maybe mempty
+    -- Map over the Maybe ReductExp part
+    mapME :: (Maybe ReductExp -> Maybe ReductExp) -> ReductExp -> ReductExp
+    mapME g (HolePlug mt1 mt2 uid)  = HolePlug (g mt1) (g mt2) uid
+    mapME g (HolePipe name mt1 uid) = HolePipe name (g mt1) uid
+    mapME _ e @ (Pipe {}) = e
 
 --------------------
 -- Lang to NM and back
@@ -265,15 +265,15 @@ nm2lang :: ReductExp -> Maybe Program
 nm2lang = reduct2jslc
 
 reduct2jslc :: ReductExp -> Maybe Program
-reduct2jslc (HolePlug n1 n2, _)  = App <$> (reduct2jslc =<< n1) <*> (reduct2jslc =<< n2)
-reduct2jslc (HolePipe name n, _) = Lambda name <$> (reduct2jslc =<< n)
-reduct2jslc (Pipe name, _)       = Just (Var name)
+reduct2jslc (HolePlug n1 n2  _) = App <$> (reduct2jslc =<< n1) <*> (reduct2jslc =<< n2)
+reduct2jslc (HolePipe name n _) = Lambda name <$> (reduct2jslc =<< n)
+reduct2jslc (Pipe name       _) = Just (Var name)
 
 lang2nm :: Program -> ReductExp
 lang2nm = jslc2reduct
 
 jslc2reduct :: Program -> ReductExp
-jslc2reduct p = (go p, 0)
+jslc2reduct p = go p 0
   where go (App e1 e2)     = HolePlug (Just (jslc2reduct e1)) (Just (jslc2reduct e2))
         go (Lambda name e) = HolePipe name (Just (jslc2reduct e))
         go (Var name)      = Pipe name

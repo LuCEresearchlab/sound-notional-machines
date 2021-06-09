@@ -11,8 +11,8 @@ import Control.Monad (forM_)
 import Control.Monad.IO.Class (MonadIO)
 
 import Data.List (nub)
-
 import Data.Functor.Identity (Identity)
+import Data.Foldable (toList)
 
 import Text.Show.Pretty (pPrint, ppDoc)
 import Text.PrettyPrint (Doc)
@@ -42,16 +42,16 @@ genCombinator = fmap bindFreeVars genExp
 bindFreeVars :: Exp -> Exp
 bindFreeVars e = foldl (\en var -> App (Lambda var en) (Lambda "a" (Var "a"))) e (freeVs e)
 
-genReductExp :: MonadGen m => m ReductTerm
+genReductExp :: MonadGen m => m ReductExp
 genReductExp =
   Gen.recursive Gen.choice [
       -- non-recursive generators
-      Pipe <$> genName
+      Pipe <$> genName <*> pure 0
     ] [
       -- recursive generators
-      Gen.subtermM genReductExp (\x -> HolePipe <$> genName <*> Gen.maybe (pure (x, 0)))
+      Gen.subtermM genReductExp (\x -> HolePipe <$> genName <*> Gen.maybe (pure x) <*> pure 0)
     , Gen.subtermM2 genReductExp genReductExp
-        (\x y -> HolePlug <$> (Gen.maybe (pure (x, 0))) <*> (Gen.maybe (pure (y, 0))))
+        (\x y -> HolePlug <$> Gen.maybe (pure x) <*> Gen.maybe (pure y) <*> pure 0)
     ]
 
 ----------------------
@@ -91,12 +91,12 @@ prop_commutation = property $ do
 prop_uniqids :: Property
 prop_uniqids = property $ do
   e <- forAll genReductExp
-  let updatedExp = updateUids 0 (e, 0)
+  let updatedExp = updateUids 0 e
   footnoteShow updatedExp
   let ids = uids updatedExp
   ids === [1..(length ids)]
 
-uids = foldMM (\(t, id) -> [id])
+uids = toList
 
 ----------------------
 
