@@ -1,0 +1,11 @@
+digraph app {
+  pad="0,0"
+  margin="0,0"
+
+  s0app [label="<h0>|<h1>",shape=record]
+  s0app:h0 -> t1
+  s0app:h1 -> t2
+
+  t1 [style = invis]
+  t2 [style = invis]
+}

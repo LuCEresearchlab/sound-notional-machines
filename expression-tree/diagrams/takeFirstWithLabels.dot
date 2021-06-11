@@ -1,0 +1,41 @@
+digraph takeFirst {
+  pad="0,0"
+  margin="0,0"
+  subgraph cluster0 {
+    margin="5,5"
+    color="#c0c0c0"
+    label="Step 0\n(λx.λy. x) a b"
+    s0appb [label="app|<h0>|<h1>",shape=record]
+    s0appa [label="app|<h0>|<h1>",shape=record]
+    s0absx [label="abs|λx.|<h0>",shape=record]
+    s0absy [label="abs|λy.|<h0>",shape=record]
+    s0varx [label="var|x",shape=record]
+    s0vara [label="var|a",shape=record]
+    s0varb [label="var|b",shape=record]
+    s0appb:h0 -> s0appa
+    s0appa:h0 -> s0absx
+    s0appa:h1 -> s0vara
+    s0absx:h0 -> s0absy
+    s0absy:h0 -> s0varx
+    s0appb:h1 -> s0varb
+  }
+  subgraph cluster1 {
+    margin="5,5"
+    color="#c0c0c0"
+    label="Step 1\n(λy. a) b"
+    s1appb [label="app|<h0>|<h1>",shape=record]
+    s1absy [label="abs|λy.|<h0>",shape=record]
+    s1vara [label="var|a",shape=record]
+    s1varb [label="var|b",shape=record]
+    s1appb:h0 -> s1absy
+    s1absy:h0 -> s1vara
+    s1appb:h1 -> s1varb
+  }
+  subgraph cluster2 {
+    margin="5,5"
+    color="#c0c0c0"
+    label="Step 1\na"
+    s2vara [label="var|a",shape=record]
+  }
+}
+
