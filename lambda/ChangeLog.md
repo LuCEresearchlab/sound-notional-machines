@@ -1,3 +1,3 @@
-# Changelog for reduct
+# Changelog for lambda
 
 ## Unreleased changes

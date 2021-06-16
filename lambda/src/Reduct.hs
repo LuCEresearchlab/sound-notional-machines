@@ -2,15 +2,15 @@
 
 {-# LANGUAGE TupleSections, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
-module Lib where
-
-import Text.ParserCombinators.Parsec hiding (parse, State)
-import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+module Reduct where
 
 import Control.Monad.State.Lazy
 
-import Data.List ((\\), delete, uncons)
+import Data.List (delete)
 import Data.Maybe (fromMaybe, mapMaybe)
+
+import UntypedLambda
+import Utils
 
 --------------------
 -- Bisimulation
@@ -37,92 +37,8 @@ import Data.Maybe (fromMaybe, mapMaybe)
 --------------------
 
 --------------------
--- JSLC: a subset of JS corresponding to Lambda Calculus
---------------------
-type Program = Exp
-data Exp = App Exp Exp
-         | Lambda Name Exp
-         | Var Name
-         deriving (Show, Read, Eq, Ord)
-type Name = String
-
---------------------
--- Interpreter for JSLC
---------------------
-step :: Program -> Program
-step (App      (Lambda name e1) e2 @ (Lambda _ _)) = subst name e2 e1
-step (App e1 @ (Lambda _    _ ) e2               ) = App e1 (step e2)
-step (App e1                    e2               ) = App (step e1) e2
-step p @ (Lambda _ _) = p
-step p @ (Var _) = p
-
-bigStep :: Program -> Program
-bigStep = fixChangeThat step
-
-eval :: Program -> Program
-eval = bigStep
-
--- successively apply f to x until the result doesn't change
-fixChangeThat :: Eq a => (a -> a) -> a -> a
-fixChangeThat g x | g x == x  = x
-        | otherwise = fixChangeThat g (g x)
-
-subst :: Name -> Exp -> Exp -> Exp
-subst x v (App e1 e2)    = App (subst x v e1) (subst x v e2)
-subst x v e  @ (Var y)
-  | x == y               = v
-  | otherwise            = e
-subst x v e1 @ (Lambda y e2)
-  | x == y               = e1
-  | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
-  | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
-  where newy = fresh y
-
-freeVs :: Exp -> [Name]
-freeVs (Var name) = [name]
-freeVs (Lambda name e) = freeVs e \\ [name]
-freeVs (App e1 e2) = freeVs e1 ++ freeVs e2
-
-fresh :: Name -> Name
-fresh a = "_" ++ a
-
---------------------
--- Parsing and unparsing JSLC
---------------------
-parse :: String -> Maybe Program
-parse s = case Parsec.parse pProg "(unknown)" s of
-            Left _ -> Nothing
-            Right e -> Just e
-  where pProg = pExp <* eof
-        pExp = try pLambda
-           <|> try pApp
-           <|> pAtom
-        pAtom = pVar
-            <|> between (char '(') (char ')') pExp
-        pVar = Var <$> pName
-        pLambda = do var <- pName
-                     between spaces spaces (string "=>")
-                     e <- pExp
-                     return $ Lambda var e
-        pApp = foldl1 App <$> pAtom `sepBy1` spaces
-        pName = many1 (letter <|> char '_')
-
-unparse :: Program -> String
-unparse (App e1 e2)     = parens (unwords [unparse e1, unparse e2])
-unparse (Lambda name e) = parens (concat [name, " => ", unparse e])
-unparse (Var name)      = name
-
-parens :: String -> String
-parens x = "(" ++ x ++ ")"
-
---------------------
 -- Reduct
 --------------------
-
-perhaps :: (a -> Maybe a) -> a -> a
-perhaps g a = fromMaybe a (g a)
-
--------
 data ReductGame = ReductGame [ReductLevel]
 data ReductLevel = ReductLevel { nodeStage  :: [ReductExp] -- roots of expressions
                                , isReducing :: Bool
@@ -157,6 +73,10 @@ msEqual Nothing  Nothing  = True
 msEqual (Just a) (Just b) = sEqual a b
 msEqual _        _        = False
 
+--------------------
+-- Reduct - game play
+--------------------
+
 -- | Returns the first subtree we can find where `p` is `True`.
 findSubtree :: (ReductExpF a -> Bool) -> ReductExpF a -> Maybe (ReductExpF a)
 findSubtree p e = if p e then Just e else recur e
@@ -166,9 +86,6 @@ findSubtree p e = if p e then Just e else recur e
 
 findNode :: Uid -> [ReductExp] -> Maybe ReductExp
 findNode uid = maybeHead . mapMaybe (findSubtree ((== uid) . rUid))
-
-maybeHead :: [a] -> Maybe a
-maybeHead = fmap fst . uncons
 
 
 -- Updates the uid in `e` and all its children to uniquely increasing values
@@ -290,23 +207,23 @@ jslc2reduct p = go p 0
 --
 --    A' --f'--> B'
 
-type A' = String
-type B' = Maybe String
+type A' = Exp
+type B' = Exp
 
-type A  = Maybe ReductExp
+type A  = ReductExp
 type B  = Maybe ReductExp
 
 f' :: A' -> B'
-f' = fmap (unparse . eval) . parse
+f' = eval
 
 alphaA :: A' -> A
-alphaA = fmap lang2nm . parse
+alphaA = lang2nm
 
 f :: A -> B
-f = fmap (lang2nm . eval) . (=<<) nm2lang
+f = fmap (lang2nm . eval) . nm2lang
 
 alphaB :: B' -> B
-alphaB = (=<<) alphaA
+alphaB = return . alphaA
 
 {-
 
@@ -354,3 +271,4 @@ alpha:
 
 1. the Hole and Pipe metaphor if flawded because as lambdas can contains other lambdas one must identify the holes and the corresponding pipes
 -}
+

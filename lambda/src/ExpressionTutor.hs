@@ -2,17 +2,15 @@
 
 {-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns #-}
 
-module Lib where
-
-import Text.ParserCombinators.Parsec hiding (parse, State)
-import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+module ExpressionTutor where
 
 import Control.Monad.State.Lazy
 
-import Data.List ((\\), uncons)
-
 import Data.Set (Set)
 import qualified Data.Set as Set
+
+import UntypedLambda
+import Utils
 
 --------------------
 -- Bisimulation
@@ -39,7 +37,7 @@ import qualified Data.Set as Set
 --------------------
 
 --------------------
--- Expression Tree Diagram
+-- Expression Tutor
 --------------------
 data ExpTreeDiagram = ExpTreeDiagram { nodes :: Set Node
                                      , edges :: Set Edge
@@ -63,98 +61,8 @@ holes :: Node -> [Plug]
 holes (Node _ fragments) = [plug | Hole plug <- fragments]
 
 --------------------
--- Untyped Lambda Calculus
+-- Expression Tutor - Untyped Lambda Calculus
 --------------------
-type Program = Exp
-data Exp = App Exp Exp
-         | Lambda Name Exp
-         | Var Name
-         deriving (Show, Read, Eq, Ord)
-type Name = String
-type Env = [(Name, Exp)]
-
---------------------
--- Interpreter for Untyped Lambda Calculus
---------------------
-eval :: Program -> Maybe Program
-eval (App e1 e2) = do
-  Lambda name e3 <- eval e1
-  e4             <- eval e2
-  eval (subst name e4 e3)
-eval p @ (Lambda _ _) = Just p
-eval (Var _) = Nothing -- "malformed exp tree"
-
-step :: Program -> Maybe Program
-step (App      (Lambda name e1) e2 @ (Lambda _ _)) = Just (subst name e2 e1)
-step (App e1 @ (Lambda _    _ ) e2               ) = do newe <- step e2
-                                                        return (App e1 newe)
-step (App e1                    e2               ) = do newe <- step e1
-                                                        return (App newe e2)
-step p @ (Lambda _ _) = Just p
-step (Var _) = Nothing
-
-bigStep :: Program -> Maybe Program
-bigStep = fixM step
-
--- successively apply f to x until the result doesn't change
-fixM :: (Monad m, Eq (m a)) => (a -> m a) -> a -> m a
-fixM g x | g x == return x = return x
-         | otherwise       = fixM g =<< g x
-
-subst :: Name -> Exp -> Exp -> Exp
-subst x v (App e1 e2)    = App (subst x v e1) (subst x v e2)
-subst x v e  @ (Var y)
-  | x == y               = v
-  | otherwise            = e
-subst x v e1 @ (Lambda y e2)
-  | x == y               = e1
-  | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
-  | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
-  where newy = fresh y
-
-freeVs :: Exp -> [Name]
-freeVs (Var name) = [name]
-freeVs (Lambda name e) = freeVs e \\ [name]
-freeVs (App e1 e2) = freeVs e1 ++ freeVs e2
-
-fresh :: Name -> Name
-fresh a = "_" ++ a
-
---------------------
--- Parsing and unparsing
---------------------
-parse :: String -> Maybe Program
-parse s = case Parsec.parse pProg "(unknown)" s of
-            Left _ -> Nothing
-            Right e -> Just e
-  where pProg = pExp <* eof
-        pExp = pLambda
-           <|> try pApp
-           <|> pAtom
-        pAtom = pVar
-            <|> pParens pExp
-        pVar = Var <$> pName
-        pLambda = do char '\\'
-                     var <- pName
-                     char '.'
-                     e <- pExp
-                     return $ Lambda var e
-        pApp = foldl1 App <$> pAtom `sepBy1` spaces
-        pName = many1 (letter <|> char '_')
-        pParens = between (char '(') (char ')')
-
-unparse :: Program -> String
-unparse (App e1 e2)     = parens (unwords [unparse e1, unparse e2])
-unparse (Lambda name e) = parens (concat ["\\", name, ".", unparse e])
-unparse (Var name)      = name
-
-parens :: String -> String
-parens x = "(" ++ x ++ ")"
-
---------------------
--- AST to Graph and back
---------------------
-
 pattern NodeVar    i name <- Node (Plug i _) [FragName name] where
         NodeVar    i name =  Node (Plug i 0) [FragName name]
 pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
@@ -188,23 +96,23 @@ diaBranch d = (\r -> (r, children r)) <$> root d
     children n = [d { root = Just node } | node <- Set.elems (nodes d), node `isChild` n]
     isChild (Node nPlug _) = any (\p -> Set.member (Edge nPlug p) (edges d)) . holes
 
-maybeHead :: [a] -> Maybe a
-maybeHead = fmap fst . uncons
+--------------------
+-- Lang to NM and back
+--------------------
+lang2nm :: Program -> ExpTreeDiagram
+lang2nm p = evalState (a2g p) 0
+  where a2g :: Program -> State Int ExpTreeDiagram
+        a2g (Var name)      = incUid (\uid -> DiaLeaf (NodeVar uid name))
+        a2g (Lambda name e) = do d <- a2g e
+                                 incUid $ \uid -> DiaBranch (NodeLambda uid name) [d]
+        a2g (App e1 e2)     = do d1 <- a2g e1
+                                 d2 <- a2g e2
+                                 incUid $ \uid -> DiaBranch (NodeApp uid) [d1, d2]
+        incUid g = g <$> withState succ get
 
 
-ast2diagram :: Program -> ExpTreeDiagram
-ast2diagram = a2g 0
-  where a2g uid (Var name)      = DiaLeaf   (NodeVar    uid name)
-        a2g uid (Lambda name e) = DiaBranch (NodeLambda uid name) [a2g (uid + 1) e]
-        a2g uid (App e1 e2)     = let d1 = a2g (uid      + 1) e1
-                                      d2 = a2g (maxId d1 + 1) e2
-                                  in DiaBranch (NodeApp uid) [d1, d2]
-
-        maxId = foldl (\m (Node (Plug n _) _) -> max m n) 0 . nodes
-
-
-diagram2ast :: ExpTreeDiagram -> Maybe Program
-diagram2ast d = evalStateT (g2a d) Set.empty
+nm2lang :: ExpTreeDiagram -> Maybe Program
+nm2lang d = evalStateT (g2a d) Set.empty
   where
     -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
     g2a :: ExpTreeDiagram -> StateT (Set Int) Maybe Program
@@ -231,78 +139,38 @@ diagram2ast d = evalStateT (g2a d) Set.empty
 --
 --    A' --f'--> B'
 
-type A' = String
-type B' = Maybe String
+type A' = Exp
+type B' = Maybe Exp
 
-type A  = Maybe ExpTreeDiagram
+type A  = ExpTreeDiagram
 type B  = Maybe ExpTreeDiagram
 
-f' :: String -> Maybe String
-f' = fmap unparse . (=<<) eval . parse
+f' :: A' -> B'
+f' = evalMaybe
 
-alphaA :: String -> Maybe ExpTreeDiagram
-alphaA = fmap ast2diagram . parse
+alphaA :: A' -> A
+alphaA = lang2nm
 
-f :: Maybe ExpTreeDiagram -> Maybe ExpTreeDiagram
-f = fmap ast2diagram . (=<<) eval . (=<<) diagram2ast
+f :: A -> B
+f = fmap lang2nm . (=<<) evalMaybe . nm2lang
 
-alphaB :: Maybe String -> Maybe ExpTreeDiagram
-alphaB = (=<<) alphaA
+alphaB :: B' -> B
+alphaB = fmap alphaA
 
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A
 
-alphaBf' :: A' -> B
--- alpha_B__f' = alpha_B . f'
--- alpha_B__f' = (=<<) (fmap ast2diagram . parse) . fmap unparse . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2diagram . parse) . fmap unparse . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2diagram) . fmap parse . fmap unparse . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2diagram) . fmap (parse . unparse) . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2diagram) . fmap return . (=<<) eval . parse
--- alpha_B__f' = join . fmap (fmap ast2diagram) . return . (=<<) eval . parse
-alphaBf' = fmap ast2diagram . (=<<) eval . parse
+alphaBCmpf' :: A' -> B
+-- alphaBCmpf' = alphaB . f'
+-- alphaBCmpf' = fmap alphaA . eval -- substitute alphaB and f'
+alphaBCmpf' = fmap lang2nm . evalMaybe -- substitute alphaA
 
-falphaA :: A' -> B
--- f__alpha_A = f . alpha_A
--- f__alpha_A = fmap ast2diagram . (=<<) eval . ((=<<) diagram2ast) . fmap ast2diagram . parse
--- f__alpha_A = fmap ast2diagram . (=<<) eval . join . fmap diagram2ast . fmap ast2diagram . parse
--- f__alpha_A = fmap ast2diagram . (=<<) eval . join . fmap (diagram2ast . ast2diagram) . parse
--- f__alpha_A = fmap ast2diagram . (=<<) eval . join . fmap return . parse
--- f__alpha_A = fmap ast2diagram . (=<<) eval . join . return . parse
-falphaA = fmap ast2diagram . (=<<) eval . parse
-
-
-
-
-------------------
--- Expression Tutor activities
-------------------
-
----- Parse activity ----
-
--- generateParseActivity = ... in the tests ...
-
-solveParseActivity :: String -> Maybe ExpTreeDiagram
-solveParseActivity = fmap ast2diagram . parse
-
-
----- Unparse activity ----
-
--- generateUnparseActivity = ... in the tests ...
-
-solveUnparseActivity :: ExpTreeDiagram -> Maybe String
-solveUnparseActivity = fmap unparse . diagram2ast
-
-
----- Eval activity ----
-
--- generateEvalActivity = ... in the tests ...
-
-solveEvalActivity :: String -> Maybe String
-solveEvalActivity = fmap unparse . (=<<) eval . parse
-
-
+fCmpalphaA :: A' -> B
+-- fCmpalphaA = f . alphaA
+-- fCmpalphaA = fmap lang2nm . (=<<) eval . nm2lang . lang2nm -- substitute f and alphaA
+-- fCmpalphaA = fmap lang2nm . (=<<) eval . return -- nm2lang and lang2nm are inverses
+fCmpalphaA = fmap lang2nm . evalMaybe -- left identity on Monads
 
 
 --------
@@ -346,3 +214,4 @@ solveEvalActivity = fmap unparse . (=<<) eval . parse
 --   > recheck (Size 25) (Seed 11466113076951511145 2415080421448164445) eval is equivalent to bigStep:
 -- 
 -- 2021-05-19:
+
