@@ -11,6 +11,8 @@ import           ExpressionTutor hiding (nm2lang, lang2nm, alphaA, alphaB, f, f'
 import qualified ExpressionTutor as ET  (nm2lang, lang2nm, alphaA, alphaB, f, f')
 import           Reduct hiding (nm2lang, lang2nm, alphaA, alphaB, f, f')
 import qualified Reduct as R   (nm2lang, lang2nm, alphaA, alphaB, f, f')
+import           Alligator hiding (nm2lang, lang2nm, alphaA, alphaB, f, f')
+import qualified Alligator as A   (nm2lang, lang2nm, alphaA, alphaB, f, f')
 
 import ExpressionTutorGenerator
 
@@ -48,10 +50,10 @@ isValue :: Exp -> Bool
 isValue Lambda {} = True
 isValue _         = False
 
-is_left_inverse_of :: Show a => (Exp -> a) -> (a -> Maybe Exp) -> Property
+is_left_inverse_of :: Show a => (a -> Maybe Exp) -> (Exp -> a) -> Property
 is_left_inverse_of f f' = property $ do
   e <- forAll genExp
-  tripping e f f'
+  tripping e f' f
 
 is_equivalent_to :: (Eq a, Show a) => (Exp -> a) -> (Exp -> a) -> Property
 is_equivalent_to f f' = property $ do
@@ -71,27 +73,34 @@ uids = toList
 ----------------------
 
 
-lambdaTest :: IO Bool
-lambdaTest = checkParallel $ Group "Lambda" [
+lambdaTest :: Group
+lambdaTest = Group "Lambda" [
       ("eval produces a value:", eval_produces_value)
     , ("eval is equivalent to bigStep:", evalMaybe `is_equivalent_to` bigStepMaybe)
-    , ("parse is left inverse of unparse:", unparse `is_left_inverse_of` parse)
+    , ("parse is left inverse of unparse:", parse `is_left_inverse_of` unparse)
   ]
 
-expressionTutorTest :: IO Bool
-expressionTutorTest = checkParallel $ Group "Expressiontutor" [
-      ("lang2nm is left inverse of nm2lang:", ET.lang2nm `is_left_inverse_of` ET.nm2lang)
+expressionTutorTest :: Group
+expressionTutorTest = Group "Expressiontutor" [
+      ("nm2lang is left inverse of lang2nm:", ET.nm2lang `is_left_inverse_of` ET.lang2nm)
     , ("commutation proof:", (ET.alphaB . ET.f') `is_equivalent_to` (ET.f . ET.alphaA))
   ]
 
-reductTest :: IO Bool
-reductTest = checkParallel $ Group "Reduct" [
-      ("lang2nm is left inverse of nm2lang:", R.lang2nm `is_left_inverse_of` R.nm2lang)
+reductTest :: Group
+reductTest = Group "Reduct" [
+      ("nm2lang is left inverse of lang2nm:", R.nm2lang `is_left_inverse_of` R.lang2nm)
     , ("commutation proof:", (R.alphaB . R.f') `is_equivalent_to` (R.f . R.alphaA))
     , ("reduct trees have unique ids:", prop_uniqids)
   ]
 
+alligatorTest :: Group
+alligatorTest = Group "Alligators" [
+      ("nm2lang is left inverse of lang2nm:", A.nm2lang `is_left_inverse_of` A.lang2nm)
+    , ("commutation proof:", (A.alphaB . A.f') `is_equivalent_to` (A.f . A.alphaA))
+    , ("show (lang2nm e) == toAlligatorAscii e:", (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
+  ]
+
 
 main :: IO ()
-main = defaultMain [lambdaTest, expressionTutorTest, reductTest]
+main = defaultMain $ fmap checkParallel [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
 

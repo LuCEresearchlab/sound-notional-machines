@@ -53,7 +53,7 @@ type Uid = Int
 data ReductExpF a = HolePlug (Maybe (ReductExpF a)) (Maybe (ReductExpF a)) a
                   | HolePipe Name (Maybe (ReductExpF a)) a
                   | Pipe Name a
-                  deriving (Show, Read, Eq, Ord, Functor, Foldable, Traversable)
+                  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
 
 type ReductExp = ReductExpF Uid
 
