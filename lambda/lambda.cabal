@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 82b5cc6f8cc0a763d067e44ec9e3ce7097e67994a52e9f2d35806054be25ba0f
+-- hash: 1aec235b3a0d60a233b5fd3030dc0d0aafedabc9fe6b8cbe5659aee231a6107d
 
 name:           lambda
 version:        0.1.0.0
@@ -78,6 +78,7 @@ test-suite lambda-test
     , containers
     , hedgehog
     , lambda
+    , lifted-async
     , mtl
     , parsec
     , pretty

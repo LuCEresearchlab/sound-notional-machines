@@ -55,3 +55,4 @@ tests:
     - hedgehog
     - pretty
     - pretty-show
+    - lifted-async

@@ -4,6 +4,11 @@ import           Hedgehog hiding (Var, eval, evalMaybe)
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Main (defaultMain)
 
+import           Control.Monad.IO.Class (liftIO)
+import           Control.Concurrent (threadDelay)
+import           Control.Concurrent.Async.Lifted (race)
+import           Control.Exception (evaluate)
+
 import Data.Foldable (toList)
 
 import UntypedLambda
@@ -58,7 +63,7 @@ is_left_inverse_of f f' = property $ do
 is_equivalent_to :: (Eq a, Show a) => (Exp -> a) -> (Exp -> a) -> Property
 is_equivalent_to f f' = property $ do
   e <- forAll genCombinator
-  f e === f' e
+  test $ withTimeLimit 500000 $ f e === f' e
 
 ----- Reduct -----
 
@@ -96,7 +101,7 @@ reductTest = Group "Reduct" [
 alligatorTest :: Group
 alligatorTest = Group "Alligators" [
       ("nm2lang is left inverse of lang2nm:", A.nm2lang `is_left_inverse_of` A.lang2nm)
-    , ("commutation proof:", (A.alphaB . A.f') `is_equivalent_to` (A.f . A.alphaA))
+    , ("commutation proof:", (restartColors . A.alphaB . A.f') `is_equivalent_to` (restartColors . A.f . A.alphaA))
     , ("show (lang2nm e) == toAlligatorAscii e:", (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
   ]
 
@@ -104,3 +109,12 @@ alligatorTest = Group "Alligators" [
 main :: IO ()
 main = defaultMain $ fmap checkParallel [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
 
+withTimeLimit :: Int -> TestT IO a -> TestT IO a
+withTimeLimit timeout v = do
+  result <-
+    race
+      (liftIO $ threadDelay timeout)
+      v
+  case result of
+    Left () -> fail "Timeout exceeded"
+    Right x -> pure x
