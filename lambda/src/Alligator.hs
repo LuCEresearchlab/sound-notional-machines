@@ -1,14 +1,15 @@
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, GeneralizedNewtypeDeriving, LambdaCase #-}
+{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
+
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, GeneralizedNewtypeDeriving, LambdaCase #-}
 
 module Alligator where
 
-import Data.List (replicate, lines)
-import Data.Maybe (fromMaybe)
-import Data.Function (fix)
+import Data.Function ((&))
 
 import Control.Monad.State.Lazy
 
 import UntypedLambda
+import Utils
 
 
 newtype Color = Color Char deriving (Eq, Enum)
@@ -21,13 +22,14 @@ instance Bounded Color where
   maxBound = Color 'z'
 
 toColor :: String -> Color
+toColor [] = minBound
 toColor (c:_) = Color c
 
 
 data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
                         | OldAlligator [AlligatorFamilyF a]
                         | Egg a
-                        deriving (Show, Eq, Functor, Foldable)
+                        deriving (Show, Eq, Functor, Foldable, Traversable)
 
 type AlligatorFamily = AlligatorFamilyF Color
 
@@ -35,20 +37,18 @@ allRules :: [AlligatorFamily] -> [AlligatorFamily]
 allRules = eatingRule . colorRule . oldAgeRule
 
 evolution :: [AlligatorFamily] -> [AlligatorFamily]
-evolution = fix (\rec xs -> if allRules xs == xs then xs else rec (allRules xs))
+evolution = fixpoint allRules
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
 eatingRule :: [AlligatorFamily] -> [AlligatorFamily]
-eatingRule (a @ (HungryAlligator _ _):family:rest) = (a `eat` family) ++ rest
-eatingRule ((OldAlligator proteges):rest) = (OldAlligator (allRules proteges)):rest
+eatingRule (a @ (HungryAlligator _ _):(as @ (OldAlligator _:_))) = a:(oldAgeRule as)
+eatingRule ((HungryAlligator c p):family:rest) = fmap hatch p ++ rest
+  where hatch (Egg c1) = if c == c1 then family else Egg c1
+        hatch a @ (HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (fmap hatch as)
+                                          | otherwise = a
+        hatch (OldAlligator as) = OldAlligator (fmap hatch as)
 eatingRule families = families
-
-eat :: AlligatorFamily -> AlligatorFamily -> [AlligatorFamily]
-eat (HungryAlligator c proteges) b = fmap hatch proteges
-  where hatch (Egg c1) = if c == c1 then b else Egg c1
-        hatch (HungryAlligator c1 families) = HungryAlligator c1 (fmap hatch families)
-        hatch (OldAlligator families) = OldAlligator (fmap hatch families)
 
 -- "If an alligator is about to eat a family, and there's a color that appears
 -- in both families, we need to change that color in one family to something
@@ -62,22 +62,32 @@ colorRule families = families
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
 oldAgeRule (OldAlligator (protege:[]):rest) = protege:rest
+oldAgeRule (OldAlligator proteges:rest) = (OldAlligator (allRules proteges)):rest
 oldAgeRule families = families
 
 ----------------------
 -- Gameplay --
 ----------------------
-
+guess :: AlligatorFamily -> [([AlligatorFamily], [AlligatorFamily])] -> [Color] -> Bool
+guess family testCases colors = all check testCases
+  where
+    check (input, output) = restartColors (evolution (newFamily:input)) == restartColors output
+    newFamily = evalState (mapM go family) colors
+    go :: Color -> State [Color] Color
+    go c | c /= Color '?' = return c
+         | otherwise = do cs <- get
+                          case cs of
+                            [] -> return c
+                            x:xs -> put xs >> return x
 
 -------------------------
 -- Lang to NM and back --
 -------------------------
 nm2lang :: [AlligatorFamily] -> Maybe Exp
 nm2lang families =
-  case families of
-    []                   -> Nothing
-    family:[]            -> f2e family
-    family1:family2:rest -> foldl (\acc x -> App <$> acc <*> f2e x) (App <$> f2e family1 <*> f2e family2) rest
+  fmap f2e families & \case []           -> Nothing
+                            me:[]        -> me
+                            me1:me2:rest -> foldl (liftM2 App) (liftM2 App me1 me2) rest
   where f2e (HungryAlligator c proteges) = Lambda (show c) <$> nm2lang proteges
         f2e (OldAlligator proteges) = nm2lang proteges
         f2e (Egg c) = Just (Var (show c))
@@ -128,7 +138,7 @@ inFrontOf a  b  = let na = padHeight a (length b)
   where
     padHeight x n = padWith [] n x
     padWidth  x   = map (padWith ' ' (width x)) x
-    glue = zipWith (\a b -> a ++ " " ++ b)
+    glue = zipWith (\x y -> x ++ " " ++ y)
     padWith x n xs = xs ++ replicate (n - length xs) x
 
 --------------------------------------------------------
@@ -218,8 +228,33 @@ fCmpalphaA = evolution . lang2nm
 --   implemented by the lambda calculus interpreter (call-by-value).
 --   But _attention_, reduction under old alligations is necessary.
 --
--- * Implementing the rules of the game as originally described and testing them with the commutation test reveals a mistake in the substitution (eating rule + color rule). The color rule is enough to avoid variable capture, but eating doesn't explain what to do with bound variables. Consider the following example:
+-- * Implementing the rules of the game as originally described and testing
+--   them with the commutation test reveals a mistake in the substitution (eating
+--   rule + color rule). The color rule is enough to avoid variable capture, but
+--   eating doesn't explain what to do with bound variables. Consider the
+--   following example:
+--
+--     a-----------< a-<
+--      i-----< a-<   a
+--       i b-<   a
+--          a
+--
+--   We apply the color rule changing the color of the alligator family that is about to be eatten obtaining:
+--
+--     a-----------< c-<
+--      i-----< a-<   c
+--       i b-<   a
+--          a
 --
 --
 -- In the language of alligators, a family could be composed of multiple hungry alligators with the same color, who is guarding an egg of this color?
 
+
+aq :: AlligatorFamily
+aq = (HungryAlligator (Color 'b') [HungryAlligator (Color 'c') [(Egg (Color '?'))]])
+anot :: AlligatorFamily
+anot = (HungryAlligator (Color 'a') [Egg (Color 'a'),aq,aq])
+atru :: AlligatorFamily
+atru = (HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'a'))]])
+afls :: AlligatorFamily
+afls = (HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'b'))]])

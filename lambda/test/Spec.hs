@@ -21,6 +21,18 @@ import qualified Alligator as A   (nm2lang, lang2nm, alphaA, alphaB, f, f')
 
 import ExpressionTutorGenerator
 
+----- Timeout -----
+withTimeLimit :: Int -> TestT IO a -> TestT IO a
+withTimeLimit timeout v = do
+  result <-
+    race
+      (liftIO $ threadDelay timeout)
+      v
+  case result of
+    Left () -> fail "Timeout exceeded"
+    Right x -> pure x
+
+
 ----------------------
 ----- Generators -----
 ----------------------
@@ -44,10 +56,12 @@ genReductExp =
 ----- Properties -----
 ----------------------
 
+prop = withTests defaultNumberOfTests . property
+
 ----- Lambda -----
 
 eval_produces_value :: Property
-eval_produces_value = property $ do
+eval_produces_value = prop $ do
   e <- forAll genCombinator
   (isValue <$> evalMaybe e) === Just True
 
@@ -56,19 +70,19 @@ isValue Lambda {} = True
 isValue _         = False
 
 is_left_inverse_of :: Show a => (a -> Maybe Exp) -> (Exp -> a) -> Property
-is_left_inverse_of f f' = property $ do
+is_left_inverse_of f f' = prop $ do
   e <- forAll genExp
   tripping e f' f
 
 is_equivalent_to :: (Eq a, Show a) => (Exp -> a) -> (Exp -> a) -> Property
-is_equivalent_to f f' = property $ do
+is_equivalent_to f f' = prop $ do
   e <- forAll genCombinator
   test $ withTimeLimit 500000 $ f e === f' e
 
 ----- Reduct -----
 
 prop_uniqids :: Property
-prop_uniqids = property $ do
+prop_uniqids = prop $ do
   e <- forAll genReductExp
   let ids = uids $ updateUids 0 e
   ids === [1..(length ids)]
@@ -102,19 +116,12 @@ alligatorTest :: Group
 alligatorTest = Group "Alligators" [
       ("nm2lang is left inverse of lang2nm:", A.nm2lang `is_left_inverse_of` A.lang2nm)
     , ("commutation proof:", (restartColors . A.alphaB . A.f') `is_equivalent_to` (restartColors . A.f . A.alphaA))
-    , ("show (lang2nm e) == toAlligatorAscii e:", (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
+    , ("asciiAlligator . lang2nm is equivalente to directly from Exp:", (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
   ]
 
+
+defaultNumberOfTests = 500
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
 
-withTimeLimit :: Int -> TestT IO a -> TestT IO a
-withTimeLimit timeout v = do
-  result <-
-    race
-      (liftIO $ threadDelay timeout)
-      v
-  case result of
-    Left () -> fail "Timeout exceeded"
-    Right x -> pure x

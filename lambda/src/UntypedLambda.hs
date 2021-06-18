@@ -4,12 +4,13 @@
 
 module UntypedLambda where
 
-import Text.ParserCombinators.Parsec hiding (parse, State)
+import Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
 import Data.List ((\\))
 import Data.Maybe (fromJust)
-import Data.Function (fix)
+
+import Utils
 
 --------------------
 -- Bisimulation
@@ -60,7 +61,7 @@ step p @ (Var _) = p
 
 -- successively step until the result doesn't change
 bigStep :: Program -> Program
-bigStep = fix (\rec p -> if step p == p then p else rec (step p))
+bigStep = fixpoint step
 
 -- substitution
 subst :: Name -> Exp -> Exp -> Exp
@@ -104,7 +105,7 @@ stepMaybe (Var _) = Nothing
 
 -- successively step until the result doesn't change
 bigStepMaybe :: Program -> Maybe Program
-bigStepMaybe = fix (\rec p -> if stepMaybe p == return p then return p else rec =<< stepMaybe p)
+bigStepMaybe = fixpointM stepMaybe
 
 --------------------
 -- Parsing and unparsing
