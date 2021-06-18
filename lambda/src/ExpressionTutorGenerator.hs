@@ -24,7 +24,7 @@ import ExpressionTutor
 ----- Lambda -----
 
 genName :: MonadGen m => m String
-genName = Gen.list (Range.singleton 1) $ Gen.element ['a'..'c']
+genName = Gen.list (Range.singleton 1) $ Gen.element ['a'..'z']
 
 genExp :: MonadGen m => m Exp
 genExp =

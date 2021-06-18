@@ -9,6 +9,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
 import Data.List ((\\))
 import Data.Maybe (fromJust)
+import Data.Function (fix)
 
 --------------------
 -- Bisimulation
@@ -57,13 +58,9 @@ step (App e1                    e2               ) = App (step e1) e2
 step p @ (Lambda _ _) = p
 step p @ (Var _) = p
 
+-- successively step until the result doesn't change
 bigStep :: Program -> Program
-bigStep = fixChangeThat step
-
--- successively apply f to x until the result doesn't change
-fixChangeThat :: Eq a => (a -> a) -> a -> a
-fixChangeThat g x | g x == x  = x
-                  | otherwise = fixChangeThat g (g x)
+bigStep = fix (\rec p -> if step p == p then p else rec (step p))
 
 -- substitution
 subst :: Name -> Exp -> Exp -> Exp
@@ -105,14 +102,9 @@ stepMaybe (App e1                    e2               ) = do newe <- stepMaybe e
 stepMaybe p @ (Lambda _ _) = Just p
 stepMaybe (Var _) = Nothing
 
+-- successively step until the result doesn't change
 bigStepMaybe :: Program -> Maybe Program
-bigStepMaybe = fixM stepMaybe
-
--- successively apply f to x until the result doesn't change
-fixM :: (Monad m, Eq (m a)) => (a -> m a) -> a -> m a
-fixM g x | g x == return x = return x
-         | otherwise       = fixM g =<< g x
-
+bigStepMaybe = fix (\rec p -> if stepMaybe p == return p then return p else rec =<< stepMaybe p)
 
 --------------------
 -- Parsing and unparsing
