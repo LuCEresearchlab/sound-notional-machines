@@ -110,30 +110,42 @@ color_rule = prop $ do
 
 lambdaTest :: Group
 lambdaTest = Group "Lambda" [
-      ("eval produces a value:", eval_produces_value)
-    , ("eval is equivalent to bigStep:", evalMaybe `is_equivalent_to` bigStepMaybe)
-    , ("parse is left inverse of unparse:", parse `is_left_inverse_of` unparse)
+      ("eval produces a value:",
+        eval_produces_value)
+    , ("eval is equivalent to bigStep:",
+        evalMaybe `is_equivalent_to` bigStepMaybe)
+    , ("parse is left inverse of unparse:",
+        parse `is_left_inverse_of` unparse)
   ]
 
 expressionTutorTest :: Group
 expressionTutorTest = Group "Expressiontutor" [
-      ("nm2lang is left inverse of lang2nm:", ET.nm2lang `is_left_inverse_of` ET.lang2nm)
-    , ("commutation proof:", (ET.alphaB . ET.f') `is_equivalent_to` (ET.f . ET.alphaA))
+      ("nm2lang is left inverse of lang2nm:",
+        ET.nm2lang `is_left_inverse_of` ET.lang2nm)
+    , ("commutation proof:",
+       (ET.alphaB . ET.f') `is_equivalent_to` (ET.f . ET.alphaA))
   ]
 
 reductTest :: Group
 reductTest = Group "Reduct" [
-      ("nm2lang is left inverse of lang2nm:", R.nm2lang `is_left_inverse_of` R.lang2nm)
-    , ("commutation proof:", (R.alphaB . R.f') `is_equivalent_to` (R.f . R.alphaA))
-    , ("reduct trees have unique ids:", prop_uniqids)
+      ("nm2lang is left inverse of lang2nm:",
+        R.nm2lang `is_left_inverse_of` R.lang2nm)
+    , ("commutation proof:",
+       (R.alphaB . R.f') `is_equivalent_to` (R.f . R.alphaA))
+    , ("reduct trees have unique ids:",
+        prop_uniqids)
   ]
 
 alligatorTest :: Group
 alligatorTest = Group "Alligators" [
-      ("nm2lang is left inverse of lang2nm:", A.nm2lang `is_left_inverse_of` A.lang2nm)
-    , ("commutation proof:", (colorsToInts . A.alphaB . A.f') `is_equivalent_to` (colorsToInts . A.f . A.alphaA))
-    , ("color rule:", color_rule)
-    , ("asciiAlligator . lang2nm is equivalente to directly from Exp:", (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
+      ("nm2lang is left inverse of lang2nm:",
+        A.nm2lang `is_left_inverse_of` A.lang2nm)
+    , ("commutation proof:",
+       (colorsToInts . A.alphaB . A.f') `is_equivalent_to` (colorsToInts . A.f . A.alphaA))
+    , ("color rule:",
+        color_rule)
+    , ("asciiAlligator . lang2nm is equivalente to directly from Exp:",
+       (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
   ]
 
 
