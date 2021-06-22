@@ -5,6 +5,7 @@
 module Alligator where
 
 import Data.Function ((&))
+import Data.Maybe (fromMaybe)
 
 import Control.Monad.State.Lazy
 
@@ -53,11 +54,28 @@ eatingRule families = families
 -- "If an alligator is about to eat a family, and there's a color that appears
 -- in both families, we need to change that color in one family to something
 -- else."
--- Change the colors of `family` that appear in `a`.
+-- Change the colors of `family` that also appear in `a` to colors that don't
+-- appear in neither family.
 colorRule :: [AlligatorFamily] -> [AlligatorFamily]
-colorRule (a @ (HungryAlligator _ _):family:rest) = a:(fmap (nextNotIn a) family):rest
-  where nextNotIn xs = fix (\rec x -> if x `notElem` xs then x else rec (succ x))
+colorRule (a @ (HungryAlligator _ _):family:rest) = a:recolor a family:rest
 colorRule families = families
+
+recolor :: AlligatorFamily -> AlligatorFamily -> AlligatorFamily
+recolor a1 a2 = evalState (mapM go a2) ([], minBound)
+  where -- The state contains:
+        -- * A mapping of color substitutions
+        -- * The next candidate color for a substitution (a counter)
+        go :: Color -> State ([(Color, Color)], Color) Color
+        go c | c `notElem` a1 = return c
+             | otherwise = do (subs, next) <- get
+                              case lookup c subs of
+                                Just c2 -> return c2
+                                Nothing -> let c2 = nextNotIn a1 a2 next
+                                           in do put ((c, c2):subs, succ c2)
+                                                 return c2
+
+nextNotIn :: AlligatorFamily -> AlligatorFamily -> Color -> Color
+nextNotIn xs ys = fix (\rec x -> if x `notElem` xs && x `notElem` ys then x else rec (succ x))
 
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
@@ -68,17 +86,38 @@ oldAgeRule families = families
 ----------------------
 -- Gameplay --
 ----------------------
-guess :: AlligatorFamily -> [([AlligatorFamily], [AlligatorFamily])] -> [Color] -> Bool
-guess family testCases colors = all check testCases
+-- "The game would consist of a series of puzzles, challenging the player to
+-- devise a family that, when fed X, produces Y."
+
+-- | Check a guess made by the player.
+guess :: AlligatorFamily
+      -- ^ A base family `a` with colors the user has to guess
+      -- (represented by the `emptyColor = Color '?'`).
+      -> [Color]
+      -- ^ The `colors` that are being guessed (one for each `emptyColor`).
+      -> [([AlligatorFamily], [AlligatorFamily])]
+      -- ^ A list of "test cases" that should be satisfied if the guess is
+      -- correct.  Each test case is a pair of input and expected output. The
+      -- expected output should be obtained by substituting the `emptyColor`s
+      -- by the guessed `colors` in the base family `a`, putting each input in
+      -- front of this family and running the game.
+      -> Bool
+guess a colors testCases = all check testCases
   where
-    check (input, output) = restartColors (evolution (newFamily:input)) == restartColors output
-    newFamily = evalState (mapM go family) colors
-    go :: Color -> State [Color] Color
-    go c | c /= Color '?' = return c
-         | otherwise = do cs <- get
-                          case cs of
-                            [] -> return c
-                            x:xs -> put xs >> return x
+    check (i, o) = colorsToInts (evolution ((fillAll colors a):i))
+                == colorsToInts o
+    fillAll :: [Color] -> AlligatorFamily -> AlligatorFamily
+    fillAll cs x = evalState (mapM fill x) cs
+    fill :: Color -> State [Color] Color
+    fill c | c /= emptyColor = return c
+           | otherwise = do cs <- get
+                            case cs of
+                              [] -> return c
+                              x:xs -> put xs >> return x
+
+-- Represents a color to be guessed.
+emptyColor :: Color
+emptyColor = Color '?'
 
 -------------------------
 -- Lang to NM and back --
@@ -98,15 +137,13 @@ lang2nm (Lambda name e)         = [HungryAlligator (toColor name) (lang2nm e)]
 lang2nm (App e1 e2 @ (App _ _)) = lang2nm e1 ++ [OldAlligator (lang2nm e2)]
 lang2nm (App e1 e2)             = lang2nm e1 ++ lang2nm e2
 
-restartColors :: [AlligatorFamily] -> [AlligatorFamily]
-restartColors families = evalState (mapM go families) minBound
-  where go (HungryAlligator c proteges) =
-          do n <- withState succ get
-             HungryAlligator n <$> mapM go (fmap (replaceColor c n) proteges)
-        go (OldAlligator proteges) = OldAlligator <$> mapM go proteges
-        go e = return e
-
-        replaceColor c1 c2 = fmap (\c -> if c == c1 then c2 else c)
+colorsToInts :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
+colorsToInts families = fmap (go 0 []) families
+  where
+    go :: Int -> [(Color, Int)] -> AlligatorFamilyF Color -> AlligatorFamilyF Int
+    go n s (HungryAlligator c as) = HungryAlligator n (go (succ n) ((c, n):s) <$> as)
+    go n s (OldAlligator as) = OldAlligator (go n s <$> as)
+    go n s (Egg c) = Egg (fromMaybe n (lookup c s))
 
 ----------------------
 -- Ascii Alligators --
@@ -249,6 +286,12 @@ fCmpalphaA = evolution . lang2nm
 --
 -- In the language of alligators, a family could be composed of multiple hungry alligators with the same color, who is guarding an egg of this color?
 
+
+
+
+-----------------------
+-- Examples of terms --
+-----------------------
 
 aq :: AlligatorFamily
 aq = (HungryAlligator (Color 'b') [HungryAlligator (Color 'c') [(Egg (Color '?'))]])

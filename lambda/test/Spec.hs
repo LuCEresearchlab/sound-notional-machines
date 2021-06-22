@@ -10,6 +10,7 @@ import           Control.Concurrent.Async.Lifted (race)
 import           Control.Exception (evaluate)
 
 import Data.Foldable (toList)
+import Data.List (intersect)
 
 import UntypedLambda
 import           ExpressionTutor hiding (nm2lang, lang2nm, alphaA, alphaB, f, f')
@@ -89,6 +90,21 @@ prop_uniqids = prop $ do
 
 uids = toList
 
+----- Alligator -----
+
+color_rule :: Property
+color_rule = prop $ do
+  e1 <- forAll genExp
+  case A.lang2nm e1 of
+    a1:a2:_ ->
+      let newA2 = recolor a1 a2
+      in do annotateShow a1
+            annotateShow a2
+            annotateShow newA2
+            colorsToInts [newA2] === colorsToInts [a2]
+            intersect (toList a1) (toList newA2) === []
+    _ -> success
+
 ----------------------
 
 
@@ -115,7 +131,8 @@ reductTest = Group "Reduct" [
 alligatorTest :: Group
 alligatorTest = Group "Alligators" [
       ("nm2lang is left inverse of lang2nm:", A.nm2lang `is_left_inverse_of` A.lang2nm)
-    , ("commutation proof:", (restartColors . A.alphaB . A.f') `is_equivalent_to` (restartColors . A.f . A.alphaA))
+    , ("commutation proof:", (colorsToInts . A.alphaB . A.f') `is_equivalent_to` (colorsToInts . A.f . A.alphaA))
+    , ("color rule:", color_rule)
     , ("asciiAlligator . lang2nm is equivalente to directly from Exp:", (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
   ]
 
