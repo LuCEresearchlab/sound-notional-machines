@@ -7,8 +7,8 @@ digraph takeFirst {
     label="Step 0\n(λx.λy. x) a b"
     s0appb [label="<h0>|<h1>",shape=record]
     s0appa [label="<h0>|<h1>",shape=record,style=filled,fillcolor="#d0d0d0"]
-    s0absx [label="λx|<h0>",shape=record,style=filled,fillcolor="#d0d0d0"]
-    s0absy [label="λy|<h0>",shape=record]
+    s0absx [label="λ|x|<h0>",shape=record,style=filled,fillcolor="#d0d0d0"]
+    s0absy [label="λ|y|<h0>",shape=record]
     s0varx [label="x",shape=record]
     s0vara [label="a",shape=record]
     s0varb [label="b",shape=record]
@@ -24,7 +24,7 @@ digraph takeFirst {
     color="#c0c0c0"
     label="Step 1\n(λy. a) b"
     s1appb [label="<h0>|<h1>",shape=record,style=filled,fillcolor="#d0d0d0"]
-    s1absy [label="λy|<h0>",shape=record,style=filled,fillcolor="#d0d0d0"]
+    s1absy [label="λ|y|<h0>",shape=record,style=filled,fillcolor="#d0d0d0"]
     s1vara [label="a",shape=record]
     s1varb [label="b",shape=record]
     s1appb:h0 -> s1absy
