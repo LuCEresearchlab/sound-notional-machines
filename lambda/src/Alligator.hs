@@ -93,16 +93,16 @@ oldAgeRule families = families
 guess :: AlligatorFamily
       -- ^ A base family `a` with colors the user has to guess
       -- (represented by the `emptyColor = Color '?'`).
-      -> [Color]
-      -- ^ The `colors` that are being guessed (one for each `emptyColor`).
       -> [([AlligatorFamily], [AlligatorFamily])]
       -- ^ A list of "test cases" that should be satisfied if the guess is
       -- correct.  Each test case is a pair of input and expected output. The
       -- expected output should be obtained by substituting the `emptyColor`s
       -- by the guessed `colors` in the base family `a`, putting each input in
       -- front of this family and running the game.
+      -> [Color]
+      -- ^ The `colors` that are being guessed (one for each `emptyColor`).
       -> Bool
-guess a colors testCases = all check testCases
+guess a testCases colors = all check testCases
   where
     check (i, o) = colorsToInts (evolution ((fillAll colors a):i))
                 == colorsToInts o
@@ -164,7 +164,7 @@ alligatorBody :: AsciiAlligators -> String
 alligatorBody protege = replicate (width protege) '-'
 
 width :: AsciiAlligators -> Int
-width = foldl (\acc x -> max acc (length x)) 0
+width = foldl max 0 . fmap length
 
 inFrontOf :: AsciiAlligators -> AsciiAlligators -> AsciiAlligators
 inFrontOf a  [] = a
