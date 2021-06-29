@@ -53,16 +53,16 @@ generateParseActivity :: MonadIO m => m String
 generateParseActivity = unparse <$> Gen.sample genExp
 
 solveParseActivity :: String -> Maybe ExpTreeDiagram
-solveParseActivity = fmap lang2nm . parse
+solveParseActivity = fmap langToNm . parse
 
 
 ---- Unparse activity ----
 
 generateUnparseActivity :: MonadIO m => m ExpTreeDiagram
-generateUnparseActivity = lang2nm <$> Gen.sample genExp
+generateUnparseActivity = langToNm <$> Gen.sample genExp
 
 solveUnparseActivity :: ExpTreeDiagram -> Maybe String
-solveUnparseActivity = fmap unparse . nm2lang
+solveUnparseActivity = fmap unparse . nmToLang
 
 
 ---- Eval activity ----

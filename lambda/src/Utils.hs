@@ -7,6 +7,11 @@ import Data.Function (fix)
 
 import Text.Show.Pretty
 
+data Bisimulation a' b' a b = Bisim { fLang  :: a' -> b'
+                                    , fNM    :: a  -> b
+                                    , alphaA :: a' -> a
+                                    , alphaB :: b' -> b }
+
 maybeHead :: [a] -> Maybe a
 maybeHead = fmap fst . uncons
 

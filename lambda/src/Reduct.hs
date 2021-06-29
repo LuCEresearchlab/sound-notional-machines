@@ -95,7 +95,7 @@ updateUids n e = evalState (prepareNewUids e) n
 
 -- Prepare a State monad that sets all uids to uniquely increasing values.
 prepareNewUids :: ReductExp -> State Int ReductExp
-prepareNewUids = mapM (const (withState succ get))
+prepareNewUids = mapM (const (get <* modify succ))
 
 -- Make new a Reduct level.
 mkReductLevel :: [ReductExp] -> [ReductExp] -> ReductExp -> ReductLevel
@@ -178,19 +178,19 @@ rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
 --------------------
 -- Lang to NM and back
 --------------------
-nm2lang :: ReductExp -> Maybe Program
-nm2lang = reduct2jslc
+nmToLang :: ReductExp -> Maybe Program
+nmToLang = reduct2jslc
 
 reduct2jslc :: ReductExp -> Maybe Program
 reduct2jslc (HolePlug n1 n2  _) = App <$> (reduct2jslc =<< n1) <*> (reduct2jslc =<< n2)
 reduct2jslc (HolePipe name n _) = Lambda name <$> (reduct2jslc =<< n)
 reduct2jslc (Pipe name       _) = Just (Var name)
 
-lang2nm :: Program -> ReductExp
-lang2nm = jslc2reduct
+langToNm :: Program -> ReductExp
+langToNm = jslc2reduct
 
 jslc2reduct :: Program -> ReductExp
-jslc2reduct p = go p 0
+jslc2reduct p = updateUids 0 (go p 0)
   where go (App e1 e2)     = HolePlug (Just (jslc2reduct e1)) (Just (jslc2reduct e2))
         go (Lambda name e) = HolePipe name (Just (jslc2reduct e))
         go (Var name)      = Pipe name
@@ -207,23 +207,11 @@ jslc2reduct p = go p 0
 --
 --    A' --f'--> B'
 
-type A' = Exp
-type B' = Exp
-
-type A  = ReductExp
-type B  = Maybe ReductExp
-
-f' :: A' -> B'
-f' = eval
-
-alphaA :: A' -> A
-alphaA = lang2nm
-
-f :: A -> B
-f = fmap (lang2nm . eval) . nm2lang
-
-alphaB :: B' -> B
-alphaB = return . alphaA
+bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
+bisim = Bisim { fLang  = eval
+              , fNM    = fmap (langToNm . eval) . nmToLang
+              , alphaA = langToNm
+              , alphaB = return . langToNm }
 
 {-
 

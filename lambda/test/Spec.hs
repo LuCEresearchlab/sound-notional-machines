@@ -13,12 +13,14 @@ import Data.Foldable (toList)
 import Data.List (intersect)
 
 import UntypedLambda
-import           ExpressionTutor hiding (nm2lang, lang2nm, alphaA, alphaB, f, f')
-import qualified ExpressionTutor as ET  (nm2lang, lang2nm, alphaA, alphaB, f, f')
-import           Reduct hiding (nm2lang, lang2nm, alphaA, alphaB, f, f')
-import qualified Reduct as R   (nm2lang, lang2nm, alphaA, alphaB, f, f')
-import           Alligator hiding (nm2lang, lang2nm, alphaA, alphaB, f, f')
-import qualified Alligator as A   (nm2lang, lang2nm, alphaA, alphaB, f, f')
+import           ExpressionTutor hiding (bisim, nmToLang, langToNm)
+import qualified ExpressionTutor as ET  (bisim, nmToLang, langToNm)
+import           Reduct hiding (bisim, nmToLang, langToNm)
+import qualified Reduct as R   (bisim, nmToLang, langToNm)
+import           Alligator hiding (bisim, nmToLang, langToNm)
+import qualified Alligator as A   (bisim, nmToLang, langToNm)
+
+import Utils
 
 import ExpressionTutorGenerator
 
@@ -80,13 +82,16 @@ is_equivalent_to f f' = prop $ do
   e <- forAll genCombinator
   test $ withTimeLimit 500000 $ f e === f' e
 
+bisimulationCommutes :: (Eq b, Show b) => Bisimulation Exp b' a b -> Property
+bisimulationCommutes b = (alphaB b . fLang b) `is_equivalent_to` (fNM b . alphaA b)
+
 ----- Reduct -----
 
 prop_uniqids :: Property
 prop_uniqids = prop $ do
   e <- forAll genReductExp
   let ids = uids $ updateUids 0 e
-  ids === [1..(length ids)]
+  ids === [0..((length ids) - 1)]
 
 uids = toList
 
@@ -95,7 +100,7 @@ uids = toList
 color_rule :: Property
 color_rule = prop $ do
   e1 <- forAll genExp
-  case A.lang2nm e1 of
+  case alphaA A.bisim e1 of
     a1:a2:_ ->
       let newA2 = recolor a1 a2
       in do annotateShow a1
@@ -120,32 +125,32 @@ lambdaTest = Group "Lambda" [
 
 expressionTutorTest :: Group
 expressionTutorTest = Group "Expressiontutor" [
-      ("nm2lang is left inverse of lang2nm:",
-        ET.nm2lang `is_left_inverse_of` ET.lang2nm)
+      ("nmToLang is left inverse of langToNm:",
+        ET.nmToLang `is_left_inverse_of` ET.langToNm)
     , ("commutation proof:",
-       (ET.alphaB . ET.f') `is_equivalent_to` (ET.f . ET.alphaA))
+        bisimulationCommutes ET.bisim)
   ]
 
 reductTest :: Group
 reductTest = Group "Reduct" [
-      ("nm2lang is left inverse of lang2nm:",
-        R.nm2lang `is_left_inverse_of` R.lang2nm)
+      ("nmToLang is left inverse of langToNm:",
+        R.nmToLang `is_left_inverse_of` R.langToNm)
     , ("commutation proof:",
-       (R.alphaB . R.f') `is_equivalent_to` (R.f . R.alphaA))
+        bisimulationCommutes R.bisim)
     , ("reduct trees have unique ids:",
         prop_uniqids)
   ]
 
 alligatorTest :: Group
 alligatorTest = Group "Alligators" [
-      ("nm2lang is left inverse of lang2nm:",
-        A.nm2lang `is_left_inverse_of` A.lang2nm)
+      ("nmToLang is left inverse of langToNm:",
+        A.nmToLang `is_left_inverse_of` A.langToNm)
     , ("commutation proof:",
-       (colorsToInts . A.alphaB . A.f') `is_equivalent_to` (colorsToInts . A.f . A.alphaA))
+        bisimulationCommutes A.bisim)
     , ("color rule:",
         color_rule)
-    , ("asciiAlligator . lang2nm is equivalente to directly from Exp:",
-       (prettyAlligators . A.lang2nm) `is_equivalent_to` exp2AlligatorAscii)
+    , ("asciiAlligator . langToNm is equivalente to directly from Exp:",
+       (prettyAlligators . A.langToNm) `is_equivalent_to` exp2AlligatorAscii)
   ]
 
 

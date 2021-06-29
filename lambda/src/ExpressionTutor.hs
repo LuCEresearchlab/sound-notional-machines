@@ -99,8 +99,8 @@ diaBranch d = (\r -> (r, children r)) <$> root d
 --------------------
 -- Lang to NM and back
 --------------------
-lang2nm :: Program -> ExpTreeDiagram
-lang2nm p = evalState (a2g p) 0
+langToNm :: Program -> ExpTreeDiagram
+langToNm p = evalState (a2g p) 0
   where a2g :: Program -> State Int ExpTreeDiagram
         a2g (Var name)      = incUid (\uid -> DiaLeaf (NodeVar uid name))
         a2g (Lambda name e) = do d <- a2g e
@@ -108,11 +108,11 @@ lang2nm p = evalState (a2g p) 0
         a2g (App e1 e2)     = do d1 <- a2g e1
                                  d2 <- a2g e2
                                  incUid $ \uid -> DiaBranch (NodeApp uid) [d1, d2]
-        incUid g = g <$> withState succ get
+        incUid g = g <$> get <* modify succ
 
 
-nm2lang :: ExpTreeDiagram -> Maybe Program
-nm2lang d = evalStateT (g2a d) Set.empty
+nmToLang :: ExpTreeDiagram -> Maybe Program
+nmToLang d = evalStateT (g2a d) Set.empty
   where
     -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
     g2a :: ExpTreeDiagram -> StateT (Set Int) Maybe Program
@@ -139,38 +139,26 @@ nm2lang d = evalStateT (g2a d) Set.empty
 --
 --    A' --f'--> B'
 
-type A' = Exp
-type B' = Maybe Exp
-
-type A  = ExpTreeDiagram
-type B  = Maybe ExpTreeDiagram
-
-f' :: A' -> B'
-f' = evalMaybe
-
-alphaA :: A' -> A
-alphaA = lang2nm
-
-f :: A -> B
-f = fmap lang2nm . (=<<) evalMaybe . nm2lang
-
-alphaB :: B' -> B
-alphaB = fmap alphaA
+bisim :: Bisimulation Exp (Maybe Exp) ExpTreeDiagram (Maybe ExpTreeDiagram)
+bisim = Bisim { fLang  = evalMaybe
+              , fNM    = fmap langToNm . (=<<) evalMaybe . nmToLang
+              , alphaA = langToNm
+              , alphaB = fmap langToNm }
 
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A
 
-alphaBCmpf' :: A' -> B
+-- alphaBCmpf' :: A' -> B
 -- alphaBCmpf' = alphaB . f'
 -- alphaBCmpf' = fmap alphaA . eval -- substitute alphaB and f'
-alphaBCmpf' = fmap lang2nm . evalMaybe -- substitute alphaA
+-- alphaBCmpf' = fmap langToNm . evalMaybe -- substitute alphaA
 
-fCmpalphaA :: A' -> B
+-- fCmpalphaA :: A' -> B
 -- fCmpalphaA = f . alphaA
--- fCmpalphaA = fmap lang2nm . (=<<) eval . nm2lang . lang2nm -- substitute f and alphaA
--- fCmpalphaA = fmap lang2nm . (=<<) eval . return -- nm2lang and lang2nm are inverses
-fCmpalphaA = fmap lang2nm . evalMaybe -- left identity on Monads
+-- fCmpalphaA = fmap langToNm . (=<<) eval . nmToLang . langToNm -- substitute f and alphaA
+-- fCmpalphaA = fmap langToNm . (=<<) eval . return -- nmToLang and langToNm are inverses
+-- fCmpalphaA = fmap langToNm . evalMaybe -- left identity on Monads
 
 
 --------

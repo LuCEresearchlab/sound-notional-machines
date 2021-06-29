@@ -122,20 +122,20 @@ emptyColor = Color '?'
 -------------------------
 -- Lang to NM and back --
 -------------------------
-nm2lang :: [AlligatorFamily] -> Maybe Exp
-nm2lang families =
+nmToLang :: [AlligatorFamily] -> Maybe Exp
+nmToLang families =
   fmap f2e families & \case []           -> Nothing
                             me:[]        -> me
                             me1:me2:rest -> foldl (liftM2 App) (liftM2 App me1 me2) rest
-  where f2e (HungryAlligator c proteges) = Lambda (show c) <$> nm2lang proteges
-        f2e (OldAlligator proteges) = nm2lang proteges
+  where f2e (HungryAlligator c proteges) = Lambda (show c) <$> nmToLang proteges
+        f2e (OldAlligator proteges) = nmToLang proteges
         f2e (Egg c) = Just (Var (show c))
 
-lang2nm :: Exp -> [AlligatorFamily]
-lang2nm (Var name)              = [Egg (toColor name)]
-lang2nm (Lambda name e)         = [HungryAlligator (toColor name) (lang2nm e)]
-lang2nm (App e1 e2 @ (App _ _)) = lang2nm e1 ++ [OldAlligator (lang2nm e2)]
-lang2nm (App e1 e2)             = lang2nm e1 ++ lang2nm e2
+langToNm :: Exp -> [AlligatorFamily]
+langToNm (Var name)              = [Egg (toColor name)]
+langToNm (Lambda name e)         = [HungryAlligator (toColor name) (langToNm e)]
+langToNm (App e1 e2 @ (App _ _)) = langToNm e1 ++ [OldAlligator (langToNm e2)]
+langToNm (App e1 e2)             = langToNm e1 ++ langToNm e2
 
 colorsToInts :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
 colorsToInts families = fmap (go 0 []) families
@@ -214,36 +214,24 @@ exp2AlligatorAscii = unlines . go
 --
 --    A' --f'--> B'
 
-type A' = Exp
-type B' = Exp
+bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
+bisim = Bisim { fLang  = eval
+              , fNM    = colorsToInts . evolution
+              , alphaA = langToNm
+              , alphaB = colorsToInts . langToNm }
 
-type A  = [AlligatorFamily]
-type B  = [AlligatorFamily]
-
-f' :: A' -> B'
-f' = eval
-
-alphaA :: A' -> A
-alphaA = lang2nm
-
-f :: A -> B
-f = evolution
--- f = fmap lang2nm . fmap eval . nm2lang
-
-alphaB :: B' -> B
-alphaB = alphaA
 
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A
 
-alphaBCmpf' :: A' -> B
--- alphaBCmpf' = alphaB . f'
-alphaBCmpf' = lang2nm . eval
+-- alphaBCmpf' :: A' -> B
+-- -- alphaBCmpf' = alphaB . f'
+-- alphaBCmpf' = langToNm . eval
 
-fCmpalphaA :: A' -> B
--- fCmpalphaA = f . alphaA
-fCmpalphaA = evolution . lang2nm
+-- fCmpalphaA :: A' -> B
+-- -- fCmpalphaA = f . alphaA
+-- fCmpalphaA = evolution . langToNm
 
 
 -- Analysis:
