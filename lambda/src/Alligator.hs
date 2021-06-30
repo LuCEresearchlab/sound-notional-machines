@@ -241,11 +241,56 @@ bisim = Bisim { fLang  = eval
 -- Examples of terms --
 -----------------------
 
-aq :: AlligatorFamily
-aq = (HungryAlligator (Color 'b') [HungryAlligator (Color 'c') [(Egg (Color '?'))]])
-anot :: AlligatorFamily
-anot = (HungryAlligator (Color 'a') [Egg (Color 'a'),aq,aq])
+aid :: AlligatorFamily
+aid = HungryAlligator (Color 'a') [Egg (Color 'a')]
+
+-- church booleans
 atru :: AlligatorFamily
-atru = (HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'a'))]])
+atru = HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'a'))]]
 afls :: AlligatorFamily
-afls = (HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'b'))]])
+afls = HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'b'))]]
+aand :: AlligatorFamily
+aand = HungryAlligator (Color 'p') [
+         HungryAlligator (Color 'q') [
+           Egg (Color 'p'), Egg (Color 'q'), HungryAlligator (Color 'x') [
+                                                  HungryAlligator (Color 'y') [
+                                                    Egg (Color 'y')]]]]
+aor :: AlligatorFamily
+aor = HungryAlligator (Color 'p') [
+        HungryAlligator (Color 'q') [
+          Egg (Color 'p'), HungryAlligator (Color 'x') [
+                             HungryAlligator (Color 'y') [
+                               Egg (Color 'x')]]           , Egg (Color 'q')]]
+
+-- church numbers
+aone :: AlligatorFamily
+aone = HungryAlligator (Color 's') [
+         HungryAlligator (Color 'z') [
+           Egg (Color 's'), Egg (Color 'z')]]
+atwo :: AlligatorFamily
+atwo = HungryAlligator (Color 's') [
+         HungryAlligator (Color 'z') [
+           Egg (Color 's'), OldAlligator [
+                              Egg (Color 's'), Egg (Color 'z')]]]
+athree :: AlligatorFamily
+athree = HungryAlligator (Color 's') [
+           HungryAlligator (Color 'z') [
+             Egg (Color 's'), OldAlligator [
+                                Egg (Color 's'), OldAlligator [
+                                                   Egg (Color 's'), Egg (Color 'z')]]]]
+
+-- Y-combinator
+ay :: AlligatorFamily
+ay = HungryAlligator (Color 'g') [
+       HungryAlligator (Color 'x') [
+         Egg (Color 'g'), OldAlligator [
+                            Egg (Color 'x'), Egg (Color 'x')]],
+       HungryAlligator (Color 'x') [
+         Egg (Color 'g'), OldAlligator [
+                            Egg (Color 'x'), Egg (Color 'x')]]]
+
+-- term with unknowns
+aq :: AlligatorFamily
+aq = HungryAlligator (Color 'b') [HungryAlligator (Color 'c') [(Egg (Color '?'))]]
+anot :: AlligatorFamily
+anot = HungryAlligator (Color 'a') [Egg (Color 'a'), aq, aq]
