@@ -111,11 +111,17 @@ guess a testCases colors = all check testCases
                 == colorsToInts o
     fillAll :: [Color] -> AlligatorFamily -> AlligatorFamily
     fillAll cs x = evalState (mapM fill x) cs
+    -- Replace an emptyColor by the color in the head of the list in the state
+    -- and update the state with the tails of the list.
     fill :: Color -> State [Color] Color
     fill c | c /= emptyColor = return c
            | otherwise = do cs <- get
                             case cs of
+                              -- if there are no more colors to replace the emptyColor
+                              -- then keep the emptyColor (nothing else we can do).
                               [] -> return c
+                              -- replace empty color with next color in the list and
+                              -- put the rest back in the state to be used next.
                               x:xs -> put xs >> return x
 
 -- Represents a color to be guessed.
