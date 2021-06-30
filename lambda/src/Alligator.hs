@@ -78,7 +78,7 @@ recolor a1 a2 = evalState (mapM go a2) ([], minBound)
                                                  return c2
 
 nextNotIn :: AlligatorFamily -> AlligatorFamily -> Color -> Color
-nextNotIn xs ys = fix (\rec x -> if x `notElem` xs && x `notElem` ys then x else rec (succ x))
+nextNotIn xs ys = fix (\rec x -> if all (notElem x) [xs, ys] then x else rec (succ x))
 
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
