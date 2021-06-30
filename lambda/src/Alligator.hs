@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, GeneralizedNewtypeDeriving, LambdaCase #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
+             GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances #-}
 
 module Alligator where
 
@@ -11,6 +12,7 @@ import Control.Monad.State.Lazy
 
 import UntypedLambda
 import Utils
+import AsciiAlligators
 
 
 newtype Color = Color Char deriving (Eq, Enum)
@@ -32,6 +34,7 @@ data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
                         | Egg a
                         deriving (Show, Eq, Functor, Foldable, Traversable)
 
+type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
 
 allRules :: [AlligatorFamily] -> [AlligatorFamily]
@@ -145,62 +148,14 @@ colorsToInts families = fmap (go 0 []) families
     go n s (OldAlligator as) = OldAlligator (go n s <$> as)
     go n s (Egg c) = Egg (fromMaybe n (lookup c s))
 
-----------------------
--- Ascii Alligators --
-----------------------
-type AsciiAlligators = [String]
-
-asciiOldAlligator :: AsciiAlligators -> AsciiAlligators
-asciiOldAlligator protege = alligatorBody protege : protege
-
-asciiHungryAlligator :: String -> AsciiAlligators -> AsciiAlligators
-asciiHungryAlligator var protege = (var ++ alligatorBody protege ++ "<") : (indent protege)
-  where indent = map (' ':)
-
-asciiEgg :: String -> AsciiAlligators
-asciiEgg e = [e]
-
-alligatorBody :: AsciiAlligators -> String
-alligatorBody protege = replicate (width protege) '-'
-
-width :: AsciiAlligators -> Int
-width = foldl max 0 . fmap length
-
-inFrontOf :: AsciiAlligators -> AsciiAlligators -> AsciiAlligators
-inFrontOf a  [] = a
-inFrontOf [] b  = b
-inFrontOf a  b  = let na = padHeight a (length b)
-                      nb = padHeight b (length a)
-                  in glue (padWidth na) nb
-  where
-    padHeight x n = padWith [] n x
-    padWidth  x   = map (padWith ' ' (width x)) x
-    glue = zipWith (\x y -> x ++ " " ++ y)
-    padWith x n xs = xs ++ replicate (n - length xs) x
-
 --------------------------------------------------------
 -- Ascii Alligators representation of AlligatorFamily --
 --------------------------------------------------------
-prettyAlligators :: [AlligatorFamily] -> String
-prettyAlligators = unlines . go
-  where go :: [AlligatorFamily] -> AsciiAlligators
-        go = foldl inFrontOf [] . fmap (\case
-          (HungryAlligator c proteges) -> asciiHungryAlligator (show c) (go proteges)
-          (OldAlligator proteges)      -> asciiOldAlligator (go proteges)
-          (Egg c)                      -> asciiEgg (show c))
-
---------------------------------------------
--- Ascii Alligators representation of Exp --
---------------------------------------------
-exp2AlligatorAscii :: Exp -> String
-exp2AlligatorAscii = unlines . go
-  where
-    go :: Exp -> AsciiAlligators
-    go (Var name)              = asciiEgg name
-    go (Lambda name e)         = asciiHungryAlligator name (go e)
-    go (App e1 e2 @ (App _ _)) = (go e1) `inFrontOf` (asciiOldAlligator (go e2))
-    go (App e1 e2)             = (go e1) `inFrontOf` (go e2)
-
+instance AsAsciiAlligators AlligatorFamilies where
+  toAscii = foldMap $ \case
+    HungryAlligator c proteges -> asciiHungryAlligator (show c) (toAscii proteges)
+    OldAlligator proteges      -> asciiOldAlligator (toAscii proteges)
+    Egg c                      -> asciiEgg (show c)
 
 ------------------
 
@@ -219,7 +174,6 @@ bisim = Bisim { fLang  = eval
               , fNM    = colorsToInts . evolution
               , alphaA = langToNm
               , alphaB = colorsToInts . langToNm }
-
 
 
 -- Commutation proof:

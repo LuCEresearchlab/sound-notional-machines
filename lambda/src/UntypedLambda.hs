@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
-{-# LANGUAGE FlexibleContexts, TupleSections, PatternSynonyms, ViewPatterns #-}
+{-# LANGUAGE FlexibleContexts, TupleSections, PatternSynonyms,
+             ViewPatterns, LambdaCase #-}
 
 module UntypedLambda where
 
@@ -11,6 +12,7 @@ import Data.List ((\\))
 import Data.Maybe (fromJust)
 
 import Utils
+import AsciiAlligators
 
 --------------------
 -- Bisimulation
@@ -151,6 +153,17 @@ unparseJS :: Program -> String
 unparseJS p @ (App _ _)       = unparse p
 unparseJS     (Lambda name e) = parens (concat [name, " => ", unparse e])
 unparseJS p @ (Var _)         = unparse p
+
+
+--------------------------------------------
+-- Ascii Alligators representation of Exp --
+--------------------------------------------
+instance AsAsciiAlligators Exp where
+  toAscii = \case
+    Var name           -> asciiEgg name
+    Lambda name e      -> asciiHungryAlligator name (toAscii e)
+    App e1 e2 @ App {} -> toAscii e1 `inFrontOf` asciiOldAlligator (toAscii e2)
+    App e1 e2          -> toAscii e1 `inFrontOf` toAscii e2
 
 
 --------------

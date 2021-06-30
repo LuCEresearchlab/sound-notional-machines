@@ -21,6 +21,7 @@ import           Alligator hiding (bisim, nmToLang, langToNm)
 import qualified Alligator as A   (bisim, nmToLang, langToNm)
 
 import Utils
+import AsciiAlligators
 
 import ExpressionTutorGenerator
 
@@ -150,11 +151,11 @@ alligatorTest = Group "Alligators" [
     , ("color rule:",
         color_rule)
     , ("asciiAlligator . langToNm is equivalente to directly from Exp:",
-       (prettyAlligators . A.langToNm) `is_equivalent_to` exp2AlligatorAscii)
+       (show . toAscii . A.langToNm) `is_equivalent_to` (show . toAscii))
   ]
 
 
-defaultNumberOfTests = 500
+defaultNumberOfTests = 300
 
 main :: IO ()
 main = defaultMain $ fmap checkParallel [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
