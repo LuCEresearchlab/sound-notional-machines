@@ -169,6 +169,11 @@ instance AsAsciiAlligators Exp where
 --------------
 -- Examples --
 --------------
+
+eId :: Exp
+eId = fromJust $ parse "\\x.x"
+
+-- church booleans
 tru    :: String
 tru    = "(\\t.\\f.t)"
 eTrue  :: Exp
@@ -181,14 +186,19 @@ eAnd   :: Exp
 eAnd   = fromJust $ parse ("\\b.\\c.b c " ++ fls)
 eOr    :: Exp
 eOr    = fromJust $ parse ("\\b.\\c.b " ++ tru ++ " c")
+
+-- church numbers
 eZero  :: Exp
 eZero  = fromJust $ parse "\\s.\\z.z"
 eOne   :: Exp
 eOne   = fromJust $ parse "\\s.\\z.s z"
 eTwo   :: Exp
 eTwo   = fromJust $ parse "\\s.\\z.s(s z)"
+eThree :: Exp
+eThree = fromJust $ parse "\\s.\\z.s(s (s z)"
 eScc   :: Exp
 eScc   = fromJust $ parse "\\n.\\s.\\z.s(n s z)"
+
 eOmega :: Exp
 eOmega = fromJust $ parse "(\\x.x x) (\\x.x x)"
 eY     :: Exp
