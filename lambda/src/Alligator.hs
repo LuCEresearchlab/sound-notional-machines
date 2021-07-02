@@ -162,7 +162,7 @@ colorsToInts families = fmap (go 0 []) families
 --------------------------------------------------------
 -- Ascii Alligators representation of AlligatorFamily --
 --------------------------------------------------------
-instance AsAsciiAlligators AlligatorFamilies where
+instance Show a => AsAsciiAlligators [AlligatorFamilyF a] where
   toAscii = foldMap $ \case
     HungryAlligator c proteges -> asciiHungryAlligator (show c) (toAscii proteges)
     OldAlligator proteges      -> asciiOldAlligator (toAscii proteges)
