@@ -41,7 +41,6 @@ import AsciiAlligators
 --------------------
 -- Untyped Lambda Calculus
 --------------------
-type Program = Exp
 data Exp = App Exp Exp
          | Lambda Name Exp
          | Var Name
@@ -51,10 +50,10 @@ type Name = String
 --------------------
 -- Interpreter for Untyped Lambda Calculus
 --------------------
-eval :: Program -> Program
+eval :: Exp -> Exp
 eval = bigStep
 
-step :: Program -> Program
+step :: Exp -> Exp
 step (App      (Lambda name e1) e2 @ (Lambda _ _)) = subst name e2 e1
 step (App e1 @ (Lambda _    _ ) e2               ) = App e1 (step e2)
 step (App e1                    e2               ) = App (step e1) e2
@@ -62,7 +61,7 @@ step p @ (Lambda _ _) = p
 step p @ (Var _) = p
 
 -- successively step until the result doesn't change
-bigStep :: Program -> Program
+bigStep :: Exp -> Exp
 bigStep = fixpoint step
 
 -- substitution
@@ -88,7 +87,7 @@ fresh a = "_" ++ a
 
 ----- Evaluation with error handling ----------
 
-evalMaybe :: Program -> Maybe Program
+evalMaybe :: Exp -> Maybe Exp
 evalMaybe (App e1 e2) = do
   Lambda name e3 <- evalMaybe e1
   e4             <- evalMaybe e2
@@ -96,7 +95,7 @@ evalMaybe (App e1 e2) = do
 evalMaybe p @ (Lambda _ _) = Just p
 evalMaybe (Var _) = Nothing -- "malformed exp tree"
 
-stepMaybe :: Program -> Maybe Program
+stepMaybe :: Exp -> Maybe Exp
 stepMaybe (App      (Lambda name e1) e2 @ (Lambda _ _)) = Just (subst name e2 e1)
 stepMaybe (App e1 @ (Lambda _    _ ) e2               ) = do newe <- stepMaybe e2
                                                              return (App e1 newe)
@@ -106,7 +105,7 @@ stepMaybe p @ (Lambda _ _) = Just p
 stepMaybe (Var _) = Nothing
 
 -- successively step until the result doesn't change
-bigStepMaybe :: Program -> Maybe Program
+bigStepMaybe :: Exp -> Maybe Exp
 bigStepMaybe = fixpointM stepMaybe
 
 --------------------
@@ -140,7 +139,7 @@ pJSVarDcl pName = pName *> between spaces spaces (string "=>")
 
 -----
 
-unparse :: Program -> String
+unparse :: Exp -> String
 unparse (App e1 e2 @ (App _ _)) = unwords [unparse e1, parens (unparse e2)]
 unparse (App e1 e2)     = unwords [unparse e1, unparse e2]
 unparse (Lambda name e) = parens (concat ["\\", name, ".", unparse e])
@@ -149,7 +148,7 @@ unparse (Var name)      = name
 parens :: String -> String
 parens x = "(" ++ x ++ ")"
 
-unparseJS :: Program -> String
+unparseJS :: Exp -> String
 unparseJS p @ (App _ _)       = unparse p
 unparseJS     (Lambda name e) = parens (concat [name, " => ", unparse e])
 unparseJS p @ (Var _)         = unparse p
@@ -182,8 +181,10 @@ fls    :: String
 fls    = "(\\t.\\f.f)"
 eFalse :: Exp
 eFalse = fromJust $ parse fls
+sAnd   :: String
+sAnd   = ("\\b.\\c.b c " ++ fls)
 eAnd   :: Exp
-eAnd   = fromJust $ parse ("\\b.\\c.b c " ++ fls)
+eAnd   = fromJust $ parse sAnd
 eOr    :: Exp
 eOr    = fromJust $ parse ("\\b.\\c.b " ++ tru ++ " c")
 

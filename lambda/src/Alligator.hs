@@ -1,7 +1,8 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
-             GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances #-}
+             GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances,
+             MultiParamTypeClasses #-}
 
 module Alligator where
 
@@ -10,7 +11,9 @@ import Data.Maybe (fromMaybe)
 
 import Control.Monad.State.Lazy
 
-import UntypedLambda
+import           UntypedLambda hiding (eval, step)
+import qualified UntypedLambda as L (eval)
+
 import Utils
 import AsciiAlligators
 
@@ -36,12 +39,6 @@ data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
 
 type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
-
-allRules :: [AlligatorFamily] -> [AlligatorFamily]
-allRules = eatingRule . colorRule . oldAgeRule
-
-evolution :: [AlligatorFamily] -> [AlligatorFamily]
-evolution = fixpoint allRules
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
@@ -83,7 +80,7 @@ nextNotIn xs ys = fix (\rec x -> if all (notElem x) [xs, ys] then x else rec (su
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
 oldAgeRule (OldAlligator (protege:[]):rest) = protege:rest
-oldAgeRule (OldAlligator proteges:rest) = (OldAlligator (allRules proteges)):rest
+oldAgeRule (OldAlligator proteges:rest) = (OldAlligator (step proteges)):rest
 oldAgeRule families = families
 
 ----------------------
@@ -107,7 +104,7 @@ guess :: AlligatorFamily
       -> Bool
 guess a testCases colors = all check testCases
   where
-    check (i, o) = colorsToInts (evolution ((fillAll colors a):i))
+    check (i, o) = colorsToInts (eval ((fillAll colors a):i))
                 == colorsToInts o
     fillAll :: [Color] -> AlligatorFamily -> AlligatorFamily
     fillAll cs x = evalState (mapM fill x) cs
@@ -127,6 +124,14 @@ guess a testCases colors = all check testCases
 -- Represents a color to be guessed.
 emptyColor :: Color
 emptyColor = Color '?'
+
+-- One step in the game
+step :: [AlligatorFamily] -> [AlligatorFamily]
+step = eatingRule . colorRule . oldAgeRule
+
+-- Run the game until the end (corresponds to evaluate the program).
+eval :: [AlligatorFamily] -> [AlligatorFamily]
+eval = fixpoint step
 
 -------------------------
 -- Lang to NM and back --
@@ -176,11 +181,14 @@ instance AsAsciiAlligators AlligatorFamilies where
 --    A' --f'--> B'
 
 bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
-bisim = Bisim { fLang  = eval
-              , fNM    = colorsToInts . evolution
+bisim = Bisim { fLang  = L.eval
+              , fNM    = colorsToInts . eval
               , alphaA = langToNm
               , alphaB = colorsToInts . langToNm }
 
+instance Injective Exp AlligatorFamilies where
+  fwd = langToNm
+  inv = nmToLang
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A
@@ -191,7 +199,7 @@ bisim = Bisim { fLang  = eval
 
 -- fCmpalphaA :: A' -> B
 -- -- fCmpalphaA = f . alphaA
--- fCmpalphaA = evolution . langToNm
+-- fCmpalphaA = eval . langToNm
 
 
 -- Analysis:

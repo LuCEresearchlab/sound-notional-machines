@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
-{-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns #-}
+{-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns,
+             MultiParamTypeClasses, FlexibleInstances, DeriveGeneric #-}
 
 module ExpressionTutor where
 
@@ -99,9 +100,9 @@ diaBranch d = (\r -> (r, children r)) <$> root d
 --------------------
 -- Lang to NM and back
 --------------------
-langToNm :: Program -> ExpTreeDiagram
+langToNm :: Exp -> ExpTreeDiagram
 langToNm p = evalState (a2g p) 0
-  where a2g :: Program -> State Int ExpTreeDiagram
+  where a2g :: Exp -> State Int ExpTreeDiagram
         a2g (Var name)      = incUid (\uid -> DiaLeaf (NodeVar uid name))
         a2g (Lambda name e) = do d <- a2g e
                                  incUid $ \uid -> DiaBranch (NodeLambda uid name) [d]
@@ -111,11 +112,11 @@ langToNm p = evalState (a2g p) 0
         incUid g = g <$> get <* modify succ
 
 
-nmToLang :: ExpTreeDiagram -> Maybe Program
+nmToLang :: ExpTreeDiagram -> Maybe Exp
 nmToLang d = evalStateT (g2a d) Set.empty
   where
     -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
-    g2a :: ExpTreeDiagram -> StateT (Set Int) Maybe Program
+    g2a :: ExpTreeDiagram -> StateT (Set Int) Maybe Exp
     g2a (DiaLeaf   (NodeVar    i name))          = ifNotVisited i (return (Var name))
     g2a (DiaBranch (NodeLambda i name) [n])      = ifNotVisited i (Lambda name <$> g2a n)
     g2a (DiaBranch (NodeApp    i)      [n1, n2]) = ifNotVisited i (App <$> g2a n1 <*> g2a n2)
@@ -144,6 +145,10 @@ bisim = Bisim { fLang  = evalMaybe
               , fNM    = fmap langToNm . (=<<) evalMaybe . nmToLang
               , alphaA = langToNm
               , alphaB = fmap langToNm }
+
+instance Injective Exp ExpTreeDiagram where
+  fwd = langToNm
+  inv = nmToLang
 
 
 -- Commutation proof:

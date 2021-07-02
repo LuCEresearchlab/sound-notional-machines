@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module Utils where
 
 import Data.List (uncons)
@@ -11,6 +13,10 @@ data Bisimulation a' b' a b = Bisim { fLang  :: a' -> b'
                                     , fNM    :: a  -> b
                                     , alphaA :: a' -> a
                                     , alphaB :: b' -> b }
+
+class Injective a b where
+  fwd :: a -> b
+  inv :: b -> Maybe a
 
 maybeHead :: [a] -> Maybe a
 maybeHead = fmap fst . uncons

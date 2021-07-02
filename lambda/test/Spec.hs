@@ -13,12 +13,12 @@ import Data.Foldable (toList)
 import Data.List (intersect)
 
 import UntypedLambda
-import           ExpressionTutor hiding (bisim, nmToLang, langToNm)
-import qualified ExpressionTutor as ET  (bisim, nmToLang, langToNm)
-import           Reduct hiding (bisim, nmToLang, langToNm)
-import qualified Reduct as R   (bisim, nmToLang, langToNm)
-import           Alligator hiding (bisim, nmToLang, langToNm)
-import qualified Alligator as A   (bisim, nmToLang, langToNm)
+import           ExpressionTutor hiding (bisim)
+import qualified ExpressionTutor as ET  (bisim)
+import           Reduct hiding (bisim)
+import qualified Reduct as R   (bisim)
+import           Alligator hiding (bisim)
+import qualified Alligator as A   (bisim)
 
 import Utils
 import AsciiAlligators
@@ -127,7 +127,7 @@ lambdaTest = Group "Lambda" [
 expressionTutorTest :: Group
 expressionTutorTest = Group "Expressiontutor" [
       ("nmToLang is left inverse of langToNm:",
-        ET.nmToLang `is_left_inverse_of` ET.langToNm)
+        inv `is_left_inverse_of` (fwd :: Exp -> ExpTreeDiagram))
     , ("commutation proof:",
         bisimulationCommutes ET.bisim)
   ]
@@ -135,7 +135,7 @@ expressionTutorTest = Group "Expressiontutor" [
 reductTest :: Group
 reductTest = Group "Reduct" [
       ("nmToLang is left inverse of langToNm:",
-        R.nmToLang `is_left_inverse_of` R.langToNm)
+        inv `is_left_inverse_of` (fwd :: Exp -> ReductExp))
     , ("commutation proof:",
         bisimulationCommutes R.bisim)
     , ("reduct trees have unique ids:",
@@ -145,13 +145,13 @@ reductTest = Group "Reduct" [
 alligatorTest :: Group
 alligatorTest = Group "Alligators" [
       ("nmToLang is left inverse of langToNm:",
-        A.nmToLang `is_left_inverse_of` A.langToNm)
+        inv `is_left_inverse_of` (fwd :: Exp -> AlligatorFamilies))
     , ("commutation proof:",
         bisimulationCommutes A.bisim)
     , ("color rule:",
         color_rule)
     , ("asciiAlligator . langToNm is equivalente to directly from Exp:",
-       (show . toAscii . A.langToNm) `is_equivalent_to` (show . toAscii))
+       (show . toAscii . (fwd :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii))
   ]
 
 

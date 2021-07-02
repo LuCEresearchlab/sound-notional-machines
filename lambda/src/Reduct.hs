@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
 
-{-# LANGUAGE TupleSections, DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
+             TupleSections, MultiParamTypeClasses, TypeSynonymInstances,
+             FlexibleInstances #-}
 
 module Reduct where
 
@@ -9,7 +11,9 @@ import Control.Monad.State.Lazy
 import Data.List (delete)
 import Data.Maybe (fromMaybe, mapMaybe)
 
-import UntypedLambda
+import           UntypedLambda hiding (step)
+import qualified UntypedLambda as L (step)
+
 import Utils
 
 --------------------
@@ -122,11 +126,8 @@ rApplyAction a l = let nr = a l in nr { won = rWon nr }
 -- Reduce if possible `e` in level `l`. After that, the nodes can't be changed
 -- anymore (can't change program after execution starts).
 aReduce :: ReductExp -> ReductLevel -> ReductLevel
-aReduce e l = fromMaybe l (newLevel <$> stepReduct e)
-  where stepReduct :: ReductExp -> Maybe ReductExp
-        stepReduct = fmap (updateUids (counter l) . jslc2reduct . step) . reduct2jslc
-
-        updateNode old new xs = new : (delete old xs)
+aReduce e l = fromMaybe l (newLevel . updateUids (counter l) <$> step e)
+  where updateNode old new xs = new : (delete old xs)
         newLevel newNode = l { nodeStage  = updateNode e newNode (nodeStage l)
                              , isReducing = True
                              , counter    = rUid newNode }
@@ -175,24 +176,22 @@ rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
     mapME g (HolePipe name mt1 uid) = HolePipe name (g mt1) uid
     mapME _ e @ (Pipe {}) = e
 
+-- Step a reduct expression.
+step :: ReductExp -> Maybe ReductExp
+step = fmap (langToNm . L.step) . nmToLang
+
 --------------------
 -- Lang to NM and back
 --------------------
-nmToLang :: ReductExp -> Maybe Program
-nmToLang = reduct2jslc
+nmToLang :: ReductExp -> Maybe Exp
+nmToLang (HolePlug n1 n2  _) = App <$> (nmToLang =<< n1) <*> (nmToLang =<< n2)
+nmToLang (HolePipe name n _) = Lambda name <$> (nmToLang =<< n)
+nmToLang (Pipe name       _) = Just (Var name)
 
-reduct2jslc :: ReductExp -> Maybe Program
-reduct2jslc (HolePlug n1 n2  _) = App <$> (reduct2jslc =<< n1) <*> (reduct2jslc =<< n2)
-reduct2jslc (HolePipe name n _) = Lambda name <$> (reduct2jslc =<< n)
-reduct2jslc (Pipe name       _) = Just (Var name)
-
-langToNm :: Program -> ReductExp
-langToNm = jslc2reduct
-
-jslc2reduct :: Program -> ReductExp
-jslc2reduct p = updateUids 0 (go p 0)
-  where go (App e1 e2)     = HolePlug (Just (jslc2reduct e1)) (Just (jslc2reduct e2))
-        go (Lambda name e) = HolePipe name (Just (jslc2reduct e))
+langToNm :: Exp -> ReductExp
+langToNm p = updateUids 0 (go p 0)
+  where go (App e1 e2)     = HolePlug (Just (langToNm e1)) (Just (langToNm e2))
+        go (Lambda name e) = HolePipe name (Just (langToNm e))
         go (Var name)      = Pipe name
 
 ------------------
@@ -212,6 +211,11 @@ bisim = Bisim { fLang  = eval
               , fNM    = fmap (langToNm . eval) . nmToLang
               , alphaA = langToNm
               , alphaB = return . langToNm }
+
+instance Injective Exp ReductExp where
+  fwd = langToNm
+  inv = nmToLang
+
 
 {-
 

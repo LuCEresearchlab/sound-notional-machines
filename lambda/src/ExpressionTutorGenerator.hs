@@ -70,8 +70,8 @@ solveUnparseActivity = fmap unparse . nmToLang
 generateEvalActivity :: MonadIO m => m String
 generateEvalActivity = unparse <$> Gen.sample genCombinator
 
-solveEvalActivity :: String -> Maybe String
-solveEvalActivity = fmap unparse . (=<<) evalMaybe . parse
+solveEvalActivity :: String -> Maybe ExpTreeDiagram
+solveEvalActivity = fmap langToNm . (=<<) evalMaybe . parse
 
 
 ------- Utils ----------
