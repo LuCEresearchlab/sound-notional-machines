@@ -127,7 +127,7 @@ lambdaTest = Group "Lambda" [
 expressionTutorTest :: Group
 expressionTutorTest = Group "Expressiontutor" [
       ("nmToLang is left inverse of langToNm:",
-        inv `is_left_inverse_of` (fwd :: Exp -> ExpTreeDiagram))
+        fromNM `is_left_inverse_of` (toNM :: Exp -> ExpTreeDiagram))
     , ("commutation proof:",
         bisimulationCommutes ET.bisim)
   ]
@@ -135,7 +135,7 @@ expressionTutorTest = Group "Expressiontutor" [
 reductTest :: Group
 reductTest = Group "Reduct" [
       ("nmToLang is left inverse of langToNm:",
-        inv `is_left_inverse_of` (fwd :: Exp -> ReductExp))
+        fromNM `is_left_inverse_of` (toNM :: Exp -> ReductExp))
     , ("commutation proof:",
         bisimulationCommutes R.bisim)
     , ("reduct trees have unique ids:",
@@ -145,13 +145,13 @@ reductTest = Group "Reduct" [
 alligatorTest :: Group
 alligatorTest = Group "Alligators" [
       ("nmToLang is left inverse of langToNm:",
-        inv `is_left_inverse_of` (fwd :: Exp -> AlligatorFamilies))
+        fromNM `is_left_inverse_of` (toNM :: Exp -> AlligatorFamilies))
     , ("commutation proof:",
         bisimulationCommutes A.bisim)
     , ("color rule:",
         color_rule)
     , ("asciiAlligator . langToNm is equivalente to directly from Exp:",
-       (show . toAscii . (fwd :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii))
+       (show . toAscii . (toNM :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii))
   ]
 
 

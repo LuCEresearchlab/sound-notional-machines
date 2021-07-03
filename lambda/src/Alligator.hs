@@ -187,8 +187,8 @@ bisim = Bisim { fLang  = L.eval
               , alphaB = colorsToInts . langToNm }
 
 instance Injective Exp AlligatorFamilies where
-  fwd = langToNm
-  inv = nmToLang
+  toNM   = langToNm
+  fromNM = nmToLang
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A

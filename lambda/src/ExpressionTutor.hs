@@ -147,8 +147,8 @@ bisim = Bisim { fLang  = evalMaybe
               , alphaB = fmap langToNm }
 
 instance Injective Exp ExpTreeDiagram where
-  fwd = langToNm
-  inv = nmToLang
+  toNM   = langToNm
+  fromNM = nmToLang
 
 
 -- Commutation proof:

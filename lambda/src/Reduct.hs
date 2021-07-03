@@ -213,8 +213,8 @@ bisim = Bisim { fLang  = eval
               , alphaB = return . langToNm }
 
 instance Injective Exp ReductExp where
-  fwd = langToNm
-  inv = nmToLang
+  toNM   = langToNm
+  fromNM = nmToLang
 
 
 {-

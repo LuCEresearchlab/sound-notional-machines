@@ -15,8 +15,8 @@ data Bisimulation a' b' a b = Bisim { fLang  :: a' -> b'
                                     , alphaB :: b' -> b }
 
 class Injective a b where
-  fwd :: a -> b
-  inv :: b -> Maybe a
+  toNM   :: a -> b
+  fromNM :: b -> Maybe a
 
 maybeHead :: [a] -> Maybe a
 maybeHead = fmap fst . uncons
