@@ -61,17 +61,10 @@ holes :: Node -> [Plug]
 holes (Node _ fragments) = [plug | Hole plug <- fragments]
 
 --------------------
--- Expression Tutor - Untyped Lambda Calculus
+-- View the Expression Tutor graph as a tree
 --------------------
-pattern NodeVar    i name <- Node (Plug i _) [FragName name] where
-        NodeVar    i name =  Node (Plug i 0) [FragName name]
-pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
-        NodeLambda i name =  Node (Plug i 0) [Token "lambda", FragName name, Hole (Plug i 1)]
-pattern NodeApp    i      <- Node (Plug i _) [Hole _         , Hole _] where
-        NodeApp    i      =  Node (Plug i 0) [Hole (Plug i 1), Hole (Plug i 2)]
-
 pattern DiaLeaf :: Node -> ExpTreeDiagram
-pattern DiaLeaf n <- ExpTreeDiagram _ _ (Just n @ (NodeVar _ _)) where
+pattern DiaLeaf n <- ExpTreeDiagram _ _ (Just n @ (holes -> [])) where
   DiaLeaf n = ExpTreeDiagram (Set.singleton n) Set.empty (Just n)
 
 pattern DiaBranch :: Node -> [ExpTreeDiagram] -> ExpTreeDiagram
@@ -99,6 +92,13 @@ diaBranch d = (\r -> (r, children r)) <$> root d
 --------------------
 -- Lang to NM and back
 --------------------
+pattern NodeVar    i name <- Node (Plug i _) [FragName name] where
+        NodeVar    i name =  Node (Plug i 0) [FragName name]
+pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
+        NodeLambda i name =  Node (Plug i 0) [Token "lambda", FragName name, Hole (Plug i 1)]
+pattern NodeApp    i      <- Node (Plug i _) [Hole _         , Hole _] where
+        NodeApp    i      =  Node (Plug i 0) [Hole (Plug i 1), Hole (Plug i 2)]
+
 langToNm :: Exp -> ExpTreeDiagram
 langToNm p = evalState (a2g p) 0
   where a2g :: Exp -> State Int ExpTreeDiagram
