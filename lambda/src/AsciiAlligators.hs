@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall #-}
+
 {-|
 Description : A pretty printer using as concrete syntax an ascii version of Alligator Eggs
 Stability   : experimental

@@ -1,7 +1,6 @@
-{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
+{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures #-}
 
-{-# LANGUAGE TupleSections, PatternSynonyms, ViewPatterns,
-             MultiParamTypeClasses, FlexibleInstances, DeriveGeneric #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns, MultiParamTypeClasses #-}
 
 module ExpressionTutor where
 

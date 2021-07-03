@@ -1,7 +1,6 @@
-{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
+{-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE FlexibleContexts, TupleSections, PatternSynonyms,
-             ViewPatterns, LambdaCase #-}
+{-# LANGUAGE LambdaCase #-}
 
 module UntypedLambda where
 

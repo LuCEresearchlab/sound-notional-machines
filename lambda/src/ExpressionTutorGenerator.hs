@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall #-}
+
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, TypeFamilies #-}
 
 module ExpressionTutorGenerator where

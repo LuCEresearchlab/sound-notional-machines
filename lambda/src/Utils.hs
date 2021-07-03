@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wno-unused-top-binds -Wno-missing-pattern-synonym-signatures -Wno-unused-do-bind #-}
+{-# OPTIONS_GHC -Wall #-}
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 
