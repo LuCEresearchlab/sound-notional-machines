@@ -158,9 +158,9 @@ unparseJS p @ (Var _)         = unparse p
 --------------------------------------------
 instance AsAsciiAlligators Exp where
   toAscii = \case
-    Var name           -> asciiEgg name
-    Lambda name e      -> asciiHungryAlligator name (toAscii e)
-    App e1 e2 @ App {} -> toAscii e1 `inFrontOf` asciiOldAlligator (toAscii e2)
+    Var name           -> egg name
+    Lambda name e      -> hungryAlligator name (toAscii e)
+    App e1 e2 @ App {} -> toAscii e1 `inFrontOf` oldAlligator (toAscii e2)
     App e1 e2          -> toAscii e1 `inFrontOf` toAscii e2
 
 

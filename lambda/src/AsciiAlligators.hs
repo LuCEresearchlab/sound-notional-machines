@@ -10,9 +10,9 @@ For example, let's implement the following instance for the untyped lambda calcu
 
 > instance AsAsciiAlligators Exp where
 >   toAscii = \case
->     Var name           -> asciiEgg name
->     Lambda name e      -> asciiHungryAlligator name (toAscii e)
->     App e1 e2 @ App {} -> toAscii e1 `inFrontOf` asciiOldAlligator (toAscii e2)
+>     Var name           -> egg name
+>     Lambda name e      -> hungryAlligator name (toAscii e)
+>     App e1 e2 @ App {} -> toAscii e1 `inFrontOf` oldAlligator (toAscii e2)
 >     App e1 e2          -> toAscii e1 `inFrontOf` toAscii e2
 
 Now we can pretty-print the /Y-combinator/ like this:
@@ -33,9 +33,9 @@ module AsciiAlligators (
   AsciiAlligators,
   AsAsciiAlligators(..),
 
-  asciiOldAlligator,
-  asciiHungryAlligator,
-  asciiEgg,
+  oldAlligator,
+  hungryAlligator,
+  egg,
 
   inFrontOf
   ) where
@@ -56,19 +56,19 @@ instance Semigroup AsciiAlligators where
 instance Monoid AsciiAlligators where
   mempty = AsciiAl []
 
--- | 'asciiOldAlligator' @a@ returns an old alligator protecting @a@.
-asciiOldAlligator :: AsciiAlligators -> AsciiAlligators
-asciiOldAlligator a @ (AsciiAl ss) = AsciiAl (alligatorBody a : ss)
+-- | 'oldAlligator' @a@ returns an old alligator protecting @a@.
+oldAlligator :: AsciiAlligators -> AsciiAlligators
+oldAlligator a @ (AsciiAl ss) = AsciiAl (alligatorBody a : ss)
 
--- | 'asciiHungryAlligator' @var a@ returns a hungry alligator identified by @var@ protecting @a@.
-asciiHungryAlligator :: String -> AsciiAlligators -> AsciiAlligators
-asciiHungryAlligator var a  @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : (indent ss))
+-- | 'hungryAlligator' @var a@ returns a hungry alligator identified by @var@ protecting @a@.
+hungryAlligator :: String -> AsciiAlligators -> AsciiAlligators
+hungryAlligator var a  @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : (indent ss))
   where indent = map (' ':)
         hungryAlligatorBody = var ++ alligatorBody a ++ "<"
 
 -- | Returns an egg identified by a given string.
-asciiEgg :: String -> AsciiAlligators
-asciiEgg e = AsciiAl [e]
+egg :: String -> AsciiAlligators
+egg e = AsciiAl [e]
 
 alligatorBody :: AsciiAlligators -> String
 alligatorBody (AsciiAl protege) = replicate (width protege) '-'

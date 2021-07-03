@@ -15,7 +15,8 @@ import           UntypedLambda hiding (eval, step)
 import qualified UntypedLambda as L (eval)
 
 import Utils
-import AsciiAlligators
+import           AsciiAlligators hiding (egg, hungryAlligator, oldAlligator)
+import qualified AsciiAlligators as Ascii (egg, hungryAlligator, oldAlligator)
 
 
 newtype Color = Color Char deriving (Eq, Enum)
@@ -164,9 +165,9 @@ colorsToInts families = fmap (go 0 []) families
 --------------------------------------------------------
 instance Show a => AsAsciiAlligators [AlligatorFamilyF a] where
   toAscii = foldMap $ \case
-    HungryAlligator c proteges -> asciiHungryAlligator (show c) (toAscii proteges)
-    OldAlligator proteges      -> asciiOldAlligator (toAscii proteges)
-    Egg c                      -> asciiEgg (show c)
+    HungryAlligator c proteges -> Ascii.hungryAlligator (show c) (toAscii proteges)
+    OldAlligator proteges      -> Ascii.oldAlligator (toAscii proteges)
+    Egg c                      -> Ascii.egg (show c)
 
 ------------------
 
