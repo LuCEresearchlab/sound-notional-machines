@@ -4,7 +4,7 @@
 
 module ExpressionTutorGenerator where
 
-import           Hedgehog hiding (Var, eval, evalMaybe)
+import           Hedgehog hiding (Var, eval, evalM)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
@@ -18,6 +18,7 @@ import Text.PrettyPrint (Doc)
 
 import UntypedLambda
 import ExpressionTutor
+import Utils
 
 ----------------------
 ----- Generators -----
@@ -55,16 +56,16 @@ generateParseActivity :: MonadIO m => m String
 generateParseActivity = unparse <$> Gen.sample genExp
 
 solveParseActivity :: String -> Maybe ExpTreeDiagram
-solveParseActivity = fmap langToNm . parse
+solveParseActivity = fmap toNM . parse
 
 
 ---- Unparse activity ----
 
 generateUnparseActivity :: MonadIO m => m ExpTreeDiagram
-generateUnparseActivity = langToNm <$> Gen.sample genExp
+generateUnparseActivity = toNM <$> Gen.sample genExp
 
 solveUnparseActivity :: ExpTreeDiagram -> Maybe String
-solveUnparseActivity = fmap unparse . nmToLang
+solveUnparseActivity = fmap unparse . fromNM
 
 
 ---- Eval activity ----
@@ -73,7 +74,7 @@ generateEvalActivity :: MonadIO m => m String
 generateEvalActivity = unparse <$> Gen.sample genCombinator
 
 solveEvalActivity :: String -> Maybe ExpTreeDiagram
-solveEvalActivity = fmap langToNm . (=<<) evalMaybe . parse
+solveEvalActivity = fmap toNM . (=<<) evalM . parse
 
 
 ------- Utils ----------

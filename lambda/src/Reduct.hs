@@ -10,8 +10,7 @@ import Control.Monad.State.Lazy
 import Data.List (delete)
 import Data.Maybe (fromMaybe, mapMaybe)
 
-import           UntypedLambda hiding (step)
-import qualified UntypedLambda as L (step)
+import UntypedLambda
 
 import Utils
 
@@ -125,7 +124,7 @@ rApplyAction a l = let nr = a l in nr { won = rWon nr }
 -- Reduce if possible `e` in level `l`. After that, the nodes can't be changed
 -- anymore (can't change program after execution starts).
 aReduce :: ReductExp -> ReductLevel -> ReductLevel
-aReduce e l = fromMaybe l (newLevel . updateUids (counter l) <$> step e)
+aReduce e l = fromMaybe l (newLevel . updateUids (counter l) <$> stepM e)
   where updateNode old new xs = new : (delete old xs)
         newLevel newNode = l { nodeStage  = updateNode e newNode (nodeStage l)
                              , isReducing = True
@@ -175,10 +174,6 @@ rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
     mapME g (HolePipe name mt1 uid) = HolePipe name (g mt1) uid
     mapME _ e @ (Pipe {}) = e
 
--- Step a reduct expression.
-step :: ReductExp -> Maybe ReductExp
-step = fmap (langToNm . L.step) . nmToLang
-
 --------------------
 -- Lang to NM and back
 --------------------
@@ -205,15 +200,18 @@ langToNm p = updateUids 0 (go p 0)
 --
 --    A' --f'--> B'
 
-bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
-bisim = Bisim { fLang  = eval
-              , fNM    = fmap (langToNm . eval) . nmToLang
-              , alphaA = langToNm
-              , alphaB = return . langToNm }
-
 instance Injective Exp ReductExp where
   toNM   = langToNm
   fromNM = nmToLang
+
+instance SteppableM ReductExp Maybe where
+  stepM = fmap (langToNm . step) . nmToLang
+
+bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
+bisim = Bisim { fLang  = eval
+              , fNM    = evalM
+              , alphaA = toNM
+              , alphaB = return . toNM }
 
 
 {-

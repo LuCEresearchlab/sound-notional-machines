@@ -1,6 +1,6 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, TypeFamilies #-}
 
-import           Hedgehog hiding (Var, eval, evalMaybe)
+import           Hedgehog hiding (Var, eval, evalM)
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Main (defaultMain)
 
@@ -67,7 +67,7 @@ prop = withTests defaultNumberOfTests . property
 eval_produces_value :: Property
 eval_produces_value = prop $ do
   e <- forAll genCombinator
-  (isValue <$> evalMaybe e) === Just True
+  (isValue <$> evalM e) === Just True
 
 isValue :: Exp -> Bool
 isValue Lambda {} = True
@@ -118,8 +118,6 @@ lambdaTest :: Group
 lambdaTest = Group "Lambda" [
       ("eval produces a value:",
         eval_produces_value)
-    , ("eval is equivalent to bigStep:",
-        evalMaybe `is_equivalent_to` bigStepMaybe)
     , ("parse is left inverse of unparse:",
         parse `is_left_inverse_of` unparse)
   ]

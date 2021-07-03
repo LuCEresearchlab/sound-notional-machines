@@ -11,8 +11,7 @@ import Data.Maybe (fromMaybe)
 
 import Control.Monad.State.Lazy
 
-import           UntypedLambda hiding (eval, step)
-import qualified UntypedLambda as L (eval)
+import UntypedLambda
 
 import Utils
 import           AsciiAlligators hiding (egg, hungryAlligator, oldAlligator)
@@ -126,14 +125,6 @@ guess a testCases colors = all check testCases
 emptyColor :: Color
 emptyColor = Color '?'
 
--- One step in the game
-step :: [AlligatorFamily] -> [AlligatorFamily]
-step = eatingRule . colorRule . oldAgeRule
-
--- Run the game until the end (corresponds to evaluate the program).
-eval :: [AlligatorFamily] -> [AlligatorFamily]
-eval = fixpoint step
-
 -------------------------
 -- Lang to NM and back --
 -------------------------
@@ -181,15 +172,18 @@ instance Show a => AsAsciiAlligators [AlligatorFamilyF a] where
 --
 --    A' --f'--> B'
 
-bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
-bisim = Bisim { fLang  = L.eval
-              , fNM    = colorsToInts . eval
-              , alphaA = langToNm
-              , alphaB = colorsToInts . langToNm }
-
 instance Injective Exp AlligatorFamilies where
   toNM   = langToNm
   fromNM = nmToLang
+
+instance Steppable AlligatorFamilies where
+  step = eatingRule . colorRule . oldAgeRule
+
+bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
+bisim = Bisim { fLang  = eval
+              , fNM    = colorsToInts . eval
+              , alphaA = toNM
+              , alphaB = colorsToInts . toNM }
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A

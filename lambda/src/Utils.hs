@@ -18,6 +18,20 @@ class Injective a b where
   toNM   :: a -> b
   fromNM :: b -> Maybe a
 
+class Eq a => Steppable a where
+  step :: a -> a
+  stepEnd :: a -> a
+  stepEnd = fixpoint step
+  eval :: a -> a
+  eval = stepEnd
+
+class (Eq (m a), Monad m) => SteppableM a m where
+  stepM :: a -> m a
+  stepEndM :: a -> m a
+  stepEndM = fixpointM stepM
+  evalM :: a -> m a
+  evalM = stepEndM
+
 maybeHead :: [a] -> Maybe a
 maybeHead = fmap fst . uncons
 

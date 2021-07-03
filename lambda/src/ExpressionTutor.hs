@@ -139,15 +139,18 @@ nmToLang d = evalStateT (g2a d) Set.empty
 --
 --    A' --f'--> B'
 
-bisim :: Bisimulation Exp (Maybe Exp) ExpTreeDiagram (Maybe ExpTreeDiagram)
-bisim = Bisim { fLang  = evalMaybe
-              , fNM    = fmap langToNm . (=<<) evalMaybe . nmToLang
-              , alphaA = langToNm
-              , alphaB = fmap langToNm }
-
 instance Injective Exp ExpTreeDiagram where
   toNM   = langToNm
   fromNM = nmToLang
+
+instance SteppableM ExpTreeDiagram Maybe where
+  stepM = fmap langToNm . (=<<) stepM . nmToLang
+
+bisim :: Bisimulation Exp (Maybe Exp) ExpTreeDiagram (Maybe ExpTreeDiagram)
+bisim = Bisim { fLang  = stepM
+              , fNM    = stepM
+              , alphaA = toNM
+              , alphaB = fmap toNM }
 
 
 -- Commutation proof:
