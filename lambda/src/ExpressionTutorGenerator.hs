@@ -52,8 +52,8 @@ bindFreeVars e = foldl (\en var -> App (Lambda var en) (Lambda "a" (Var "a"))) e
 
 ---- Parse activity ----
 
-generateParseActivity :: MonadIO m => m String
-generateParseActivity = unparse <$> Gen.sample genExp
+genLambda :: MonadIO m => m String
+genLambda = unparse <$> Gen.sample genExp
 
 solveParseActivity :: String -> Maybe ExpTreeDiagram
 solveParseActivity = fmap toNM . parse
