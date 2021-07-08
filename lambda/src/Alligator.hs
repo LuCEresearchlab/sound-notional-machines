@@ -241,6 +241,9 @@ bisim = Bisim { fLang  = eval
 --
 --
 -- In the language of alligators, a family could be composed of multiple hungry alligators with the same color, who is guarding an egg of this color?
+--
+-- * in the "game play" example there's a problem. changing the color will result in something that doesn't have the same colors of "true" and "false" so one needs to talk about equivalence of terms with the same coloring scheme.
+-- "(For this to work well, we'd need a better color rule, to explain that families with different colors in the same "pattern" are equivalent.)".
 
 
 
