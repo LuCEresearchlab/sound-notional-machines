@@ -41,15 +41,20 @@ import Utils
 --------------------
 data ExpTreeDiagram = ExpTreeDiagram { nodes :: Set Node
                                      , edges :: Set Edge
-                                     , root  :: Maybe Node } deriving (Show, Eq)
+                                     , root  :: Maybe Node }
+                                     deriving (Show, Eq)
 data Node = Node { nodePlug :: Plug
-                 , content  :: [Fragment] } deriving (Show, Eq, Ord)
-data Fragment = Token String
-              | FragName String
-              | Hole Plug
-              deriving (Show, Eq, Ord)
-data Plug = Plug Int Int deriving (Show, Eq, Ord)
-data Edge = Edge Plug Plug deriving (Show)
+                 -- , typ      :: Typ
+                 -- , value    :: NodeValue
+                 , content  :: [NodeContentElem] }
+                 deriving (Show, Eq, Ord)
+data NodeContentElem = OtherContent String
+                     | NameDef String
+                     | NameUse String
+                     | Hole Plug -- Typ
+                     deriving (Show, Eq, Ord)
+data Plug = Plug (Int, Int) deriving (Show, Eq, Ord)
+data Edge = Edge Plug Plug deriving Show
 
 -- the graph is undirected
 instance Eq Edge where
@@ -92,12 +97,12 @@ diaBranch d = (\r -> (r, children r)) <$> root d
 --------------------
 -- Lang to NM and back
 --------------------
-pattern NodeVar    i name <- Node (Plug i _) [FragName name] where
-        NodeVar    i name =  Node (Plug i 0) [FragName name]
-pattern NodeLambda i name <- Node (Plug i _) [Token "lambda", FragName name, Hole _] where
-        NodeLambda i name =  Node (Plug i 0) [Token "lambda", FragName name, Hole (Plug i 1)]
-pattern NodeApp    i      <- Node (Plug i _) [Hole _         , Hole _] where
-        NodeApp    i      =  Node (Plug i 0) [Hole (Plug i 1), Hole (Plug i 2)]
+pattern NodeVar    i name <- Node (Plug (i,_)) [NameUse name] where
+        NodeVar    i name =  Node (Plug (i,0)) [NameUse name]
+pattern NodeLambda i name <- Node (Plug (i,_)) [OtherContent "lambda", NameDef name, Hole _] where
+        NodeLambda i name =  Node (Plug (i,0)) [OtherContent "lambda", NameDef name, Hole (Plug (i,1))]
+pattern NodeApp    i      <- Node (Plug (i,_)) [Hole _         , Hole _] where
+        NodeApp    i      =  Node (Plug (i,0)) [Hole (Plug (i,1)), Hole (Plug (i,2))]
 
 langToNm :: Exp -> ExpTreeDiagram
 langToNm p = evalState (a2g p) 0
