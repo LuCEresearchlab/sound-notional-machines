@@ -50,11 +50,10 @@ type Name = String
 -- Interpreter for Untyped Lambda Calculus
 --------------------
 instance Steppable Exp where
-  step (App      (Lambda name e1) e2 @ (Lambda _ _)) = subst name e2 e1
-  step (App e1 @ (Lambda _    _ ) e2               ) = App e1 (step e2)
-  step (App e1                    e2               ) = App (step e1) e2
-  step p @ (Lambda _ _) = p
-  step p @ (Var _) = p
+  step (App (e1 @ Lambda {}) (e2 @ App {})) = App e1 (step e2)
+  step (App (Lambda name e1) e2) = subst name e2 e1
+  step (App e1 e2) = App (step e1) e2
+  step p = p
 
 -- substitution
 subst :: Name -> Exp -> Exp -> Exp
