@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2fc4bc85ef92d9542be00b2899da51dd381e31c54b03f3a532b5288a0a16d6b8
+-- hash: 467e7f5ba52a1796280f5fe9282989c3b047327c87b6d244dbea02381ff04ddb
 
 name:           lambda
 version:        0.1.0.0
@@ -79,9 +79,11 @@ test-suite lambda-test
     , containers
     , hedgehog
     , lambda
-    , lifted-async
     , mtl
     , parsec
     , pretty
     , pretty-show
+    , tasty
+    , tasty-hedgehog
+    , tasty-hunit
   default-language: Haskell2010

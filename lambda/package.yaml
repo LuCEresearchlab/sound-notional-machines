@@ -52,7 +52,9 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - lambda
+    - tasty
+    - tasty-hunit
+    - tasty-hedgehog
     - hedgehog
     - pretty
     - pretty-show
-    - lifted-async

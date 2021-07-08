@@ -4,38 +4,31 @@ import           Hedgehog hiding (Var, eval, evalM)
 import qualified Hedgehog.Gen as Gen
 import           Hedgehog.Main (defaultMain)
 
-import           Control.Monad.IO.Class (liftIO)
-import           Control.Concurrent (threadDelay)
-import           Control.Concurrent.Async.Lifted (race)
-import           Control.Exception (evaluate)
+import Test.Tasty
+import Test.Tasty.Hedgehog
+import Test.Tasty.HUnit
+
+-- import Control.Monad.IO.Class (liftIO)
+-- import Control.Concurrent (threadDelay)
+-- import Control.Concurrent.Async.Lifted (race)
+-- import Control.Exception (evaluate)
 
 import Data.Foldable (toList)
 import Data.List (intersect)
+import Data.Maybe (fromJust)
 
 import UntypedLambda
+
 import           ExpressionTutor hiding (bisim)
 import qualified ExpressionTutor as ET  (bisim)
+import ExpressionTutorGenerator
 import           Reduct hiding (bisim)
 import qualified Reduct as R   (bisim)
 import           Alligator hiding (bisim)
 import qualified Alligator as A   (bisim)
-
-import Utils
 import AsciiAlligators
 
-import ExpressionTutorGenerator
-
------ Timeout -----
-withTimeLimit :: Int -> TestT IO a -> TestT IO a
-withTimeLimit timeout v = do
-  result <-
-    race
-      (liftIO $ threadDelay timeout)
-      v
-  case result of
-    Left () -> fail "Timeout exceeded"
-    Right x -> pure x
-
+import Utils
 
 ----------------------
 ----- Generators -----
@@ -76,12 +69,22 @@ isValue _         = False
 is_left_inverse_of :: Show a => (a -> Maybe Exp) -> (Exp -> a) -> Property
 is_left_inverse_of f f' = prop $ do
   e <- forAll genExp
+  -- classify "closed terms" $ null (freeVs e)
+  -- classify "open terms" $ not (null (freeVs e))
+  -- classify "depth 0" $ depth e == 0
+  -- classify "depth <= 2" $ depth e <= 2
+  -- classify "depth > 7" $ depth e > 7
   tripping e f' f
+
+depth :: Exp -> Int
+depth (Var name) = 0
+depth (Lambda name e) = depth e + 1
+depth (App e1 e2) = max (depth e1 + 1) (depth e2 + 1)
 
 is_equivalent_to :: (Eq a, Show a) => (Exp -> a) -> (Exp -> a) -> Property
 is_equivalent_to f f' = prop $ do
   e <- forAll genCombinator
-  test $ withTimeLimit 500000 $ f e === f' e
+  f e === f' e
 
 bisimulationCommutes :: (Eq b, Show b) => Bisimulation Exp b' a b -> Property
 bisimulationCommutes b = (alphaB b . fLang b) `is_equivalent_to` (fNM b . alphaA b)
@@ -107,54 +110,86 @@ color_rule = prop $ do
       in do annotateShow a1
             annotateShow a2
             annotateShow newA2
-            colorsToInts [newA2] === colorsToInts [a2]
-            intersect (toList a1) (toList newA2) === []
+            deBruijnAlligators [newA2] === deBruijnAlligators [a2]
+            null (intersect (toList a1) (toList newA2)) === True
     _ -> success
+
+game_play_example :: Property
+game_play_example = prop $ do
+  c1 <- forAll (Gen.enumBounded :: Gen Color)
+  c2 <- forAll (Gen.enumBounded :: Gen Color)
+  let rightGuess = guess [anot] [([atru], [afls]), ([afls], [atru])] [c1, c2]
+  let rightColors = [c1, c2] == [Color 'c', Color 'b']
+  (rightColors && rightGuess || not rightColors && not rightGuess) === True
 
 ----------------------
 
-
-lambdaTest :: Group
-lambdaTest = Group "Lambda" [
-      ("eval produces a value:",
-        eval_produces_value)
-    , ("parse is left inverse of unparse:",
-        parse `is_left_inverse_of` unparse)
+lambdaTest :: TestTree
+lambdaTest = testGroup "Untyped Lambda Calculus" [
+      testProperty "eval produces a value"
+        eval_produces_value
+    , testProperty "parse is left inverse of unparse" $
+        parse `is_left_inverse_of` unparse
   ]
 
-expressionTutorTest :: Group
-expressionTutorTest = Group "Expressiontutor" [
-      ("nmToLang is left inverse of langToNm:",
-        fromNM `is_left_inverse_of` (toNM :: Exp -> ExpTreeDiagram))
-    , ("commutation proof:",
-        bisimulationCommutes ET.bisim)
+expressionTutorTest :: TestTree
+expressionTutorTest = testGroup "Expressiontutor" [
+      testProperty "nmToLang is left inverse of langToNm" $
+        fromNM `is_left_inverse_of` (toNM :: Exp -> ExpTreeDiagram)
+    , testProperty "commutation proof" $
+        bisimulationCommutes ET.bisim
   ]
 
-reductTest :: Group
-reductTest = Group "Reduct" [
-      ("nmToLang is left inverse of langToNm:",
-        fromNM `is_left_inverse_of` (toNM :: Exp -> ReductExp))
-    , ("commutation proof:",
-        bisimulationCommutes R.bisim)
-    , ("reduct trees have unique ids:",
-        prop_uniqids)
+reductTest :: TestTree
+reductTest = testGroup "Reduct" [
+      testProperty "nmToLang is left inverse of langToNm" $
+        fromNM `is_left_inverse_of` (toNM :: Exp -> ReductExp)
+    , testProperty "commutation proof" $
+        bisimulationCommutes R.bisim
+    , testProperty "reduct trees have unique ids"
+        prop_uniqids
   ]
 
-alligatorTest :: Group
-alligatorTest = Group "Alligators" [
-      ("nmToLang is left inverse of langToNm:",
-        fromNM `is_left_inverse_of` (toNM :: Exp -> AlligatorFamilies))
-    , ("commutation proof:",
-        bisimulationCommutes A.bisim)
-    , ("color rule:",
-        color_rule)
-    , ("asciiAlligator . langToNm is equivalente to directly from Exp:",
-       (show . toAscii . (toNM :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii))
+alligatorTest :: TestTree
+alligatorTest = testGroup "Alligators" [
+      testProperty "nmToLang is left inverse of langToNm" $
+        fromNM `is_left_inverse_of` (toNM :: Exp -> AlligatorFamilies)
+    , testProperty "commutation proof" $
+        bisimulationCommutes A.bisim
+    , testProperty "color rule"
+        color_rule
+    , testProperty "In example, right guess <=> right colors"
+        game_play_example
+    , testGroup "de Bruijn Alligators" (
+      let f = fmap unparse . Alligator.nmToLang . deBruijnAlligators . toNM . fromJust . parse
+      in [
+          testCase "id" $ assertEqual ""
+            [HungryAlligator 0 [Egg 0]] -- expected
+            (deBruijnAlligators [HungryAlligator (Color 'a') [Egg (Color 'a')]])
+        , testCase "c0" $ assertEqual ""
+            (Just "(\\0.(\\0.0))") -- expected
+            (f "\\s.\\z.z")
+        , testCase "c2" $ assertEqual ""
+            (Just "(\\0.(\\0.1 (1 0)))") -- expected
+            (f "\\s.\\z.s(s z)")
+        , testCase "plus" $ assertEqual ""
+            (Just "(\\0.(\\0.(\\0.(\\0.3 1 (2 0 1)))))") -- expected
+            (f "(\\m.(\\n.(\\s.\\z.m s (n z s))))")
+        , testCase "fix" $ assertEqual ""
+            (Just "(\\0.(\\0.1 (\\0.1 1 0)) (\\0.1 (\\0.1 1 0)))") -- expected
+            (f "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))")
+        , testCase "foo" $ assertEqual ""
+            (Just "(\\0.(\\0.0)) (\\0.0)") -- expected
+            (f "(\\x.(\\x.x)) (\\x.x)")
+      ])
+    , testProperty "asciiAlligator nm == asciiAlligators lambda" $
+       (show . toAscii . (toNM :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii)
   ]
 
+tests :: TestTree
+tests = testGroup "Tests" [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
 
 defaultNumberOfTests = 300
 
-main :: IO ()
-main = defaultMain $ fmap checkParallel [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
+main = Test.Tasty.defaultMain tests
 

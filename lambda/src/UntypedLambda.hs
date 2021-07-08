@@ -184,4 +184,6 @@ eOmega :: Exp
 eOmega = fromJust $ parse "(\\x.x x) (\\x.x x)"
 eY     :: Exp
 eY     = fromJust $ parse "\\f.(\\x.f (x x)) (\\x.f (x x))"
+eFix   :: Exp
+eFix   = fromJust $ parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
 

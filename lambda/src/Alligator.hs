@@ -7,18 +7,19 @@
 module Alligator where
 
 import Data.Function ((&))
-import Data.Maybe (fromMaybe)
+import           Data.Map (Map)
+import qualified Data.Map as Map
 
 import Control.Monad.State.Lazy
 
 import UntypedLambda
 
 import Utils
-import           AsciiAlligators hiding (egg, hungryAlligator, oldAlligator)
+import           AsciiAlligators (AsAsciiAlligators, toAscii)
 import qualified AsciiAlligators as Ascii (egg, hungryAlligator, oldAlligator)
 
 
-newtype Color = Color Char deriving (Eq, Enum)
+newtype Color = Color Char deriving (Eq, Enum, Ord)
 
 instance Show Color where
   show (Color c) = [c]
@@ -90,10 +91,10 @@ oldAgeRule families = families
 -- devise a family that, when fed X, produces Y."
 
 -- | Check a guess made by the player.
-guess :: AlligatorFamily
+guess :: AlligatorFamilies
       -- ^ A base family `a` with colors the user has to guess
       -- (represented by the `emptyColor = Color '?'`).
-      -> [([AlligatorFamily], [AlligatorFamily])]
+      -> [(AlligatorFamilies, AlligatorFamilies)]
       -- ^ A list of "test cases" that should be satisfied if the guess is
       -- correct.  Each test case is a pair of input and expected output. The
       -- expected output should be obtained by substituting the `emptyColor`s
@@ -104,10 +105,10 @@ guess :: AlligatorFamily
       -> Bool
 guess a testCases colors = all check testCases
   where
-    check (i, o) = colorsToInts (eval ((fillAll colors a):i))
-                == colorsToInts o
-    fillAll :: [Color] -> AlligatorFamily -> AlligatorFamily
-    fillAll cs x = evalState (mapM fill x) cs
+    check (i, o) = deBruijnAlligators (eval (fillAll colors a ++ i))
+                == deBruijnAlligators o
+    fillAll :: [Color] -> AlligatorFamilies -> AlligatorFamilies
+    fillAll cs xs = evalState (mapM (mapM fill) xs) cs
     -- Replace an emptyColor by the color in the head of the list in the state
     -- and update the state with the tails of the list.
     fill :: Color -> State [Color] Color
@@ -125,11 +126,23 @@ guess a testCases colors = all check testCases
 emptyColor :: Color
 emptyColor = Color '?'
 
+deBruijnAlligators :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
+deBruijnAlligators families = fmap (go (-1) 0 Map.empty) families
+  where
+    go :: Int -> Int -> Map Color Int -> AlligatorFamilyF Color -> AlligatorFamilyF Int
+    go freeVarIx depth env a = case a of
+      HungryAlligator c as ->
+        let d = succ depth
+        in HungryAlligator 0 (go freeVarIx d (Map.insert c d env) <$> as)
+      OldAlligator as -> OldAlligator (go freeVarIx depth env <$> as)
+      Egg c -> Egg (maybe freeVarIx (depth -) (Map.lookup c env)) -- update freeVarIx
+
 -------------------------
 -- Lang to NM and back --
 -------------------------
-nmToLang :: [AlligatorFamily] -> Maybe Exp
+nmToLang :: Show a => [AlligatorFamilyF a] -> Maybe Exp
 nmToLang families =
+  -- TODO: improve this by resolving the typing weirdness of [Als]
   fmap f2e families & \case []           -> Nothing
                             me:[]        -> me
                             me1:me2:rest -> foldl (liftM2 App) (liftM2 App me1 me2) rest
@@ -142,14 +155,6 @@ langToNm (Var name)              = [Egg (toColor name)]
 langToNm (Lambda name e)         = [HungryAlligator (toColor name) (langToNm e)]
 langToNm (App e1 e2 @ (App _ _)) = langToNm e1 ++ [OldAlligator (langToNm e2)]
 langToNm (App e1 e2)             = langToNm e1 ++ langToNm e2
-
-colorsToInts :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
-colorsToInts families = fmap (go 0 []) families
-  where
-    go :: Int -> [(Color, Int)] -> AlligatorFamilyF Color -> AlligatorFamilyF Int
-    go n s (HungryAlligator c as) = HungryAlligator n (go (succ n) ((c, n):s) <$> as)
-    go n s (OldAlligator as) = OldAlligator (go n s <$> as)
-    go n s (Egg c) = Egg (fromMaybe n (lookup c s))
 
 --------------------------------------------------------
 -- Ascii Alligators representation of AlligatorFamily --
@@ -181,9 +186,9 @@ instance Steppable AlligatorFamilies where
 
 bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
 bisim = Bisim { fLang  = eval
-              , fNM    = colorsToInts . eval
+              , fNM    = deBruijnAlligators . eval
               , alphaA = toNM
-              , alphaB = colorsToInts . toNM }
+              , alphaB = deBruijnAlligators . toNM }
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A
@@ -266,6 +271,8 @@ aor = HungryAlligator (Color 'p') [
                                Egg (Color 'x')]]           , Egg (Color 'q')]]
 
 -- church numbers
+azero :: AlligatorFamily
+azero = HungryAlligator (Color 's') [HungryAlligator (Color 'z') [Egg (Color 'z')]]
 aone :: AlligatorFamily
 aone = HungryAlligator (Color 's') [
          HungryAlligator (Color 'z') [
