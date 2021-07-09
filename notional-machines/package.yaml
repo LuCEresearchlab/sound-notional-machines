@@ -1,4 +1,4 @@
-name:                lambda
+name:                notional-machines
 version:             0.1.0.0
 github:              "githubuser/lambda"
 license:             BSD3
@@ -32,7 +32,7 @@ library:
   source-dirs: src
 
 executables:
-  lambda-exe:
+  notional-machines-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
@@ -40,10 +40,10 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - lambda
+    - notional-machines
 
 tests:
-  lambda-test:
+  notional-machines-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
@@ -51,7 +51,7 @@ tests:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
-    - lambda
+    - notional-machines
     - tasty
     - tasty-hunit
     - tasty-hedgehog
