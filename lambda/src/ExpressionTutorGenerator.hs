@@ -18,7 +18,8 @@ import Text.PrettyPrint (Doc)
 
 import UntypedLambda
 import ExpressionTutor
-import Utils
+import Injective
+import Steppable
 
 ----------------------
 ----- Generators -----

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 467e7f5ba52a1796280f5fe9282989c3b047327c87b6d244dbea02381ff04ddb
+-- hash: 74b7c7c2c7f61edd3512acda2ad8c2211622558138910d90fe0aa2899d12cd42
 
 name:           lambda
 version:        0.1.0.0
@@ -29,9 +29,14 @@ library
   exposed-modules:
       Alligator
       AsciiAlligators
+      Bijective
+      Bisimulation
       ExpressionTutor
       ExpressionTutorGenerator
+      ExpTree
+      Injective
       Reduct
+      Steppable
       UntypedLambda
       Utils
   other-modules:

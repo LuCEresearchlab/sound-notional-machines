@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures #-}
+{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
 
 {-# LANGUAGE PatternSynonyms, ViewPatterns, MultiParamTypeClasses #-}
 
@@ -10,6 +10,10 @@ import Data.Set (Set)
 import qualified Data.Set as Set
 
 import UntypedLambda
+
+import Bisimulation
+import Injective
+
 import Utils
 
 --------------------
@@ -148,14 +152,12 @@ instance Injective Exp ExpTreeDiagram where
   toNM   = langToNm
   fromNM = nmToLang
 
-instance SteppableM ExpTreeDiagram Maybe where
-  stepM = fmap langToNm . (=<<) stepM . nmToLang
-
-bisim :: Bisimulation Exp (Maybe Exp) ExpTreeDiagram (Maybe ExpTreeDiagram)
-bisim = Bisim { fLang  = stepM
-              , fNM    = stepM
-              , alphaA = toNM
-              , alphaB = fmap toNM }
+bisim :: Bisimulation Exp Exp ExpTreeDiagram (Maybe ExpTreeDiagram)
+bisim = mkInjBisim
+-- bisim = Bisim { fLang  = step
+--               , fNM    = stepM
+--               , alphaA = toNM
+--               , alphaB = return . toNM }
 
 
 -- Commutation proof:

@@ -19,14 +19,23 @@ import Data.Maybe (fromJust)
 
 import UntypedLambda
 
+import ExpressionTutorGenerator
+
 import           ExpressionTutor hiding (bisim)
 import qualified ExpressionTutor as ET  (bisim)
-import ExpressionTutorGenerator
+import           ExpTree hiding (bisim)
+import qualified ExpTree as ETree  (bisim)
 import           Reduct hiding (bisim)
 import qualified Reduct as R   (bisim)
 import           Alligator hiding (bisim)
 import qualified Alligator as A   (bisim)
+
 import AsciiAlligators
+
+import qualified Injective as Inj
+import qualified Bijective as Bij
+import Steppable
+import Bisimulation
 
 import Utils
 
@@ -135,15 +144,23 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
 expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
       testProperty "nmToLang is left inverse of langToNm" $
-        fromNM `is_left_inverse_of` (toNM :: Exp -> ExpTreeDiagram)
+        Inj.fromNM `is_left_inverse_of` (Inj.toNM :: Exp -> ExpTreeDiagram)
     , testProperty "commutation proof" $
         bisimulationCommutes ET.bisim
+  ]
+
+expTreeTest :: TestTree
+expTreeTest = testGroup "Expression Trees" [
+      testProperty "nmToLang is inverse of langToNm" $
+        (Bij.fromNM . Bij.toNM) `is_equivalent_to` id
+    , testProperty "commutation proof" $
+        bisimulationCommutes ETree.bisim
   ]
 
 reductTest :: TestTree
 reductTest = testGroup "Reduct" [
       testProperty "nmToLang is left inverse of langToNm" $
-        fromNM `is_left_inverse_of` (toNM :: Exp -> ReductExp)
+        Inj.fromNM `is_left_inverse_of` (Inj.toNM :: Exp -> ReductExp)
     , testProperty "commutation proof" $
         bisimulationCommutes R.bisim
     , testProperty "reduct trees have unique ids"
@@ -153,7 +170,7 @@ reductTest = testGroup "Reduct" [
 alligatorTest :: TestTree
 alligatorTest = testGroup "Alligators" [
       testProperty "nmToLang is left inverse of langToNm" $
-        fromNM `is_left_inverse_of` (toNM :: Exp -> AlligatorFamilies)
+        Inj.fromNM `is_left_inverse_of` (Inj.toNM :: Exp -> AlligatorFamilies)
     , testProperty "commutation proof" $
         bisimulationCommutes A.bisim
     , testProperty "color rule"
@@ -161,7 +178,7 @@ alligatorTest = testGroup "Alligators" [
     , testProperty "In example, right guess <=> right colors"
         game_play_example
     , testGroup "de Bruijn Alligators" (
-      let f = fmap unparse . Alligator.nmToLang . deBruijnAlligators . toNM . fromJust . parse
+      let f = fmap unparse . Alligator.nmToLang . deBruijnAlligators . Inj.toNM . fromJust . parse
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected
@@ -183,11 +200,11 @@ alligatorTest = testGroup "Alligators" [
             (f "(\\x.(\\x.x)) (\\x.x)")
       ])
     , testProperty "asciiAlligator nm == asciiAlligators lambda" $
-       (show . toAscii . (toNM :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii)
+       (show . toAscii . (Inj.toNM :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii)
   ]
 
 tests :: TestTree
-tests = testGroup "Tests" [lambdaTest, expressionTutorTest, reductTest, alligatorTest]
+tests = testGroup "Tests" [lambdaTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
 
 defaultNumberOfTests = 300
 

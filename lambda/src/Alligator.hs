@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
              GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances,
@@ -14,7 +14,9 @@ import Control.Monad.State.Lazy
 
 import UntypedLambda
 
-import Utils
+import Bisimulation
+import Steppable
+import Injective
 import           AsciiAlligators (AsAsciiAlligators, toAscii)
 import qualified AsciiAlligators as Ascii (egg, hungryAlligator, oldAlligator)
 

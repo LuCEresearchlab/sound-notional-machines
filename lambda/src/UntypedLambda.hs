@@ -10,7 +10,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Data.List ((\\))
 import Data.Maybe (fromJust)
 
-import Utils
+import Steppable
 import AsciiAlligators
 
 --------------------
@@ -78,7 +78,7 @@ fresh a = "_" ++ a
 
 ----- Evaluation with error handling ----------
 
-instance SteppableM Exp Maybe where
+instance SteppableM Exp where
   stepM (App      (Lambda name e1) e2 @ (Lambda {})) = Just (subst name e2 e1)
   stepM (App e1 @ (Lambda _    _ ) e2) = do newe <- stepM e2
                                             return (App e1 newe)

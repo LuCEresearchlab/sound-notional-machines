@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
              MultiParamTypeClasses, FlexibleInstances #-}
@@ -11,6 +11,10 @@ import Data.List (delete)
 import Data.Maybe (fromMaybe, mapMaybe)
 
 import UntypedLambda
+
+import Bisimulation
+import Steppable
+import Injective
 
 import Utils
 
@@ -204,14 +208,15 @@ instance Injective Exp ReductExp where
   toNM   = langToNm
   fromNM = nmToLang
 
-instance SteppableM ReductExp Maybe where
+instance SteppableM ReductExp where
   stepM = fmap (langToNm . step) . nmToLang
 
 bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
-bisim = Bisim { fLang  = eval
-              , fNM    = evalM
-              , alphaA = toNM
-              , alphaB = return . toNM }
+bisim = mkInjBisim
+-- bisim = Bisim { fLang  = eval
+--               , fNM    = evalM
+--               , alphaA = toNM
+--               , alphaB = return . toNM }
 
 
 {-
