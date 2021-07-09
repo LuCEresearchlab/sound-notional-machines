@@ -91,30 +91,18 @@ instance SteppableM Exp where
 -- Parsing and unparsing
 --------------------
 parse :: String -> Maybe Exp
-parse   = parseMeta (pMetaLang pULCVarDcl)
+parse s = case Parsec.parse pExp "(unknown)" s of
+            Left _ -> Nothing
+            Right e -> Just e
 
-parseJS :: String -> Maybe Exp
-parseJS = parseMeta (pMetaLang pJSVarDcl)
-
-parseMeta :: Parser Exp -> String -> Maybe Exp
-parseMeta parser s = case Parsec.parse parser "(unknown)" s of
-                       Left _ -> Nothing
-                       Right e -> Just e
-
-pMetaLang :: (Parser String -> Parser String) -> Parser Exp
-pMetaLang pVarDcl = pExp <* eof
-  where pExp = try pLambda <|> try pApp <|> pAtom
-        pLambda = Lambda <$> pVarDcl pName <*> pExp
-        pName = many1 (letter <|> char '_')
-        pApp = foldl1 App <$> pAtom `sepBy1` spaces
-        pAtom = pVar <|> between (char '(') (char ')') pExp
-        pVar = Var <$> pName
-
-pULCVarDcl :: Parser String -> Parser String
-pULCVarDcl pName = between (char '\\') (char '.') pName
-
-pJSVarDcl :: Parser String -> Parser String
-pJSVarDcl pName = pName *> between spaces spaces (string "=>")
+pExp :: Parser Exp
+pExp = try pLambda <|> try pApp <|> pAtom <* eof
+  where
+    pLambda = Lambda <$> between (char '\\') (char '.') pName <*> pExp
+    pName = many1 (letter <|> char '_')
+    pApp = foldl1 App <$> pAtom `sepBy1` spaces
+    pAtom = pVar <|> between (char '(') (char ')') pExp
+    pVar = Var <$> pName
 
 -----
 
@@ -126,12 +114,6 @@ unparse (Var name)      = name
 
 parens :: String -> String
 parens x = "(" ++ x ++ ")"
-
-unparseJS :: Exp -> String
-unparseJS p @ (App _ _)       = unparse p
-unparseJS     (Lambda name e) = parens (concat [name, " => ", unparse e])
-unparseJS p @ (Var _)         = unparse p
-
 
 --------------------------------------------
 -- Ascii Alligators representation of Exp --
