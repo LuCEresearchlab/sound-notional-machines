@@ -2,13 +2,13 @@
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module ExpTree where
+module NotionalMachines.Machine.ExpTree where
 
-import UntypedLambda (Exp(..))
+import NotionalMachines.Lang.UntypedLambda (Exp(..))
 
-import Steppable
-import Bijective
-import Bisimulation
+import NotionalMachines.Steppable
+import NotionalMachines.Bijective
+import NotionalMachines.Bisimulation
 
 data ExpAsTree = Box String
                | BinaryBox ExpAsTree ExpAsTree

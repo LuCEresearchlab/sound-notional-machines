@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 74b7c7c2c7f61edd3512acda2ad8c2211622558138910d90fe0aa2899d12cd42
+-- hash: 0a81cb283881f990de1ec7de8bf150ed82a60c62e16ae14b24a287465774814f
 
 name:           lambda
 version:        0.1.0.0
@@ -27,18 +27,18 @@ source-repository head
 
 library
   exposed-modules:
-      Alligator
-      AsciiAlligators
-      Bijective
-      Bisimulation
-      ExpressionTutor
-      ExpressionTutorGenerator
-      ExpTree
-      Injective
-      Reduct
-      Steppable
-      UntypedLambda
-      Utils
+      NotionalMachines.Bijective
+      NotionalMachines.Bisimulation
+      NotionalMachines.Injective
+      NotionalMachines.Lang.UntypedLambda
+      NotionalMachines.Machine.Alligator
+      NotionalMachines.Machine.AsciiAlligators
+      NotionalMachines.Machine.ExpressionTutor
+      NotionalMachines.Machine.ExpressionTutorGenerator
+      NotionalMachines.Machine.ExpTree
+      NotionalMachines.Machine.Reduct
+      NotionalMachines.Steppable
+      NotionalMachines.Utils
   other-modules:
       Paths_lambda
   hs-source-dirs:

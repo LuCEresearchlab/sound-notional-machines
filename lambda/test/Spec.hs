@@ -17,27 +17,25 @@ import Data.Foldable (toList)
 import Data.List (intersect)
 import Data.Maybe (fromJust)
 
-import UntypedLambda
+import NotionalMachines.Lang.UntypedLambda
 
-import ExpressionTutorGenerator
+import           NotionalMachines.Machine.ExpressionTutorGenerator
+import           NotionalMachines.Machine.ExpressionTutor hiding (bisim)
+import qualified NotionalMachines.Machine.ExpressionTutor as ET  (bisim)
+import           NotionalMachines.Machine.ExpTree hiding (bisim)
+import qualified NotionalMachines.Machine.ExpTree as ETree  (bisim)
+import           NotionalMachines.Machine.Reduct hiding (bisim)
+import qualified NotionalMachines.Machine.Reduct as R   (bisim)
+import           NotionalMachines.Machine.Alligator hiding (bisim)
+import qualified NotionalMachines.Machine.Alligator as A   (bisim, nmToLang)
+import           NotionalMachines.Machine.AsciiAlligators
 
-import           ExpressionTutor hiding (bisim)
-import qualified ExpressionTutor as ET  (bisim)
-import           ExpTree hiding (bisim)
-import qualified ExpTree as ETree  (bisim)
-import           Reduct hiding (bisim)
-import qualified Reduct as R   (bisim)
-import           Alligator hiding (bisim)
-import qualified Alligator as A   (bisim)
+import NotionalMachines.Bisimulation
+import NotionalMachines.Steppable
+import qualified NotionalMachines.Injective as Inj
+import qualified NotionalMachines.Bijective as Bij
 
-import AsciiAlligators
-
-import qualified Injective as Inj
-import qualified Bijective as Bij
-import Steppable
-import Bisimulation
-
-import Utils
+import NotionalMachines.Utils
 
 ----------------------
 ----- Generators -----
@@ -178,7 +176,7 @@ alligatorTest = testGroup "Alligators" [
     , testProperty "In example, right guess <=> right colors"
         game_play_example
     , testGroup "de Bruijn Alligators" (
-      let f = fmap unparse . Alligator.nmToLang . deBruijnAlligators . Inj.toNM . fromJust . parse
+      let f = fmap unparse . A.nmToLang . deBruijnAlligators . Inj.toNM . fromJust . parse
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected

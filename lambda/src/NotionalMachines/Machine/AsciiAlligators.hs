@@ -29,7 +29,7 @@ f---------------<
 
 -}
 
-module AsciiAlligators (
+module NotionalMachines.Machine.AsciiAlligators (
   AsciiAlligators,
   AsAsciiAlligators(..),
 

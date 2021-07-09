@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Steppable where
+module NotionalMachines.Steppable where
 
 import Data.Function (fix)
 import Text.Show.Pretty

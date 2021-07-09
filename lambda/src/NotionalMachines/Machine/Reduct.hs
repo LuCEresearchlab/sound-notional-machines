@@ -3,20 +3,20 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
              MultiParamTypeClasses, FlexibleInstances #-}
 
-module Reduct where
+module NotionalMachines.Machine.Reduct where
 
 import Control.Monad.State.Lazy
 
 import Data.List (delete)
 import Data.Maybe (fromMaybe, mapMaybe)
 
-import UntypedLambda
+import NotionalMachines.Lang.UntypedLambda
 
-import Bisimulation
-import Steppable
-import Injective
+import NotionalMachines.Bisimulation
+import NotionalMachines.Steppable
+import NotionalMachines.Injective
 
-import Utils
+import NotionalMachines.Utils
 
 --------------------
 -- Bisimulation
@@ -212,7 +212,7 @@ instance SteppableM ReductExp where
   stepM = fmap (langToNm . step) . nmToLang
 
 bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
-bisim = mkInjBisim
+bisim = mkInjBisim step
 -- bisim = Bisim { fLang  = eval
 --               , fNM    = evalM
 --               , alphaA = toNM

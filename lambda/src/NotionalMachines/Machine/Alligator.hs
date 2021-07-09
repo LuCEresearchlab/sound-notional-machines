@@ -4,7 +4,7 @@
              GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances,
              MultiParamTypeClasses #-}
 
-module Alligator where
+module NotionalMachines.Machine.Alligator where
 
 import Data.Function ((&))
 import           Data.Map (Map)
@@ -12,16 +12,17 @@ import qualified Data.Map as Map
 
 import Control.Monad.State.Lazy
 
-import UntypedLambda
+import           NotionalMachines.Machine.AsciiAlligators (AsAsciiAlligators, toAscii)
+import qualified NotionalMachines.Machine.AsciiAlligators as Ascii (egg, hungryAlligator, oldAlligator)
 
-import Bisimulation
-import Steppable
-import Injective
-import           AsciiAlligators (AsAsciiAlligators, toAscii)
-import qualified AsciiAlligators as Ascii (egg, hungryAlligator, oldAlligator)
+import NotionalMachines.Lang.UntypedLambda
+
+import NotionalMachines.Bisimulation
+import NotionalMachines.Steppable
+import NotionalMachines.Injective
 
 
-newtype Color = Color Char deriving (Eq, Enum, Ord)
+newtype Color = Color Char deriving (Eq, Enum, Ord, Read)
 
 instance Show Color where
   show (Color c) = [c]

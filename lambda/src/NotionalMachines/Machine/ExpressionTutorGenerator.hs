@@ -2,7 +2,7 @@
 
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, TypeFamilies #-}
 
-module ExpressionTutorGenerator where
+module NotionalMachines.Machine.ExpressionTutorGenerator where
 
 import           Hedgehog hiding (Var, eval, evalM)
 import qualified Hedgehog.Gen as Gen
@@ -16,10 +16,10 @@ import Data.Functor.Identity (Identity)
 import Text.Show.Pretty (pPrint, ppDoc)
 import Text.PrettyPrint (Doc)
 
-import UntypedLambda
-import ExpressionTutor
-import Injective
-import Steppable
+import NotionalMachines.Lang.UntypedLambda
+import NotionalMachines.Machine.ExpressionTutor
+import NotionalMachines.Injective
+import NotionalMachines.Steppable
 
 ----------------------
 ----- Generators -----

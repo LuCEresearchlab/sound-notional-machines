@@ -2,7 +2,7 @@
 
 {-# LANGUAGE MultiParamTypeClasses, LambdaCase #-}
 
-module UntypedLambda where
+module NotionalMachines.Lang.UntypedLambda where
 
 import Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
@@ -10,8 +10,8 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Data.List ((\\))
 import Data.Maybe (fromJust)
 
-import Steppable
-import AsciiAlligators
+import NotionalMachines.Steppable
+import NotionalMachines.Machine.AsciiAlligators
 
 --------------------
 -- Bisimulation

@@ -2,9 +2,10 @@
 
 {-# LANGUAGE MultiParamTypeClasses, FunctionalDependencies #-}
 
-module Injective where
+module NotionalMachines.Bijective where
 
-class Injective a b | a -> b, b -> a where
+class Bijective a b | a -> b, b -> a where
   toNM   :: a -> b
-  fromNM :: b -> Maybe a
+  fromNM :: b -> a
+
 

@@ -1,10 +1,12 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Bisimulation where
+module NotionalMachines.Bisimulation where
 
-import Bijective
-import Injective
-import Steppable
+import           NotionalMachines.Bijective (Bijective)
+import qualified NotionalMachines.Bijective as Bij
+import           NotionalMachines.Injective (Injective)
+import qualified NotionalMachines.Injective as Inj
+import NotionalMachines.Steppable
 
 data Bisimulation a' b' a b = Bisim { fLang  :: a' -> b'
                                     , fNM    :: a  -> b
@@ -14,14 +16,14 @@ data Bisimulation a' b' a b = Bisim { fLang  :: a' -> b'
 mkBijBisim :: (Bijective l n, Steppable l) => Bisimulation l l n n
 mkBijBisim = Bisim { fLang  = step
                    , fNM    = funNM step
-                   , alphaA = Bijective.toNM
-                   , alphaB = Bijective.toNM }
+                   , alphaA = Bij.toNM
+                   , alphaB = Bij.toNM }
 
-mkInjBisim :: (Injective l n, Steppable l) => Bisimulation l l n (Maybe n)
-mkInjBisim = Bisim { fLang  = step
-                   , fNM    = funMNM step
-                   , alphaA = Injective.toNM
-                   , alphaB = return . Injective.toNM }
+mkInjBisim :: (Injective l n) => (l -> l) -> Bisimulation l l n (Maybe n)
+mkInjBisim f = Bisim { fLang  = f
+                     , fNM    = funMNM f
+                     , alphaA = Inj.toNM
+                     , alphaB = return . Inj.toNM }
 
 -- class BisimulationC l n | l -> n, n -> l where
 --   stepLang  :: l -> l
@@ -31,20 +33,20 @@ mkInjBisim = Bisim { fLang  = step
 
 -- instance (Bijective l n, Steppable l) => BisimulationC l n where
 --   stepLang  = step
---   stepNM = Bijective.toNM . step . Bijective.fromNM
---   alphaA = Bijective.toNM
+--   stepNM = Bij.toNM . step . Bij.fromNM
+--   alphaA = Bij.toNM
 --   alphaB = alphaA
 
 funNM :: Bijective l n => (l -> l) -> n -> n
-funNM f = Bijective.toNM . f . Bijective.fromNM
+funNM f = Bij.toNM . f . Bij.fromNM
 
 funMNM :: Injective l n => (l -> l) -> n -> Maybe n
-funMNM f = fmap (Injective.toNM . f) . Injective.fromNM
+funMNM f = fmap (Inj.toNM . f) . Inj.fromNM
 
 -- instance (Injective l n, Steppable l) => BisimulationC l n where
 --   stepLang  = step
---   stepNM = fmap (Injective.toNM . step) . Injective.fromNM
---   alpha = return . Injective.toNM
+--   stepNM = fmap (Inj.toNM . step) . Inj.fromNM
+--   alpha = return . Inj.toNM
 
 -- class (Bijective l n, Steppable l) => SteppableNM l n where
 --   stepNM :: n -> n

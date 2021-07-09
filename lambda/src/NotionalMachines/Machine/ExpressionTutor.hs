@@ -2,19 +2,20 @@
 
 {-# LANGUAGE PatternSynonyms, ViewPatterns, MultiParamTypeClasses #-}
 
-module ExpressionTutor where
+module NotionalMachines.Machine.ExpressionTutor where
 
 import Control.Monad.State.Lazy
 
 import Data.Set (Set)
 import qualified Data.Set as Set
 
-import UntypedLambda
+import NotionalMachines.Lang.UntypedLambda
 
-import Bisimulation
-import Injective
+import NotionalMachines.Bisimulation
+import NotionalMachines.Steppable
+import NotionalMachines.Injective
 
-import Utils
+import NotionalMachines.Utils
 
 --------------------
 -- Bisimulation
@@ -153,7 +154,7 @@ instance Injective Exp ExpTreeDiagram where
   fromNM = nmToLang
 
 bisim :: Bisimulation Exp Exp ExpTreeDiagram (Maybe ExpTreeDiagram)
-bisim = mkInjBisim
+bisim = mkInjBisim step
 -- bisim = Bisim { fLang  = step
 --               , fNM    = stepM
 --               , alphaA = toNM

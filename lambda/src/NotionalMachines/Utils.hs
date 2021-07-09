@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module Utils where
+module NotionalMachines.Utils where
 
 import Data.List (uncons)
 
