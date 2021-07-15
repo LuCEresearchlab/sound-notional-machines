@@ -62,7 +62,7 @@ oldAlligator a @ (AsciiAl ss) = AsciiAl (alligatorBody a : ss)
 
 -- | 'hungryAlligator' @var a@ returns a hungry alligator identified by @var@ protecting @a@.
 hungryAlligator :: String -> AsciiAlligators -> AsciiAlligators
-hungryAlligator var a  @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : (indent ss))
+hungryAlligator var a @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : (indent ss))
   where indent = map (' ':)
         hungryAlligatorBody = var ++ alligatorBody a ++ "<"
 
@@ -84,8 +84,8 @@ inFrontOf (AsciiAl a)  (AsciiAl b)  = let na = padHeight a (length b)
                                           nb = padHeight b (length a)
                                       in AsciiAl (glue (padWidth na) (padWidth nb))
   where
-    padHeight x n = padWith [] n x
-    padWidth  x   = map (padWith ' ' (width x)) x
+    padHeight xs n = padWith [] n xs
+    padWidth  xs   = map (padWith ' ' (width xs)) xs
     glue = zipWith (\x y -> x ++ " " ++ y)
-    padWith x n xs = xs ++ replicate (n - length xs) x
+    padWith ys n xs = xs ++ replicate (n - length xs) ys
 
