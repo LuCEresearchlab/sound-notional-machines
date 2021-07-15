@@ -1,45 +1,36 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
+{-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE PatternSynonyms, ViewPatterns, MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 
-module NotionalMachines.Machine.ExpressionTutor where
+module NotionalMachines.Machine.ExpressionTutor (
+  ExpTreeDiagram,
+  NodeContentElem(..),
 
-import Control.Monad.State.Lazy
+  pattern MkNode,
+  holeP,
 
-import Data.Set (Set)
+  pattern DiaLeaf,
+  pattern DiaBranch,
+
+  newDiaLeaf,
+  newDiaBranch,
+
+  checkCycle,
+
+  langToET,
+  etToLang
+  ) where
+
+import Control.Monad.State.Lazy (State, StateT(..), get, modify, evalState, evalStateT, withStateT)
+import Control.Monad (join, mplus)
+
+import           Data.Set (Set)
 import qualified Data.Set as Set
 
-import NotionalMachines.Lang.UntypedLambda
+import Data.List (mapAccumL)
 
-import NotionalMachines.Bisimulation
-import NotionalMachines.Steppable
-import NotionalMachines.Injective
+import NotionalMachines.Utils (maybeHead)
 
-import NotionalMachines.Utils
-
---------------------
--- Bisimulation
---------------------
---
---    A  --f-->  B
---
---    ^          ^
---    |          |
---  alpha_A    alpha_B
---    |          |
---    |          |
---
---    A' --f'--> B'
---
---  A  - Abstract representation (E.g., List)        == Notional machine
---  A' - Concrete representation (E.g., ArrayList)   == Programming language
---  f  - Abstract program state transition function  == Notional machine "process"
---  f' - Concrete program state transition function (e.g. reduction)
---  alpha_X - Abstraction function
---
--- The abstraction is correct if:
--- alpha_B . f' == f . alpha_A
---------------------
 
 --------------------
 -- Expression Tutor
@@ -53,7 +44,7 @@ data Node = Node { nodePlug :: Plug
                  -- , value    :: NodeValue
                  , content  :: [NodeContentElem] }
                  deriving (Show, Eq, Ord)
-data NodeContentElem = OtherContent String
+data NodeContentElem = C String
                      | NameDef String
                      | NameUse String
                      | Hole Plug -- Typ
@@ -70,13 +61,46 @@ instance Ord Edge where
 holes :: Node -> [Plug]
 holes (Node _ fragments) = [plug | Hole plug <- fragments]
 
+-- | Hole placeholder. Use it in conjunction with MkNode so the hole will
+-- contain a plug initialized to a consistent value.
+holeP :: NodeContentElem
+holeP = Hole (Plug (-1,-1))
+
+-- | Smart constructor for Nodes that ensures that the Plugs are numbered
+-- following this patter:
+--   - The plug on the top of each node is numbered as `Plug (n, 0)` where `n`
+--   is the id of the node.
+--   - The holes inside a node `j` are numbered `Plug (j, m)` where `m` goes
+--   from 1 until the number of holes in the node.
+pattern MkNode :: Int -> [NodeContentElem] -> Node
+pattern MkNode i parts <- (checkPlugs -> Just (Node (Plug (i,_)) parts)) where
+        MkNode i parts = Node (Plug (i,0)) (updateHoleIds parts)
+          where updateHoleIds = snd . mapAccumL update1 1
+                update1 n (Hole _) = (n+1, Hole (Plug (i,n)))
+                update1 n o = (n, o) 
+
+checkPlugs :: Node -> Maybe Node
+checkPlugs n = if validPlugs n then Just n else Nothing
+  where validPlugs :: Node -> Bool
+        validPlugs (Node (Plug (r,s)) parts) =
+             s == 0
+          && nodeIds == replicate (length nodeIds) r
+          && holeIds == [1..(length holeIds)]
+            where (nodeIds, holeIds) = unzip [(i,j) | Hole (Plug (i,j)) <- parts]
+
 --------------------
 -- View the Expression Tutor graph as a tree
 --------------------
+
+-- | View a diagram as a Tree leaf. The constructor creates a diagram just
+-- with a root. The pattern matches if the root has no holes (so no outgoing
+-- edges), giving back that node.
 pattern DiaLeaf :: Node -> ExpTreeDiagram
 pattern DiaLeaf n <- ExpTreeDiagram _ _ (Just n @ (holes -> [])) where
   DiaLeaf n = ExpTreeDiagram (Set.singleton n) Set.empty (Just n)
 
+-- | View a diagram as a Tree branch. The constructor creates a diagram rooted
+-- at @r@ with outgoing edges to all the roots of @ns@.
 pattern DiaBranch :: Node -> [ExpTreeDiagram] -> ExpTreeDiagram
 pattern DiaBranch r ns <- (diaBranch -> Just (r, ns)) where
   DiaBranch n = foldl merge (DiaLeaf n)
@@ -92,73 +116,49 @@ pattern DiaBranch r ns <- (diaBranch -> Just (r, ns)) where
               emptyHoles d = filter (\p -> all (not . inEdge p) (edges d)) . holes
               inEdge p (Edge p1 p2) = p1 == p || p2 == p
 
--- returns the root node and a list of diagrams rooted at its children
+-- | Returns the root node and a list of diagrams rooted at its children
 diaBranch :: ExpTreeDiagram -> Maybe (Node, [ExpTreeDiagram])
 diaBranch d = (\r -> (r, children r)) <$> root d
   where
     children n = [d { root = Just node } | node <- Set.elems (nodes d), node `isChild` n]
     isChild (Node nPlug _) = any (\p -> Set.member (Edge nPlug p) (edges d)) . holes
 
---------------------
--- Lang to NM and back
---------------------
-pattern NodeVar    i name <- Node (Plug (i,_)) [NameUse name] where
-        NodeVar    i name =  Node (Plug (i,0)) [NameUse name]
-pattern NodeLambda i name <- Node (Plug (i,_)) [OtherContent "lambda", NameDef name, Hole _] where
-        NodeLambda i name =  Node (Plug (i,0)) [OtherContent "lambda", NameDef name, Hole (Plug (i,1))]
-pattern NodeApp    i      <- Node (Plug (i,_)) [Hole _         , Hole _] where
-        NodeApp    i      =  Node (Plug (i,0)) [Hole (Plug (i,1)), Hole (Plug (i,2))]
+-- | Created leaf-like diagram using the constructor @c@ to create a new that
+-- will be assigned a new id.
+newDiaLeaf :: (Int -> Node) -> State Int ExpTreeDiagram
+newDiaLeaf c = incUid (\uid -> DiaLeaf (c uid))
 
-langToNm :: Exp -> ExpTreeDiagram
-langToNm p = evalState (a2g p) 0
-  where a2g :: Exp -> State Int ExpTreeDiagram
-        a2g (Var name)      = incUid (\uid -> DiaLeaf (NodeVar uid name))
-        a2g (Lambda name e) = do d <- a2g e
-                                 incUid $ \uid -> DiaBranch (NodeLambda uid name) [d]
-        a2g (App e1 e2)     = do d1 <- a2g e1
-                                 d2 <- a2g e2
-                                 incUid $ \uid -> DiaBranch (NodeApp uid) [d1, d2]
-        incUid g = g <$> get <* modify succ
+-- | Create a branch-like diagram using the constructor @c@ and recursively
+-- continue bulding the diagram using @f@. This will connect the node created
+-- with @c@ to the nodes that correspond to @xs@ and makes sure all the nodes
+-- have a increasing new id.
+newDiaBranch :: (Int -> Node) -- ^ constructor to create branching node.
+             -> (t -> State Int ExpTreeDiagram) -- ^ function to recursively build next nodes.
+             -> [t] -- ^ the terms used to construct the next nodes.
+             -> State Int ExpTreeDiagram
+newDiaBranch c f xs = do ys <- mapM f xs
+                         incUid $ \uid -> DiaBranch (c uid) ys
 
+incUid :: (Int -> ExpTreeDiagram) -> State Int ExpTreeDiagram
+incUid g = g <$> get <* modify succ
 
-nmToLang :: ExpTreeDiagram -> Maybe Exp
-nmToLang d = evalStateT (g2a d) Set.empty
-  where
-    -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
-    g2a :: ExpTreeDiagram -> StateT (Set Int) Maybe Exp
-    g2a (DiaLeaf   (NodeVar    i name))          = ifNotVisited i (return (Var name))
-    g2a (DiaBranch (NodeLambda i name) [n])      = ifNotVisited i (Lambda name <$> g2a n)
-    g2a (DiaBranch (NodeApp    i)      [n1, n2]) = ifNotVisited i (App <$> g2a n1 <*> g2a n2)
-    g2a _ = StateT (const Nothing) -- "incorrect diagram"
+-- | Function to call while traversing the graph to guarantee it doesn't cycle.
+-- If `i` was not visited, add it to the state and perform `a` (Nothing
+-- otherwise).
+checkCycle :: Ord a => a -> StateT (Set a) Maybe b -> StateT (Set a) Maybe b
+checkCycle i a = do visited <- get
+                    if Set.member i visited then StateT (const Nothing)
+                                            else withStateT (Set.insert i) a
 
-    -- if `i` was not visited, add it to the state and perform `a` (Nothing otherwise)
-    ifNotVisited i a = do visited <- get
-                          if Set.member i visited then StateT (const Nothing)
-                                                  else withStateT (Set.insert i) a
+-- | Build a diagram from a language AST. Use `newDiaLeaf` and `newDiaBranch`.
+langToET :: (t -> State Int ExpTreeDiagram) -> t -> ExpTreeDiagram
+langToET f term = evalState (f term) 0
+
+-- | Build a language AST from a diagram. Use `DiaLeaf`, `DiaBranch`, and `checkCycle`.
+etToLang :: (ExpTreeDiagram -> StateT (Set Int) Maybe t) -> ExpTreeDiagram -> Maybe t
+etToLang f dia = evalStateT (f dia) Set.empty
 
 
-------------------
-
---    A  --f-->  B
---
---    ^          ^
---    |          |
---  alphaA    alphaB
---    |          |
---    |          |
---
---    A' --f'--> B'
-
-instance Injective Exp ExpTreeDiagram where
-  toNM   = langToNm
-  fromNM = nmToLang
-
-bisim :: Bisimulation Exp Exp ExpTreeDiagram (Maybe ExpTreeDiagram)
-bisim = mkInjBisim step
--- bisim = Bisim { fLang  = step
---               , fNM    = stepM
---               , alphaA = toNM
---               , alphaB = return . toNM }
 
 
 -- Commutation proof:
@@ -175,46 +175,4 @@ bisim = mkInjBisim step
 -- fCmpalphaA = fmap langToNm . (=<<) eval . return -- nmToLang and langToNm are inverses
 -- fCmpalphaA = fmap langToNm . evalMaybe -- left identity on Monads
 
-
---------
--- TODO
--- - hedgehog: timeout to try to find hanging code
--- - hedgehog: config tree max depth
---
--- - eval done by labeling instead of rewrite
---
--- - generate diagram directly (not from exp) - closer to real-world cases
---
--- - unit testing with specific examples
--- - code coverage of hedgehog tests
---
--- - capture errors with Either
---
--- Finally, how much time would it take to extend your untyped lambda calculus – expression trees formalization to include alligator eggs as a second visualization? I reread Victor’s write up (see Teams posts to you yesterday night for links), and I think it would be a neat and geeky alternative NM to ET, and it would demonstrate a different kind of reusability of your model/framework/methodology: developing a new NM given an existing PL (and, in your specific current formalization, AST/intermediate layer). Bret Victor and his NM are well known and respected, so it would be an attractive demonstration of your tool framework. As I posted in Teams, there already are at least two interactive web-based alligator egg implementations (one includes parse, both include evaluate). However, they are for demonstration only: they don’t allow mistakes, and only one allows some kind of editing of the NM representation. If you spit out the data structure needed for these visualizations, then someone could maybe develop a complete UI that also allows one to make mistakes. While this is not on the critical path of your research, I think modeling the alligator eggs NM inside your existing framework, and spitting out something that could be used to generate the visualizations, would be worth a day or two of your time. Is this doable in that amount of time?
-
-
--- Degrees of freedom:
--- - different lang (lambda calculus, BSL) (delta in the impl?, do we abstract?)
--- - different NM (rewrite, labeling)
--- - different activities (parse, unparse, eval, type-check)
---
---
--- ✗ eval returns a value: failed
---   after 57 tests.
---
---   stack overflow
---
---   This failure can be reproduced by running:
---   > recheck (Size 56) (Seed 16402291810627727854 9477610571844893389) eval returns a value:
---
---
--- ✗ eval is equivalent to bigStep: failed
---   after 26 tests.
---
---   stack overflow
---
---   This failure can be reproduced by running:
---   > recheck (Size 25) (Seed 11466113076951511145 2415080421448164445) eval is equivalent to bigStep:
--- 
--- 2021-05-19:
 

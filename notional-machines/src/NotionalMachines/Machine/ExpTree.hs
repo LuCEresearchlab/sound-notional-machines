@@ -6,9 +6,9 @@ module NotionalMachines.Machine.ExpTree where
 
 import NotionalMachines.Lang.UntypedLambda (Exp(..))
 
-import NotionalMachines.Steppable
-import NotionalMachines.Bijective
-import NotionalMachines.Bisimulation
+import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Bijective
+import NotionalMachines.Meta.Bisimulation
 
 data ExpAsTree = Box String
                | BinaryBox ExpAsTree ExpAsTree
@@ -30,7 +30,7 @@ instance Bijective Exp ExpAsTree where
   fromNM = nmToLang
 
 instance Steppable ExpAsTree where
-  step = funNM step
+  step = stepNM step
 
 bisim :: Bisimulation Exp Exp ExpAsTree ExpAsTree
 bisim = mkBijBisim

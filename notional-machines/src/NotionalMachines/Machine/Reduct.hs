@@ -12,9 +12,9 @@ import Data.Maybe (fromMaybe, mapMaybe)
 
 import NotionalMachines.Lang.UntypedLambda
 
-import NotionalMachines.Bisimulation
-import NotionalMachines.Steppable
-import NotionalMachines.Injective
+import NotionalMachines.Meta.Bisimulation
+import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Injective
 
 import NotionalMachines.Utils
 
@@ -209,7 +209,7 @@ instance Injective Exp ReductExp where
   fromNM = nmToLang
 
 instance SteppableM ReductExp where
-  stepM = fmap (langToNm . step) . nmToLang
+  stepM = stepMNM (step :: Exp -> Exp)
 
 bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
 bisim = mkInjBisim step

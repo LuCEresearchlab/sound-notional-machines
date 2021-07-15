@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 22f33da4a133b74f5dd4e92268b6d5eeb828ac784ac6c4c7df4a3ff00faa319d
+-- hash: d910c60fd672ce8b095c0c6388b3f71818461a5949a9797a0b86310c8dea4967
 
 name:           notional-machines
 version:        0.1.0.0
@@ -27,17 +27,22 @@ source-repository head
 
 library
   exposed-modules:
-      NotionalMachines.Bijective
-      NotionalMachines.Bisimulation
-      NotionalMachines.Injective
+      NotionalMachines.Lang.Arith
+      NotionalMachines.Lang.ArithExpressionTutor
+      NotionalMachines.Lang.ArithGenerator
       NotionalMachines.Lang.UntypedLambda
+      NotionalMachines.Lang.UntypedLambdaExpressionTutor
+      NotionalMachines.Lang.UntypedLambdaGenerator
       NotionalMachines.Machine.Alligator
       NotionalMachines.Machine.AsciiAlligators
       NotionalMachines.Machine.ExpressionTutor
       NotionalMachines.Machine.ExpressionTutorGenerator
       NotionalMachines.Machine.ExpTree
       NotionalMachines.Machine.Reduct
-      NotionalMachines.Steppable
+      NotionalMachines.Meta.Bijective
+      NotionalMachines.Meta.Bisimulation
+      NotionalMachines.Meta.Injective
+      NotionalMachines.Meta.Steppable
       NotionalMachines.Utils
   other-modules:
       Paths_notional_machines

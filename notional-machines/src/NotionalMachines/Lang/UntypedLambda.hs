@@ -10,7 +10,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Data.List ((\\))
 import Data.Maybe (fromJust)
 
-import NotionalMachines.Steppable
+import NotionalMachines.Meta.Steppable
 import NotionalMachines.Machine.AsciiAlligators
 
 --------------------
@@ -72,8 +72,13 @@ freeVs (Var name) = [name]
 freeVs (Lambda name e) = freeVs e \\ [name]
 freeVs (App e1 e2) = freeVs e1 ++ freeVs e2
 
+-- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
 fresh a = "_" ++ a
+
+isValue :: Exp -> Bool
+isValue Lambda {} = True
+isValue _         = False
 
 
 ----- Evaluation with error handling ----------

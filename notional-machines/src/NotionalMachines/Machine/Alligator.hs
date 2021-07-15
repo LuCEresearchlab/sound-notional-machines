@@ -17,9 +17,9 @@ import qualified NotionalMachines.Machine.AsciiAlligators as Ascii (egg, hungryA
 
 import NotionalMachines.Lang.UntypedLambda
 
-import NotionalMachines.Bisimulation
-import NotionalMachines.Steppable
-import NotionalMachines.Injective
+import NotionalMachines.Meta.Bisimulation
+import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Injective
 
 
 newtype Color = Color String deriving (Eq, Ord, Read)

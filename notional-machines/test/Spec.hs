@@ -9,20 +9,21 @@ import Test.Tasty
 import Test.Tasty.Hedgehog
 import Test.Tasty.HUnit
 
--- import Control.Monad.IO.Class (liftIO)
--- import Control.Concurrent (threadDelay)
--- import Control.Concurrent.Async.Lifted (race)
--- import Control.Exception (evaluate)
-
 import Data.Foldable (toList)
 import Data.List (intersect)
 import Data.Maybe (fromJust)
+import Data.Functor.Identity (Identity)
 
-import NotionalMachines.Lang.UntypedLambda
 
-import           NotionalMachines.Machine.ExpressionTutorGenerator
-import           NotionalMachines.Machine.ExpressionTutor hiding (bisim)
-import qualified NotionalMachines.Machine.ExpressionTutor as ET  (bisim)
+import qualified NotionalMachines.Lang.UntypedLambda as Lambda
+import qualified NotionalMachines.Lang.UntypedLambdaExpressionTutor as LambdaET (bisim)
+import           NotionalMachines.Lang.UntypedLambdaGenerator
+
+import qualified NotionalMachines.Lang.Arith as Arith
+import qualified NotionalMachines.Lang.ArithExpressionTutor as ArithET (bisim)
+import           NotionalMachines.Lang.ArithGenerator
+
+import           NotionalMachines.Machine.ExpressionTutor
 import           NotionalMachines.Machine.ExpTree hiding (bisim)
 import qualified NotionalMachines.Machine.ExpTree as ETree  (bisim)
 import           NotionalMachines.Machine.Reduct hiding (bisim)
@@ -31,10 +32,10 @@ import           NotionalMachines.Machine.Alligator hiding (bisim)
 import qualified NotionalMachines.Machine.Alligator as A   (bisim, nmToLang)
 import           NotionalMachines.Machine.AsciiAlligators
 
-import NotionalMachines.Bisimulation
-import NotionalMachines.Steppable
-import qualified NotionalMachines.Injective as Inj
-import qualified NotionalMachines.Bijective as Bij
+import           NotionalMachines.Meta.Bisimulation
+import           NotionalMachines.Meta.Steppable
+import qualified NotionalMachines.Meta.Injective as Inj
+import qualified NotionalMachines.Meta.Bijective as Bij
 
 import NotionalMachines.Utils
 
@@ -73,15 +74,11 @@ prop = withTests defaultNumberOfTests . property
 eval_produces_value :: Property
 eval_produces_value = prop $ do
   e <- forAll genCombinator
-  (isValue <$> evalM e) === Just True
+  (Lambda.isValue <$> evalM e) === Just True
 
-isValue :: Exp -> Bool
-isValue Lambda {} = True
-isValue _         = False
-
-is_left_inverse_of :: Show a => (a -> Maybe Exp) -> (Exp -> a) -> Property
-is_left_inverse_of f f' = prop $ do
-  e <- forAll genExp
+is_left_inverse_of :: (Show a, Show b, Eq b) => Gen b -> (a -> Maybe b) -> (b -> a) -> Property
+is_left_inverse_of g f f' = prop $ do
+  e <- forAll g
   -- classify "closed terms" $ null (freeVs e)
   -- classify "open terms" $ not (null (freeVs e))
   -- classify "depth 0" $ depth e == 0
@@ -89,18 +86,13 @@ is_left_inverse_of f f' = prop $ do
   -- classify "depth > 7" $ depth e > 7
   tripping e f' f
 
-depth :: Exp -> Int
-depth (Var name) = 0
-depth (Lambda name e) = depth e + 1
-depth (App e1 e2) = max (depth e1 + 1) (depth e2 + 1)
-
-is_equivalent_to :: (Eq a, Show a) => (Exp -> a) -> (Exp -> a) -> Property
-is_equivalent_to f f' = prop $ do
-  e <- forAll genCombinator
+is_equivalent_to :: (Eq a, Show a, Show e) => Gen e -> (e -> a) -> (e -> a) -> Property
+is_equivalent_to g f f' = prop $ do
+  e <- forAll g
   f e === f' e
 
-bisimulationCommutes :: (Eq b, Show b) => Bisimulation Exp b' a b -> Property
-bisimulationCommutes b = (alphaB b . fLang b) `is_equivalent_to` (fNM b . alphaA b)
+bisimulationCommutes :: (Eq b, Show b, Show a') => Gen a' -> Bisimulation a' b' a b -> Property
+bisimulationCommutes g b = is_equivalent_to g (alphaB b . fLang b) (fNM b . alphaA b)
 
 ----- Reduct -----
 
@@ -142,31 +134,45 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
       testProperty "eval produces a value"
         eval_produces_value
     , testProperty "parse is left inverse of unparse" $
-        parse `is_left_inverse_of` unparse
+        is_left_inverse_of genExp Lambda.parse Lambda.unparse
+  ]
+
+arithTest :: TestTree
+arithTest = testGroup "Arith" [
+      testProperty "parse is left inverse of unparse" $
+        is_left_inverse_of genTerm Arith.parse Arith.unparse
   ]
 
 expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
-      testProperty "nmToLang is left inverse of langToNm" $
-        Inj.fromNM `is_left_inverse_of` (Inj.toNM :: Exp -> ExpTreeDiagram)
-    , testProperty "commutation proof" $
-        bisimulationCommutes ET.bisim
+    testGroup "Untyped Lambda" [
+        testProperty "nmToLang is left inverse of langToNm" $
+          is_left_inverse_of genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTreeDiagram)
+      , testProperty "commutation proof" $
+          bisimulationCommutes genExp LambdaET.bisim
+    ],
+    testGroup "Arith" [
+        testProperty "nmToLang is left inverse of langToNm" $
+          is_left_inverse_of genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTreeDiagram)
+      , testProperty "commutation proof" $
+          bisimulationCommutes genTerm ArithET.bisim
+    ]
   ]
 
 expTreeTest :: TestTree
 expTreeTest = testGroup "Expression Trees" [
       testProperty "nmToLang is inverse of langToNm" $
-        (Bij.fromNM . Bij.toNM) `is_equivalent_to` id
+        is_equivalent_to genExp (Bij.fromNM . Bij.toNM) id
     , testProperty "commutation proof" $
-        bisimulationCommutes ETree.bisim
+        bisimulationCommutes genExp ETree.bisim
   ]
 
 reductTest :: TestTree
 reductTest = testGroup "Reduct" [
       testProperty "nmToLang is left inverse of langToNm" $
-        Inj.fromNM `is_left_inverse_of` (Inj.toNM :: Exp -> ReductExp)
+        is_left_inverse_of genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ReductExp)
     , testProperty "commutation proof" $
-        bisimulationCommutes R.bisim
+        bisimulationCommutes genExp R.bisim
     , testProperty "reduct trees have unique ids"
         prop_uniqids
   ]
@@ -174,15 +180,15 @@ reductTest = testGroup "Reduct" [
 alligatorTest :: TestTree
 alligatorTest = testGroup "Alligators" [
       testProperty "nmToLang is left inverse of langToNm" $
-        Inj.fromNM `is_left_inverse_of` (Inj.toNM :: Exp -> AlligatorFamilies)
+        is_left_inverse_of genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
     , testProperty "commutation proof" $
-        bisimulationCommutes A.bisim
+        bisimulationCommutes genExp A.bisim
     , testProperty "color rule"
         color_rule
     , testProperty "In example, right guess <=> right colors"
         game_play_example
     , testGroup "de Bruijn Alligators" (
-      let f = fmap unparse . A.nmToLang . deBruijnAlligators . Inj.toNM . fromJust . parse
+      let f = fmap Lambda.unparse . A.nmToLang . deBruijnAlligators . Inj.toNM . fromJust . Lambda.parse
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected
@@ -204,11 +210,11 @@ alligatorTest = testGroup "Alligators" [
             (f "(\\x.(\\x.x)) (\\x.x)")
       ])
     , testProperty "asciiAlligator nm == asciiAlligators lambda" $
-       (show . toAscii . (Inj.toNM :: Exp -> AlligatorFamilies)) `is_equivalent_to` (show . toAscii)
+       is_equivalent_to genExp (show . toAscii . (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)) (show . toAscii)
   ]
 
 tests :: TestTree
-tests = testGroup "Tests" [lambdaTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
+tests = testGroup "Tests" [lambdaTest, arithTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
 
 defaultNumberOfTests = 300
 
