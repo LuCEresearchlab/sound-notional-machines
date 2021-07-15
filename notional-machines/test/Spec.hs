@@ -2,6 +2,7 @@
 
 import           Hedgehog hiding (Var, eval, evalM)
 import qualified Hedgehog.Gen as Gen
+import qualified Hedgehog.Range as Range
 import           Hedgehog.Main (defaultMain)
 
 import Test.Tasty
@@ -54,6 +55,11 @@ genReductExp =
     , Gen.subtermM2 genReductExp genReductExp
         (\x y -> HolePlug <$> Gen.maybe (pure x) <*> Gen.maybe (pure y) <*> pure 0)
     ]
+
+-------- Alligators ----------
+
+genColor :: MonadGen m => m Color
+genColor = Color <$> (Gen.list (Range.singleton 1) $ Gen.element ['a'..'z'])
 
 
 ----------------------
@@ -123,10 +129,10 @@ color_rule = prop $ do
 
 game_play_example :: Property
 game_play_example = prop $ do
-  c1 <- forAll (Gen.enumBounded :: Gen Color)
-  c2 <- forAll (Gen.enumBounded :: Gen Color)
+  c1 <- forAll genColor
+  c2 <- forAll genColor
   let rightGuess = guess [anot] [([atru], [afls]), ([afls], [atru])] [c1, c2]
-  let rightColors = [c1, c2] == [Color 'c', Color 'b']
+  let rightColors = [c1, c2] == [Color "c", Color "b"]
   (rightColors && rightGuess || not rightColors && not rightGuess) === True
 
 ----------------------
@@ -180,7 +186,7 @@ alligatorTest = testGroup "Alligators" [
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected
-            (deBruijnAlligators [HungryAlligator (Color 'a') [Egg (Color 'a')]])
+            (deBruijnAlligators [HungryAlligator (Color "a") [Egg (Color "a")]])
         , testCase "c0" $ assertEqual ""
             (Just "(\\0.(\\0.0))") -- expected
             (f "\\s.\\z.z")

@@ -22,19 +22,20 @@ import NotionalMachines.Steppable
 import NotionalMachines.Injective
 
 
-newtype Color = Color Char deriving (Eq, Enum, Ord, Read)
+newtype Color = Color String deriving (Eq, Ord, Read)
 
 instance Show Color where
-  show (Color c) = [c]
+  show (Color c) = c
 
-instance Bounded Color where
-  minBound = Color 'a'
-  maxBound = Color 'z'
+color0 :: Color
+color0 = Color "_"
 
 toColor :: String -> Color
-toColor [] = minBound
-toColor (c:_) = Color c
+toColor = Color
 
+-- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
+nextColor :: Color -> Color
+nextColor (Color c) = Color ('_':c)
 
 data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
                         | OldAlligator [AlligatorFamilyF a]
@@ -65,7 +66,7 @@ colorRule (a @ (HungryAlligator _ _):family:rest) = a:recolor a family:rest
 colorRule families = families
 
 recolor :: AlligatorFamily -> AlligatorFamily -> AlligatorFamily
-recolor a1 a2 = evalState (mapM go a2) ([], minBound)
+recolor a1 a2 = evalState (mapM go a2) ([], color0)
   where -- The state contains:
         -- * A mapping of color substitutions
         -- * The next candidate color for a substitution (a counter)
@@ -75,11 +76,11 @@ recolor a1 a2 = evalState (mapM go a2) ([], minBound)
                               case lookup c subs of
                                 Just c2 -> return c2
                                 Nothing -> let c2 = nextNotIn a1 a2 next
-                                           in do put ((c, c2):subs, succ c2)
+                                           in do put ((c, c2):subs, nextColor c2)
                                                  return c2
 
 nextNotIn :: AlligatorFamily -> AlligatorFamily -> Color -> Color
-nextNotIn xs ys = fix (\rec x -> if all (notElem x) [xs, ys] then x else rec (succ x))
+nextNotIn xs ys = fix (\rec x -> if all (notElem x) [xs, ys] then x else rec (nextColor x))
 
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
@@ -127,7 +128,7 @@ guess a testCases colors = all check testCases
 
 -- Represents a color to be guessed.
 emptyColor :: Color
-emptyColor = Color '?'
+emptyColor = Color "?"
 
 deBruijnAlligators :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
 deBruijnAlligators families = fmap (go (-1) 0 Map.empty) families
@@ -256,57 +257,57 @@ bisim = Bisim { fLang  = eval
 -----------------------
 
 aid :: AlligatorFamily
-aid = HungryAlligator (Color 'a') [Egg (Color 'a')]
+aid = HungryAlligator (Color "a") [Egg (Color "a")]
 
 -- church booleans
 atru :: AlligatorFamily
-atru = HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'a'))]]
+atru = HungryAlligator (Color "a") [HungryAlligator (Color "b") [(Egg (Color "a"))]]
 afls :: AlligatorFamily
-afls = HungryAlligator (Color 'a') [HungryAlligator (Color 'b') [(Egg (Color 'b'))]]
+afls = HungryAlligator (Color "a") [HungryAlligator (Color "b") [(Egg (Color "b"))]]
 aand :: AlligatorFamily
-aand = HungryAlligator (Color 'p') [
-         HungryAlligator (Color 'q') [
-           Egg (Color 'p'), Egg (Color 'q'), HungryAlligator (Color 'x') [
-                                                  HungryAlligator (Color 'y') [
-                                                    Egg (Color 'y')]]]]
+aand = HungryAlligator (Color "p") [
+         HungryAlligator (Color "q") [
+           Egg (Color "p"), Egg (Color "q"), HungryAlligator (Color "x") [
+                                                  HungryAlligator (Color "y") [
+                                                    Egg (Color "y")]]]]
 aor :: AlligatorFamily
-aor = HungryAlligator (Color 'p') [
-        HungryAlligator (Color 'q') [
-          Egg (Color 'p'), HungryAlligator (Color 'x') [
-                             HungryAlligator (Color 'y') [
-                               Egg (Color 'x')]]           , Egg (Color 'q')]]
+aor = HungryAlligator (Color "p") [
+        HungryAlligator (Color "q") [
+          Egg (Color "p"), HungryAlligator (Color "x") [
+                             HungryAlligator (Color "y") [
+                               Egg (Color "x")]]           , Egg (Color "q")]]
 
 -- church numbers
 azero :: AlligatorFamily
-azero = HungryAlligator (Color 's') [HungryAlligator (Color 'z') [Egg (Color 'z')]]
+azero = HungryAlligator (Color "s") [HungryAlligator (Color "z") [Egg (Color "z")]]
 aone :: AlligatorFamily
-aone = HungryAlligator (Color 's') [
-         HungryAlligator (Color 'z') [
-           Egg (Color 's'), Egg (Color 'z')]]
+aone = HungryAlligator (Color "s") [
+         HungryAlligator (Color "z") [
+           Egg (Color "s"), Egg (Color "z")]]
 atwo :: AlligatorFamily
-atwo = HungryAlligator (Color 's') [
-         HungryAlligator (Color 'z') [
-           Egg (Color 's'), OldAlligator [
-                              Egg (Color 's'), Egg (Color 'z')]]]
+atwo = HungryAlligator (Color "s") [
+         HungryAlligator (Color "z") [
+           Egg (Color "s"), OldAlligator [
+                              Egg (Color "s"), Egg (Color "z")]]]
 athree :: AlligatorFamily
-athree = HungryAlligator (Color 's') [
-           HungryAlligator (Color 'z') [
-             Egg (Color 's'), OldAlligator [
-                                Egg (Color 's'), OldAlligator [
-                                                   Egg (Color 's'), Egg (Color 'z')]]]]
+athree = HungryAlligator (Color "s") [
+           HungryAlligator (Color "z") [
+             Egg (Color "s"), OldAlligator [
+                                Egg (Color "s"), OldAlligator [
+                                                   Egg (Color "s"), Egg (Color "z")]]]]
 
 -- Y-combinator
 ay :: AlligatorFamily
-ay = HungryAlligator (Color 'g') [
-       HungryAlligator (Color 'x') [
-         Egg (Color 'g'), OldAlligator [
-                            Egg (Color 'x'), Egg (Color 'x')]],
-       HungryAlligator (Color 'x') [
-         Egg (Color 'g'), OldAlligator [
-                            Egg (Color 'x'), Egg (Color 'x')]]]
+ay = HungryAlligator (Color "g") [
+       HungryAlligator (Color "x") [
+         Egg (Color "g"), OldAlligator [
+                            Egg (Color "x"), Egg (Color "x")]],
+       HungryAlligator (Color "x") [
+         Egg (Color "g"), OldAlligator [
+                            Egg (Color "x"), Egg (Color "x")]]]
 
 -- term with unknowns
 aq :: AlligatorFamily
-aq = HungryAlligator (Color 'b') [HungryAlligator (Color 'c') [(Egg (Color '?'))]]
+aq = HungryAlligator (Color "b") [HungryAlligator (Color "c") [(Egg (Color "?"))]]
 anot :: AlligatorFamily
-anot = HungryAlligator (Color 'a') [Egg (Color 'a'), aq, aq]
+anot = HungryAlligator (Color "a") [Egg (Color "a"), aq, aq]
