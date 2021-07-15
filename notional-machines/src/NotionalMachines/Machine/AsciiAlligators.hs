@@ -82,7 +82,7 @@ inFrontOf a            (AsciiAl []) = a
 inFrontOf (AsciiAl []) b            = b
 inFrontOf (AsciiAl a)  (AsciiAl b)  = let na = padHeight a (length b)
                                           nb = padHeight b (length a)
-                                      in AsciiAl (glue (padWidth na) nb)
+                                      in AsciiAl (glue (padWidth na) (padWidth nb))
   where
     padHeight x n = padWith [] n x
     padWidth  x   = map (padWith ' ' (width x)) x
