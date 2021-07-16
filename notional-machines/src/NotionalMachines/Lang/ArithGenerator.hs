@@ -17,7 +17,7 @@ genTerm =
     , return Zero
     ] [
       -- recursive generators
-      Gen.subterm3 genTerm genTerm genTerm IfThenElse
+      Gen.subterm3 genTerm genTerm genTerm If
     , Gen.subterm  genTerm Succ
     , Gen.subterm  genTerm Pred
     , Gen.subterm  genTerm IsZero
