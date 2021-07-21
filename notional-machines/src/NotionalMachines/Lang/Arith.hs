@@ -30,6 +30,7 @@ See all intermediate steps like so:
 
 module NotionalMachines.Lang.Arith (
   Term(..),
+  isValue,
   parse,
   unparse
   ) where
@@ -50,10 +51,10 @@ data Term = -- Booleans
           | IsZero Term
           deriving (Eq, Show)
 
--- isValue :: Term -> Bool
--- isValue Tru = True
--- isValue Fls = True
--- isValue t   = isNumericVal t
+isValue :: Term -> Bool
+isValue Tru = True
+isValue Fls = True
+isValue t   = isNumericVal t
 
 isNumericVal :: Term -> Bool
 isNumericVal Zero = True

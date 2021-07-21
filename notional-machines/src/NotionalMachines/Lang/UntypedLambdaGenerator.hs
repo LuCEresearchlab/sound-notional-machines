@@ -4,13 +4,11 @@ module NotionalMachines.Lang.UntypedLambdaGenerator where
 
 import           Hedgehog hiding (Var)
 import qualified Hedgehog.Gen as Gen
-import qualified Hedgehog.Range as Range
 
 import NotionalMachines.Lang.UntypedLambda (Exp(..), freeVs)
 
+import NotionalMachines.Utils (genName)
 
-genName :: MonadGen m => m String
-genName = Gen.list (Range.singleton 1) $ Gen.element ['a'..'z']
 
 genExp :: MonadGen m => m Exp
 genExp =

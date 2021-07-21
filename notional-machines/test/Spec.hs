@@ -11,7 +11,8 @@ import Test.Tasty.HUnit
 
 import Data.Foldable (toList)
 import Data.List (intersect)
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust)
+import Data.Either (either, isRight)
 import Data.Functor.Identity (Identity)
 
 
@@ -20,8 +21,13 @@ import qualified NotionalMachines.Lang.UntypedLambdaExpressionTutor as LambdaET 
 import           NotionalMachines.Lang.UntypedLambdaGenerator
 
 import qualified NotionalMachines.Lang.Arith as Arith
+import qualified NotionalMachines.Lang.TypedArith as TypedArith
 import qualified NotionalMachines.Lang.ArithExpressionTutor as ArithET (bisim)
-import           NotionalMachines.Lang.ArithGenerator
+import           NotionalMachines.Lang.ArithGenerator as ArithGen
+
+import qualified NotionalMachines.Lang.TypedLambdaArith as TypedLambda
+-- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET (bisim)
+import           NotionalMachines.Lang.TypedLambdaArithGenerator as TypedLambdaGen
 
 import           NotionalMachines.Machine.ExpressionTutor
 import           NotionalMachines.Machine.ExpTree hiding (bisim)
@@ -75,6 +81,12 @@ eval_produces_value :: Property
 eval_produces_value = prop $ do
   e <- forAll genCombinator
   (Lambda.isValue <$> evalM e) === Just True
+
+type_safety :: Property
+type_safety = prop $ do
+  e <- forAll TypedLambdaGen.genTerm
+  -- type-checks implies evals to value (doesn't get stuck)
+  ((not . isRight . TypedLambda.typeof) e || isJust (evalM e)) === True
 
 is_left_inverse_of :: (Show a, Show b, Eq b) => Gen b -> (a -> Maybe b) -> (b -> a) -> Property
 is_left_inverse_of g f f' = prop $ do
@@ -137,10 +149,55 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
         is_left_inverse_of genExp Lambda.parse Lambda.unparse
   ]
 
+typLambdaTest :: TestTree
+typLambdaTest = testGroup "Typed Lambda Calculus" [
+      testProperty "parse is left inverse of unparse" $
+        is_left_inverse_of TypedLambdaGen.genTerm (eitherToMaybe . TypedLambda.parse) TypedLambda.unparse
+    , testProperty "language is type safe"
+        type_safety
+    , testGroup "Type checking" [
+          testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
+            (Right TypedLambda.TyNat) -- expected
+            (TypedLambda.typeof =<< TypedLambda.parse "if iszero 0 then 0 else pred 0")
+        , testCase "if true then 0 else false : ??" $ assertEqual ""
+            (Left "type error") -- expected
+            (TypedLambda.typeof =<< TypedLambda.parse "if true then 0 else false")
+        , testCase "if a then b else c : ??" $ assertEqual ""
+            (Left "type error") -- expected
+            (TypedLambda.typeof =<< TypedLambda.parse "if a then b else c")
+        , testCase "(\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
+            (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
+            (TypedLambda.typeof =<< TypedLambda.parse "(\\x:Bool->Bool.x) (\\x:Bool.x)")
+        , testCase "if true then (\\x:Bool.x) else (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
+            (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
+            (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool.x)")
+        , testCase "f:Bool->Bool ⊢ f (if false then true else false) : Bool" $ assertEqual ""
+            (Just TypedLambda.TyBool) -- expected
+            (TypedLambda.typeof' [("f", TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool)]
+              =<< eitherToMaybe (TypedLambda.parse "f (if false then true else false)"))
+        , testCase "f:Bool->Bool ⊢ \\x:Bool. f (if x then false else x) : Bool->Bool" $ assertEqual ""
+            (Just $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
+            (TypedLambda.typeof' [("f", TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool)]
+              =<< eitherToMaybe (TypedLambda.parse "\\x:Bool. f (if x then false else x)"))
+        , testCase "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
+            (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
+            (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x)")
+      ]
+  ]
+
 arithTest :: TestTree
 arithTest = testGroup "Arith" [
       testProperty "parse is left inverse of unparse" $
-        is_left_inverse_of genTerm Arith.parse Arith.unparse
+        is_left_inverse_of ArithGen.genTerm Arith.parse Arith.unparse
+    , testCase "if iszero succ 0 then false else true -->* true" $ assertEqual ""
+        (Just "true") -- expected
+        ((fmap (Arith.unparse . eval) . Arith.parse) "if iszero succ 0 then false else true")
+    , testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
+        (Just TypedArith.TyNat) -- expected
+        (TypedArith.typeof =<< Arith.parse "if iszero 0 then 0 else pred 0")
+    , testCase "if true then 0 else false : ??" $ assertEqual ""
+        (Nothing) -- expected
+        (TypedArith.typeof =<< Arith.parse "if true then 0 else false")
   ]
 
 expressionTutorTest :: TestTree
@@ -153,9 +210,9 @@ expressionTutorTest = testGroup "Expressiontutor" [
     ],
     testGroup "Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
-          is_left_inverse_of genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTreeDiagram)
+          is_left_inverse_of ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTreeDiagram)
       , testProperty "commutation proof" $
-          bisimulationCommutes genTerm ArithET.bisim
+          bisimulationCommutes ArithGen.genTerm ArithET.bisim
     ]
   ]
 
@@ -214,7 +271,7 @@ alligatorTest = testGroup "Alligators" [
   ]
 
 tests :: TestTree
-tests = testGroup "Tests" [lambdaTest, arithTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
+tests = testGroup "Tests" [lambdaTest, arithTest, typLambdaTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
 
 defaultNumberOfTests = 300
 
