@@ -12,15 +12,15 @@ which typechecks the term and only evaluates it if it's type-safe.
 
 module NotionalMachines.Lang.TypedArith (
   typeof,
-  Typ(..)
+  Type(..)
   ) where
 
 import NotionalMachines.Lang.Arith
 import NotionalMachines.Meta.Steppable
 
-data Typ = TyBool | TyNat deriving (Eq, Show)
+data Type = TyBool | TyNat deriving (Eq, Show)
 
-typeof :: Term -> Maybe Typ
+typeof :: Term -> Maybe Type
 typeof = \case
   Tru                                  -> return TyBool -- T-True
   Fls                                  -> return TyBool -- T-False
