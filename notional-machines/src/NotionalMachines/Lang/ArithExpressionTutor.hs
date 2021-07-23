@@ -33,11 +33,11 @@ arithToET = langToET go
         go = \case
           Tru         -> newDiaLeaf   NodeTrue
           Fls         -> newDiaLeaf   NodeFalse
-          If t1 t2 t3 -> newDiaBranch NodeIf go [t1, t2, t3]
+          If t1 t2 t3 -> newDiaBranch NodeIf     go [t1, t2, t3]
           Zero        -> newDiaLeaf   NodeZero
-          Succ t      -> newDiaBranch NodeSucc       go [t]
-          Pred t      -> newDiaBranch NodePred       go [t]
-          IsZero t    -> newDiaBranch NodeIsZero     go [t]
+          Succ t      -> newDiaBranch NodeSucc   go [t]
+          Pred t      -> newDiaBranch NodePred   go [t]
+          IsZero t    -> newDiaBranch NodeIsZero go [t]
 
 etToArith :: ExpTreeDiagram -> Maybe Term
 etToArith = etToLang go
