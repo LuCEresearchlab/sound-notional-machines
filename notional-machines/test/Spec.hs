@@ -14,6 +14,8 @@ import Data.List (intersect)
 import Data.Maybe (fromJust, isNothing)
 import Data.Either (either, isRight, isLeft)
 import Data.Functor.Identity (Identity)
+import           Data.Set (Set)
+import qualified Data.Set as Set
 
 
 import qualified NotionalMachines.Lang.UntypedLambda as Lambda
@@ -219,7 +221,22 @@ expressionTutorTest = testGroup "Expressiontutor" [
           is_left_inverse_of ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTreeDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes ArithGen.genTerm ArithET.bisim
-    ]
+    ],
+    testCase "Malformed Diagram" $ assertEqual ""
+      (Nothing) -- expected
+      (Inj.fromNM $ ExpTreeDiagram {
+                      nodes = Set.fromList
+                                [Node { nodePlug = Plug (0,0),
+                                        typ = Nothing,
+                                        content = [C "lambda", NameDef "x", Hole (Plug (0,1))] },
+                                 Node { nodePlug = Plug (1,0),
+                                        typ = Nothing,
+                                        content = [C "lambda", NameDef "y", Hole (Plug (1,1))] }],
+                      edges = Set.fromList [Edge (Plug (0,1)) (Plug (1,0)),
+                                            Edge (Plug (1,1)) (Plug (0,0))],
+                      root  = Just (Node { nodePlug = Plug (0,0),
+                                           typ = Nothing,
+                                           content = [C "lambda", NameDef "x", Hole (Plug (0,1))] }) } :: Maybe Lambda.Exp)
   ]
 
 expTreeTest :: TestTree

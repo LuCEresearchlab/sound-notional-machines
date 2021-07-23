@@ -3,8 +3,15 @@
 {-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 
 module NotionalMachines.Machine.ExpressionTutor (
-  ExpTreeDiagram,
+  ExpTreeDiagram(..),
   NodeContentElem(..),
+  Type,
+
+  -- Exporting these constructor allows for the creation of diagrams that are
+  -- not trees.
+  Node(..),
+  Edge(..),
+  Plug(..),
 
   pattern MkNode,
   holeP,
