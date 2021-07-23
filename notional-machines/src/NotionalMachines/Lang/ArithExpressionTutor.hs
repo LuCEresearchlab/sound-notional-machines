@@ -15,17 +15,17 @@ import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Bisimulation
 import NotionalMachines.Meta.Steppable
 
-pattern NodeTrue   i =  MkNode i [C "true"]
-pattern NodeFalse  i =  MkNode i [C "false"]
-pattern NodeIf     i <- MkNode i [Hole _, Hole _, Hole _] where
-        NodeIf     i =  MkNode i [holeP,  holeP,  holeP]
-pattern NodeZero   i =  MkNode i [C "0"]
-pattern NodeSucc   i <- MkNode i [C "succ", Hole _] where
-        NodeSucc   i =  MkNode i [C "succ", holeP]
-pattern NodePred   i <- MkNode i [C "pred", Hole _] where
-        NodePred   i =  MkNode i [C "pred", holeP]
-pattern NodeIsZero i <- MkNode i [C "iszero", Hole _] where
-        NodeIsZero i =  MkNode i [C "iszero", holeP]
+pattern NodeTrue   i =  MkNode i Nothing [C "true"]
+pattern NodeFalse  i =  MkNode i Nothing [C "false"]
+pattern NodeIf     i <- MkNode i Nothing [Hole {}, Hole {}, Hole {}] where
+        NodeIf     i =  MkNode i Nothing [holeP,   holeP,   holeP]
+pattern NodeZero   i =  MkNode i Nothing [C "0"]
+pattern NodeSucc   i <- MkNode i Nothing [C "succ",   Hole {}] where
+        NodeSucc   i =  MkNode i Nothing [C "succ",   holeP]
+pattern NodePred   i <- MkNode i Nothing [C "pred",   Hole {}] where
+        NodePred   i =  MkNode i Nothing [C "pred",   holeP]
+pattern NodeIsZero i <- MkNode i Nothing [C "iszero", Hole {}] where
+        NodeIsZero i =  MkNode i Nothing [C "iszero", holeP]
 
 arithToET :: Term -> ExpTreeDiagram
 arithToET = langToET go

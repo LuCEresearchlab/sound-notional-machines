@@ -16,11 +16,12 @@ import NotionalMachines.Meta.Bisimulation
 import NotionalMachines.Meta.Steppable
 
 
-pattern NodeVar    name i =  MkNode i [NameUse name]
-pattern NodeLambda name i <- MkNode i [C "lambda", NameDef name, Hole _] where
-        NodeLambda name i =  MkNode i [C "lambda", NameDef name, holeP]
-pattern NodeApp         i <- MkNode i [Hole _, Hole _] where
-        NodeApp         i =  MkNode i [holeP,  holeP]
+pattern NodeVar    name i <- MkNode i _       [NameUse name] where
+        NodeVar    name i =  MkNode i Nothing [NameUse name]
+pattern NodeLambda name i <- MkNode i _       [C "lambda", NameDef name, Hole {}] where
+        NodeLambda name i =  MkNode i Nothing [C "lambda", NameDef name, holeP]
+pattern NodeApp         i <- MkNode i _       [Hole {}, Hole {}] where
+        NodeApp         i =  MkNode i Nothing [holeP,   holeP]
 
 lambdaToET :: Exp -> ExpTreeDiagram
 lambdaToET = langToET go

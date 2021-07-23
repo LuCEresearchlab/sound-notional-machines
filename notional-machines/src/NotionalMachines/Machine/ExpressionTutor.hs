@@ -40,17 +40,18 @@ data ExpTreeDiagram = ExpTreeDiagram { nodes :: Set Node
                                      , root  :: Maybe Node }
                                      deriving (Show, Eq)
 data Node = Node { nodePlug :: Plug
-                 -- , typ      :: Typ
+                 , typ      :: Maybe Type
                  -- , value    :: NodeValue
                  , content  :: [NodeContentElem] }
                  deriving (Show, Eq, Ord)
 data NodeContentElem = C String
                      | NameDef String
                      | NameUse String
-                     | Hole Plug -- Typ
+                     | Hole Plug -- (Maybe Type)
                      deriving (Show, Eq, Ord)
 data Plug = Plug (Int, Int) deriving (Show, Eq, Ord)
 data Edge = Edge Plug Plug deriving Show
+type Type = String
 
 -- the graph is undirected
 instance Eq Edge where
@@ -59,7 +60,7 @@ instance Ord Edge where
   compare (Edge p1 p2) (Edge p3 p4) = compare (Set.fromList [p1,p2]) (Set.fromList [p3,p4])
 
 holes :: Node -> [Plug]
-holes (Node _ fragments) = [plug | Hole plug <- fragments]
+holes node = [plug | Hole plug <- content node]
 
 -- | Hole placeholder. Use it in conjunction with MkNode so the hole will
 -- contain a plug initialized to a consistent value.
@@ -72,9 +73,9 @@ holeP = Hole (Plug (-1,-1))
 --   is the id of the node.
 --   - The holes inside a node `j` are numbered `Plug (j, m)` where `m` goes
 --   from 1 until the number of holes in the node.
-pattern MkNode :: Int -> [NodeContentElem] -> Node
-pattern MkNode i parts <- (checkPlugs -> Just (Node (Plug (i,_)) parts)) where
-        MkNode i parts = Node (Plug (i,0)) (updateHoleIds parts)
+pattern MkNode :: Int -> Maybe Type -> [NodeContentElem] -> Node
+pattern MkNode i t parts <- (checkPlugs -> Just (Node (Plug (i,_)) t parts)) where
+        MkNode i t parts = Node (Plug (i,0)) t (updateHoleIds parts)
           where updateHoleIds = snd . mapAccumL update1 1
                 update1 n (Hole _) = (n+1, Hole (Plug (i,n)))
                 update1 n o = (n, o) 
@@ -82,7 +83,7 @@ pattern MkNode i parts <- (checkPlugs -> Just (Node (Plug (i,_)) parts)) where
 checkPlugs :: Node -> Maybe Node
 checkPlugs n = if validPlugs n then Just n else Nothing
   where validPlugs :: Node -> Bool
-        validPlugs (Node (Plug (r,s)) parts) =
+        validPlugs (Node (Plug (r,s)) _ parts) =
              s == 0
           && nodeIds == replicate (length nodeIds) r
           && holeIds == [1..(length holeIds)]
@@ -121,7 +122,7 @@ diaBranch :: ExpTreeDiagram -> Maybe (Node, [ExpTreeDiagram])
 diaBranch d = (\r -> (r, children r)) <$> root d
   where
     children n = [d { root = Just node } | node <- Set.elems (nodes d), node `isChild` n]
-    isChild (Node nPlug _) = any (\p -> Set.member (Edge nPlug p) (edges d)) . holes
+    isChild m = any (\p -> Set.member (Edge (nodePlug m) p) (edges d)) . holes
 
 -- | Created leaf-like diagram using the constructor @c@ to create a new that
 -- will be assigned a new id.
