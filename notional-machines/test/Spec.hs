@@ -11,8 +11,8 @@ import Test.Tasty.HUnit
 
 import Data.Foldable (toList)
 import Data.List (intersect)
-import Data.Maybe (fromJust, isJust)
-import Data.Either (either, isRight)
+import Data.Maybe (fromJust, isNothing)
+import Data.Either (either, isRight, isLeft)
 import Data.Functor.Identity (Identity)
 
 
@@ -83,10 +83,16 @@ eval_produces_value = prop $ do
   (Lambda.isValue <$> evalM e) === Just True
 
 type_safety :: Property
-type_safety = prop $ do
-  e <- forAll TypedLambdaGen.genTerm
+type_safety = prop $ do {
+  e <- forAll TypedLambdaGen.genTerm;
+  classify "type checks" $ (isRight . TypedLambda.typeof) e;
+  classify "eval to val" $ Just True == (TypedLambda.isValue <$> evalM e);
+  annotateShow $ TypedLambda.typeof e;
+  annotateShow $ evalM e;
   -- type-checks implies evals to value (doesn't get stuck)
-  ((not . isRight . TypedLambda.typeof) e || isJust (evalM e)) === True
+  (    ((isRight . TypedLambda.typeof) e && (TypedLambda.isValue . fromJust . evalM) e)
+    || ((isLeft  . TypedLambda.typeof) e && (isNothing . evalM) e)
+  ) === True }
 
 is_left_inverse_of :: (Show a, Show b, Eq b) => Gen b -> (a -> Maybe b) -> (b -> a) -> Property
 is_left_inverse_of g f f' = prop $ do

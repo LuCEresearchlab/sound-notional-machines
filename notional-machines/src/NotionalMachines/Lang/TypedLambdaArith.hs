@@ -19,6 +19,7 @@ for booleans and arithmetic expressions are presented in chapter 3.
 module NotionalMachines.Lang.TypedLambdaArith (
   Term(..),
   Type(..),
+  isValue,
   typeof,
   typeof',
   parse,
