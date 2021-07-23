@@ -21,8 +21,8 @@ class Eq a => Steppable a where
 
   -- | Returns a list of repeated applications of `step` to an argument
   -- stopping when the fixpoint is reached.
-  allSteps :: a -> [a]
-  allSteps = allPoints step
+  trace :: a -> [a]
+  trace = allPoints step
 
 
 {- | Similar to `Steppable` but for Maybe values. A `Nothing` is also
@@ -34,8 +34,8 @@ class Eq a => SteppableM a where
   evalM :: a -> Maybe a
   evalM = fixpointM stepM
 
-  allStepsM :: a -> [Maybe a]
-  allStepsM = allPointsM stepM
+  traceM :: a -> [Maybe a]
+  traceM = allPointsM stepM
 
 
 -- | Successively apply @g@ to a given argument until the result doesn't change.
