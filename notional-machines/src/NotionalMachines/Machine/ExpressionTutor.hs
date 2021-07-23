@@ -145,10 +145,15 @@ incUid g = g <$> get <* modify succ
 -- | Function to call while traversing the graph to guarantee it doesn't cycle.
 -- If `i` was not visited, add it to the state and perform `a` (Nothing
 -- otherwise).
-checkCycle :: Ord a => a -> StateT (Set a) Maybe b -> StateT (Set a) Maybe b
-checkCycle i a = do visited <- get
-                    if Set.member i visited then StateT (const Nothing)
-                                            else withStateT (Set.insert i) a
+checkCycle :: ExpTreeDiagram -> StateT (Set Int) Maybe b -> StateT (Set Int) Maybe b
+checkCycle d a = case rootId d of
+                   Just i -> do visited <- get
+                                if Set.member i visited then StateT (const Nothing)
+                                                        else withStateT (Set.insert i) a
+                   _ -> StateT (const Nothing)
+  where
+    rootId :: ExpTreeDiagram -> Maybe Int
+    rootId = fmap ((\(Plug (i, _)) -> i) . nodePlug) . root
 
 -- | Build a diagram from a language AST. Use `newDiaLeaf` and `newDiaBranch`.
 langToET :: (t -> State Int ExpTreeDiagram) -> t -> ExpTreeDiagram

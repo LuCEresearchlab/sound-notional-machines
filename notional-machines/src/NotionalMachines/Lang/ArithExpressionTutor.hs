@@ -43,15 +43,15 @@ etToArith :: ExpTreeDiagram -> Maybe Term
 etToArith = etToLang go
   where
     go :: ExpTreeDiagram -> StateT (Set Int) Maybe Term
-    go = \case
-      DiaLeaf   (NodeTrue   i)                -> checkCycle i (return Tru)
-      DiaLeaf   (NodeFalse  i)                -> checkCycle i (return Fls)
-      DiaBranch (NodeIf     i) ts @ [_, _, _] -> let [n1, n2, n3] = fmap go ts
-                                                 in checkCycle i (liftM3 If n1 n2 n3)
-      DiaLeaf   (NodeZero   i)                -> checkCycle i (return Zero)
-      DiaBranch (NodeSucc   i) [t]            -> checkCycle i (Succ   <$> go t)
-      DiaBranch (NodePred   i) [t]            -> checkCycle i (Pred   <$> go t)
-      DiaBranch (NodeIsZero i) [t]            -> checkCycle i (IsZero <$> go t)
+    go d = checkCycle d $ case d of
+      DiaLeaf   NodeTrue {}              -> return Tru
+      DiaLeaf   NodeFalse {}             -> return Fls
+      DiaBranch NodeIf {} ts @ [_, _, _] -> let [n1, n2, n3] = fmap go ts
+                                                  in liftM3 If n1 n2 n3
+      DiaLeaf   NodeZero {}              -> return Zero
+      DiaBranch NodeSucc {}   [t]        -> Succ   <$> go t
+      DiaBranch NodePred {}   [t]        -> Pred   <$> go t
+      DiaBranch NodeIsZero {} [t]        -> IsZero <$> go t
       _ -> StateT (const Nothing) -- "incorrect diagram"
 
 instance Injective Term ExpTreeDiagram where

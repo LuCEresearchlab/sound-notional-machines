@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
-{-# LANGUAGE LambdaCase, ViewPatterns #-}
+{-# LANGUAGE LambdaCase #-}
 
 {-|
 Description : Typing relation for Untyped Arithmetic Expressions from TAPL Ch.8
@@ -22,16 +22,15 @@ data Typ = TyBool | TyNat deriving (Eq, Show)
 
 typeof :: Term -> Maybe Typ
 typeof = \case
-  Tru                                -> return TyBool -- T-True
-  Fls                                -> return TyBool -- T-False
-  If (typeof -> Just TyBool)
-     (typeof -> typ2)
-     (typeof -> typ3) | typ2 == typ3 -> typ2    --    -- T-If
-  Zero                               -> return TyNat  -- T-Zero
-  Succ   (typeof -> Just TyNat)      -> return TyNat  -- T-Pred
-  Pred   (typeof -> Just TyNat)      -> return TyNat  -- T-Succ
-  IsZero (typeof -> Just TyNat)      -> return TyBool -- T-IsZero
-  _                                  -> Nothing
+  Tru                                  -> return TyBool -- T-True
+  Fls                                  -> return TyBool -- T-False
+  If t1 t2 t3 | typeof t1 == return TyBool
+             && typeof t2 == typeof t3 -> typeof t2     -- T-If
+  Zero                                 -> return TyNat  -- T-Zero
+  Succ t   | typeof t == return TyNat  -> return TyNat  -- T-Pred
+  Pred t   | typeof t == return TyNat  -> return TyNat  -- T-Succ
+  IsZero t | typeof t == return TyNat  -> return TyBool -- T-IsZero
+  _                                    -> Nothing
 
 instance SteppableM Term where
   stepM t = const (step t) <$> typeof t

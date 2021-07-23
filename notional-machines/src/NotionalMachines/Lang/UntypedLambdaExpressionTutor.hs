@@ -36,10 +36,10 @@ etToLambda = etToLang go
   where
     -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
     go :: ExpTreeDiagram -> StateT (Set Int) Maybe Exp
-    go = \case
-      DiaLeaf   (NodeVar    name i)          -> checkCycle i (return (Var name))
-      DiaBranch (NodeLambda name i) [n]      -> checkCycle i (Lambda name <$> go n)
-      DiaBranch (NodeApp    i)      [n1, n2] -> checkCycle i (App <$> go n1 <*> go n2)
+    go d = checkCycle d $ case d of
+      DiaLeaf   (NodeVar    name _)          -> return (Var name)
+      DiaBranch (NodeLambda name _) [n]      -> Lambda name <$> go n
+      DiaBranch (NodeApp    _)      [n1, n2] -> App <$> go n1 <*> go n2
       _ -> StateT (const Nothing) -- "incorrect diagram"
 
 
