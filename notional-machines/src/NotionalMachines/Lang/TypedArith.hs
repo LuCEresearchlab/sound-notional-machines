@@ -12,6 +12,7 @@ which typechecks the term and only evaluates it if it's type-safe.
 
 module NotionalMachines.Lang.TypedArith (
   typeof,
+  prettyType,
   Type(..)
   ) where
 
@@ -34,3 +35,8 @@ typeof = \case
 
 instance SteppableM Term where
   stepM t = const (step t) <$> typeof t
+
+prettyType :: Type -> String
+prettyType = \case
+  TyBool -> "Bool"
+  TyNat  -> "Nat"

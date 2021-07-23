@@ -23,12 +23,14 @@ import qualified NotionalMachines.Lang.UntypedLambdaExpressionTutor as LambdaET 
 import           NotionalMachines.Lang.UntypedLambdaGenerator
 
 import qualified NotionalMachines.Lang.Arith as Arith
-import qualified NotionalMachines.Lang.TypedArith as TypedArith
 import qualified NotionalMachines.Lang.ArithExpressionTutor as ArithET (bisim)
 import           NotionalMachines.Lang.ArithGenerator as ArithGen
 
+import qualified NotionalMachines.Lang.TypedArith as TypedArith
+import qualified NotionalMachines.Lang.TypedArithExpressionTutor as TypedArithET
+
 import qualified NotionalMachines.Lang.TypedLambdaArith as TypedLambda
--- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET (bisim)
+-- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET
 import           NotionalMachines.Lang.TypedLambdaArithGenerator as TypedLambdaGen
 
 import           NotionalMachines.Machine.ExpressionTutor
@@ -221,6 +223,16 @@ expressionTutorTest = testGroup "Expressiontutor" [
           is_left_inverse_of ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTreeDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes ArithGen.genTerm ArithET.bisim
+    ],
+    testGroup "Typed Arith" [
+        testProperty "nmToLang is left inverse of langToNm" $
+          is_left_inverse_of ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> TypedArithET.TyExpTreeDiagram)
+      , testProperty "commutation proof for evaluation bisimulation" $
+          bisimulationCommutes ArithGen.genTerm TypedArithET.evalBisim
+      , testProperty "commutation proof for typeof bisim (ask for type of term)" $
+          bisimulationCommutes ArithGen.genTerm TypedArithET.typeOfBisim
+      , testProperty "commutation proof for type annotated diagram" $
+          bisimulationCommutes ArithGen.genTerm TypedArithET.annotateTypeBisim
     ],
     testCase "Malformed Diagram" $ assertEqual ""
       (Nothing) -- expected
