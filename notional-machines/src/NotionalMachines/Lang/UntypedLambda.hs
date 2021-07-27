@@ -7,11 +7,15 @@ module NotionalMachines.Lang.UntypedLambda where
 import Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
+import Data.Text.Prettyprint.Doc (Pretty, pretty, dot, backslash, parens, (<+>))
+
 import Data.List ((\\))
 import Data.Maybe (fromJust)
 
-import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Steppable (Steppable, SteppableM, step, stepM)
 import NotionalMachines.Machine.AsciiAlligators
+
+import NotionalMachines.Utils (pShow)
 
 --------------------
 -- Bisimulation
@@ -111,14 +115,15 @@ pExp = try pLambda <|> try pApp <|> pAtom <* eof
 
 -----
 
-unparse :: Exp -> String
-unparse (App e1 e2 @ (App _ _)) = unwords [unparse e1, parens (unparse e2)]
-unparse (App e1 e2)     = unwords [unparse e1, unparse e2]
-unparse (Lambda name e) = parens (concat ["\\", name, ".", unparse e])
-unparse (Var name)      = name
+instance Pretty Exp where
+  pretty = \case
+    App e1 e2 @ App {} -> pretty e1 <+> parens (pretty e2)
+    App e1 e2          -> pretty e1 <+>         pretty e2
+    Lambda name e      -> parens (mconcat [backslash, pretty name, dot, pretty e])
+    Var name           -> pretty name
 
-parens :: String -> String
-parens x = "(" ++ x ++ ")"
+unparse :: Exp -> String
+unparse = pShow
 
 --------------------------------------------
 -- Ascii Alligators representation of Exp --

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, OverloadedStrings #-}
 
 {-|
 Description : The Untyped Arithmetic Expressions from TAPL Ch.3
@@ -38,7 +38,10 @@ module NotionalMachines.Lang.Arith (
 import Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as P
 
-import NotionalMachines.Meta.Steppable
+import Data.Text.Prettyprint.Doc (Pretty, pretty, hsep, (<+>))
+
+import NotionalMachines.Meta.Steppable (Steppable, step)
+import NotionalMachines.Utils (eitherToMaybe, pShow)
 
 data Term = -- Booleans
             Tru
@@ -75,14 +78,21 @@ instance Steppable Term where
     IsZero t                         -> IsZero (step t)    -- E-IsZero
     t                                -> t
 
+instance Pretty Term where
+  pretty = \case
+    Tru         -> "true"
+    Fls         -> "false"
+    If t1 t2 t3 -> hsep ["if", pretty t1, "then", pretty t2, "else", pretty t3]
+    Zero        -> "0"
+    Succ t      -> "succ"   <+> pretty t
+    Pred t      -> "pred"   <+> pretty t
+    IsZero t    -> "iszero" <+> pretty t
 
 --------------------
 -- Parsing and unparsing
 --------------------
 parse :: String -> Maybe Term
-parse s = case P.parse pTerm "(unknown)" s of
-            Left _ -> Nothing
-            Right e -> Just e
+parse = eitherToMaybe . P.parse pTerm "(unknown)"
 
 pTerm :: Parser Term
 pTerm = string "true"  *> return Tru
@@ -98,11 +108,4 @@ pTerm = string "true"  *> return Tru
     <* eof
 
 unparse :: Term -> String
-unparse (Tru)         = "true"
-unparse (Fls)         = "false"
-unparse (If t1 t2 t3) = unwords ["if", unparse t1, "then", unparse t2, "else", unparse t3]
-unparse (Zero)        = "0"
-unparse (Succ t)      = unwords ["succ", unparse t]
-unparse (Pred t)      = unwords ["pred", unparse t]
-unparse (IsZero t)    = unwords ["iszero", unparse t]
-
+unparse = pShow

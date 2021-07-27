@@ -8,11 +8,12 @@ import Control.Monad.State.Lazy (State, StateT(..), liftM3)
 import Control.Monad ((<=<))
 
 import Data.Set (Set)
+import Data.Text.Prettyprint.Doc
 
 import           NotionalMachines.Lang.ArithExpressionTutor ()
 
 import           NotionalMachines.Lang.Arith (Term(..))
-import           NotionalMachines.Lang.TypedArith (typeof, prettyType)
+import           NotionalMachines.Lang.TypedArith (typeof)
 import qualified NotionalMachines.Lang.TypedArith as TypedArith (Type)
 import           NotionalMachines.Machine.ExpressionTutor hiding (Type)
 import qualified NotionalMachines.Machine.ExpressionTutor as ET (Type)
@@ -72,9 +73,9 @@ instance Injective Term TyExpTreeDiagram where
 -- Ask for the type of a diagram not annotated with types
 typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTreeDiagram (Maybe ET.Type)
 typeOfBisim = Bisim { fLang  = typeof
-                    , fNM    = fmap prettyType . typeof <=< fromNM
+                    , fNM    = fmap (show . pretty) . typeof <=< fromNM
                     , alphaA = toNM
-                    , alphaB = fmap prettyType }
+                    , alphaB = fmap (show . pretty) }
 
 -- Annotate diagram with types
 annotateTypeBisim :: Bisimulation Term Term ExpTreeDiagram (Maybe TyExpTreeDiagram)

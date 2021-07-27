@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, ViewPatterns #-}
+{-# LANGUAGE LambdaCase, ViewPatterns, OverloadedStrings #-}
 
 {-|
 Description : Simply Typed Lambda Calculus with Booleans and Natural numbers based on TAPL Ch.9
@@ -31,11 +31,13 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import qualified Text.Parsec.Expr as Ex
 import qualified Text.Parsec.Token as Tok
 
+import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep)
+
 import Data.Bifunctor (first)
 import Data.List ((\\))
 
-import NotionalMachines.Utils (maybeToEither, eitherToMaybe)
-import NotionalMachines.Meta.Steppable
+import NotionalMachines.Utils (maybeToEither, eitherToMaybe, pShow)
+import NotionalMachines.Meta.Steppable (SteppableM, stepM)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
@@ -226,32 +228,33 @@ parse = first show . Parsec.parse (contents pTerm) "(unknown)"
 
 -----
 
+instance Pretty Term where
+  pretty = \case
+    App e1 @ If {} e2 @ App {} -> parens (pretty e1) <+> parens (pretty e2)
+    App e1 @ If {} e2 @ If {}  -> parens (pretty e1) <+> parens (pretty e2)
+    App e1 @ If {} e2          -> parens (pretty e1) <+>         pretty e2
+    App e1         e2 @ If {}  ->         pretty e1  <+> parens (pretty e2)
+    App e1         e2 @ App {} ->         pretty e1  <+> parens (pretty e2)
+    App e1         e2          ->         pretty e1  <+>         pretty e2
+    Lambda name typ e          -> parens (mconcat ["\\", pretty name, ":", pretty typ, ".", pretty e])
+    Var name                   -> pretty name
+    Tru                        -> "true"
+    Fls                        -> "false"
+    If t1 t2 t3 @ App {}       -> hsep ["if", pretty t1, "then", pretty t2, "else", parens (pretty t3)]
+    If t1 t2 t3                -> hsep ["if", pretty t1, "then", pretty t2, "else", pretty t3]
+    Zero                       -> "0"
+    Succ t                     -> "succ"   <+> parens (pretty t)
+    Pred t                     -> "pred"   <+> parens (pretty t)
+    IsZero t                   -> "iszero" <+> parens (pretty t)
+
+instance Pretty Type where
+  pretty = \case
+    TyBool -> "Bool"
+    TyNat  -> "Nat"
+    TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
+    TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
+
 unparse :: Term -> String
-unparse = \case
-  App e1 @ If {} e2 @ App {} -> unwords [parens (unparse e1), parens (unparse e2)]
-  App e1 @ If {} e2 @ If {}  -> unwords [parens (unparse e1), parens (unparse e2)]
-  App e1 @ If {} e2          -> unwords [parens (unparse e1),         unparse e2]
-  App e1         e2 @ If {}  -> unwords [        unparse e1,  parens (unparse e2)]
-  App e1         e2 @ App {} -> unwords [        unparse e1,  parens (unparse e2)]
-  App e1         e2          -> unwords [        unparse e1,          unparse e2]
-  Lambda name typ e          -> parens (concat ["\\", name, ":", unparseTyp typ, ".", unparse e])
-  Var name                   -> name
-  Tru                        -> "true"
-  Fls                        -> "false"
-  If t1 t2 t3 @ App {}       -> unwords ["if", unparse t1, "then", unparse t2, "else", parens (unparse t3)]
-  If t1 t2 t3                -> unwords ["if", unparse t1, "then", unparse t2, "else", unparse t3]
-  Zero                       -> "0"
-  Succ t                     -> unwords ["succ", parens (unparse t)]
-  Pred t                     -> unwords ["pred", parens (unparse t)]
-  IsZero t                   -> unwords ["iszero", parens (unparse t)]
+unparse = pShow
 
-unparseTyp :: Type -> String
-unparseTyp = \case
-  TyBool -> "Bool"
-  TyNat  -> "Nat"
-  TyFun t1 @ TyFun {} t2 -> concat [parens (unparseTyp t1), "->", unparseTyp t2]
-  TyFun t1 t2            -> concat [        unparseTyp t1,  "->", unparseTyp t2]
-
-parens :: String -> String
-parens x = "(" ++ x ++ ")"
 

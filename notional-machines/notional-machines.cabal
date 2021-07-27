@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b75fbfe338ccc749ed7aca63e860668bef6c248bdca35d7dcc117152038539d6
+-- hash: 41e778472601d6a7aa5bd1e3c4dcf087f50643217331b6528490d12f35f4e947
 
 name:           notional-machines
 version:        0.1.0.0
@@ -58,8 +58,8 @@ library
     , hedgehog
     , mtl
     , parsec
-    , pretty
-    , pretty-show
+    , pretty-simple
+    , prettyprinter
   default-language: Haskell2010
 
 executable notional-machines-exe
@@ -76,8 +76,8 @@ executable notional-machines-exe
     , mtl
     , notional-machines
     , parsec
-    , pretty
-    , pretty-show
+    , pretty-simple
+    , prettyprinter
   default-language: Haskell2010
 
 test-suite notional-machines-test
@@ -97,6 +97,8 @@ test-suite notional-machines-test
     , parsec
     , pretty
     , pretty-show
+    , pretty-simple
+    , prettyprinter
     , tasty
     , tasty-hedgehog
     , tasty-hunit

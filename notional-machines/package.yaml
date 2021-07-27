@@ -25,8 +25,8 @@ dependencies:
 - containers
 - mtl
 - hedgehog
-- pretty
-- pretty-show
+- prettyprinter
+- pretty-simple
 
 library:
   source-dirs: src

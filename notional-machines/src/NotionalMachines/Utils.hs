@@ -10,8 +10,8 @@ import qualified Hedgehog.Range as Range
 
 import Control.Monad (forM_)
 
-import Text.Show.Pretty (pPrint, ppDoc)
-import Text.PrettyPrint (Doc)
+import Text.Pretty.Simple (pPrint)
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
 
 maybeHead :: [a] -> Maybe a
@@ -22,6 +22,9 @@ eitherToMaybe = either (const Nothing) Just
 
 maybeToEither :: b -> Maybe a -> Either b a
 maybeToEither l = maybe (Left l) Right
+
+pShow :: Pretty a => a -> String
+pShow = show . pretty
 
 ------- Generators utils ----------
 
@@ -34,9 +37,9 @@ sample gen = Gen.sample gen
 printSample :: Show a => Int -> Gen a -> IO ()
 printSample n gen = forM_ [1..n] (\_ -> pPrint =<< Gen.sample gen)
 
-genAndSolve :: (Show a, Show b) => IO a -> (a -> b) -> IO Doc
+genAndSolve :: (Show a, Show b) => IO a -> (a -> b) -> IO b
 genAndSolve gen solver =
-  ppDoc <$> do e <- gen
+            do e <- gen
                pPrint e
                return $ solver e
 

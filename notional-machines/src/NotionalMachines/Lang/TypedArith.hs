@@ -12,12 +12,13 @@ which typechecks the term and only evaluates it if it's type-safe.
 
 module NotionalMachines.Lang.TypedArith (
   typeof,
-  prettyType,
   Type(..)
   ) where
 
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
+
 import NotionalMachines.Lang.Arith
-import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Steppable (SteppableM, stepM, step)
 
 data Type = TyBool | TyNat deriving (Eq, Show)
 
@@ -36,7 +37,7 @@ typeof = \case
 instance SteppableM Term where
   stepM t = const (step t) <$> typeof t
 
-prettyType :: Type -> String
-prettyType = \case
-  TyBool -> "Bool"
-  TyNat  -> "Nat"
+instance Pretty Type where
+  pretty = \case
+    TyBool -> pretty "Bool"
+    TyNat  -> pretty "Nat"
