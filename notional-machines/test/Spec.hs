@@ -33,6 +33,10 @@ import qualified NotionalMachines.Lang.TypedLambdaArith as TypedLambda
 -- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET
 import           NotionalMachines.Lang.TypedLambdaArithGenerator as TypedLambdaGen
 
+import qualified NotionalMachines.Lang.TypedLambdaRef as TypedLambdaRef
+-- import qualified NotionalMachines.Lang.TypedLambdaRefExpressionTutor as LambdaRefET
+import           NotionalMachines.Lang.TypedLambdaRefGenerator as TypedLambdaRefGen
+
 import           NotionalMachines.Machine.ExpressionTutor
 import           NotionalMachines.Machine.ExpTree hiding (bisim)
 import qualified NotionalMachines.Machine.ExpTree as ETree  (bisim)
@@ -86,16 +90,17 @@ eval_produces_value = prop $ do
   e <- forAll genCombinator
   (Lambda.isValue <$> evalM e) === Just True
 
-type_safety :: Property
-type_safety = prop $ do {
-  e <- forAll TypedLambdaGen.genTerm;
-  classify "type checks" $ (isRight . TypedLambda.typeof) e;
-  classify "eval to val" $ Just True == (TypedLambda.isValue <$> evalM e);
-  annotateShow $ TypedLambda.typeof e;
+type_safety :: (Show term, Show typ, Show e, SteppableM term)
+            => Gen term -> (term -> Either e typ) -> (term -> Bool) -> Property
+type_safety g typer isValuer = prop $ do {
+  e <- forAll g;
+  classify "type checks" $ (isRight . typer) e;
+  classify "eval to val" $ Just True == (isValuer <$> evalM e);
+  annotateShow $ typer e;
   annotateShow $ evalM e;
   -- type-checks implies evals to value (doesn't get stuck)
-  (    ((isRight . TypedLambda.typeof) e && (TypedLambda.isValue . fromJust . evalM) e)
-    || ((isLeft  . TypedLambda.typeof) e && (isNothing . evalM) e)
+  (    ((isRight . typer) e && (isValuer . fromJust . evalM) e)
+    || ((isLeft  . typer) e && (isNothing . evalM) e)
   ) === True }
 
 is_left_inverse_of :: (Show a, Show b, Eq b) => Gen b -> (a -> Maybe b) -> (b -> a) -> Property
@@ -163,8 +168,8 @@ typLambdaTest :: TestTree
 typLambdaTest = testGroup "Typed Lambda Calculus" [
       testProperty "parse is left inverse of unparse" $
         is_left_inverse_of TypedLambdaGen.genTerm (eitherToMaybe . TypedLambda.parse) TypedLambda.unparse
-    , testProperty "language is type safe"
-        type_safety
+    , testProperty "language is type safe" $
+        type_safety TypedLambdaGen.genTerm TypedLambda.typeof TypedLambda.isValue
     , testGroup "Type checking" [
           testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
             (Right TypedLambda.TyNat) -- expected
@@ -193,6 +198,14 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x)")
       ]
+  ]
+
+typLambdaRefTest :: TestTree
+typLambdaRefTest = testGroup "Typed Lambda Ref" [
+      testProperty "parse is left inverse of unparse" $
+        is_left_inverse_of TypedLambdaRefGen.genTerm (eitherToMaybe . TypedLambdaRef.parse) TypedLambdaRef.unparse
+    , testProperty "language is type safe" $
+        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof TypedLambdaRef.isValue
   ]
 
 arithTest :: TestTree
@@ -306,7 +319,7 @@ alligatorTest = testGroup "Alligators" [
   ]
 
 tests :: TestTree
-tests = testGroup "Tests" [lambdaTest, arithTest, typLambdaTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
+tests = testGroup "Tests" [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
 
 defaultNumberOfTests = 300
 
