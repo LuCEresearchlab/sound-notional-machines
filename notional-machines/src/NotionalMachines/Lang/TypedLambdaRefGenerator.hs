@@ -18,6 +18,7 @@ genTerm =
     , return Tru
     , return Fls
     , return Zero
+    , return Unit
     ] [
       -- recursive generators
       Gen.subtermM genTerm (\x -> Lambda <$> genName <*> genType <*> pure x)
@@ -34,6 +35,7 @@ genType =
       -- non-recursive generators
       return TyBool
     , return TyNat
+    , return TyUnit
     ] [
       -- recursive generators
       Gen.subterm2 genType genType TyFun

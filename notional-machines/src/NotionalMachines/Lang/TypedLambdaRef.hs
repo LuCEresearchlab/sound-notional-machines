@@ -37,6 +37,7 @@ import NotionalMachines.Meta.Steppable (SteppableM, stepM)
 -- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
 --------------------
 data Type = TyFun Type Type
+          | TyUnit
           | TyBool
           | TyNat
           deriving (Eq, Show)
@@ -47,6 +48,8 @@ data Term = -- lambdas
             Var Name
           | Lambda Name Type Term
           | App Term Term
+            -- Unit
+          | Unit
             -- Booleans
           | Tru
           | Fls
@@ -62,6 +65,7 @@ type Name = String
 isValue :: Term -> Bool
 isValue = \case
   Lambda {} -> True
+  Unit      -> True
   Tru       -> True
   Fls       -> True
   t         -> isNumericVal t
@@ -81,6 +85,7 @@ typeof' ctx = \case
   Lambda x typ1 (typeof' ((x, typ1):ctx) -> typ2) -> TyFun typ1 <$> typ2 -- T-Abs
   App (typeof' ctx -> Just (TyFun typ11 typ12))
       (typeof' ctx -> Just typ2) | typ11 == typ2  -> return typ12        -- T-App
+  Unit                                            -> return TyUnit       -- T-Unit
   Tru                                             -> return TyBool       -- T-True
   Fls                                             -> return TyBool       -- T-False
   If t1 t2 t3 | typeOfEq t1 TyBool
@@ -156,7 +161,7 @@ langDef = Tok.LanguageDef
   , Tok.identLetter     = alphaNum <|> oneOf "_'"
   , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~"
   , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
-  , Tok.reservedNames   = ["if", "then", "else", "true", "false"]
+  , Tok.reservedNames   = ["if", "then", "else", "true", "false", "unit"]
   , Tok.reservedOpNames = []
   , Tok.caseSensitive   = True
   }
@@ -191,6 +196,7 @@ pTerm = Ex.buildExpressionParser table factor
 factor :: Parser Term
 factor = Tru  <$ reserved   "true"
      <|> Fls  <$ reserved   "false"
+     <|> Unit <$ reserved   "unit"
      <|> Zero <$ reservedOp "0"
      <|> pIf
      <|> pLambda
@@ -211,6 +217,7 @@ factor = Tru  <$ reserved   "true"
 pTypAtom :: Parser Type
 pTypAtom = TyBool <$ reserved "Bool"
        <|> TyNat  <$ reserved "Nat"
+       <|> TyUnit <$ reserved "Unit"
        <|> pParens pTyp
 
 pTyp :: Parser Type
@@ -232,6 +239,7 @@ instance Pretty Term where
     App e1         e2          ->         pretty e1  <+>         pretty e2
     Lambda name typ e          -> parens (mconcat ["\\", pretty name, ":", pretty typ, ".", pretty e])
     Var name                   -> pretty name
+    Unit                       -> "unit"
     Tru                        -> "true"
     Fls                        -> "false"
     If t1 t2 t3 @ App {}       -> hsep ["if", pretty t1, "then", pretty t2, "else", parens (pretty t3)]
@@ -245,6 +253,7 @@ instance Pretty Type where
   pretty = \case
     TyBool -> "Bool"
     TyNat  -> "Nat"
+    TyUnit -> "Unit"
     TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
     TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
 
