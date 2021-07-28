@@ -190,8 +190,14 @@ pTerm = Ex.buildExpressionParser table factor
   where table = [ [ prefixOp "succ" Succ
                   , prefixOp "pred" Pred
                   , prefixOp "iszero" IsZero
-                  , Ex.Infix (App <$ reservedOp "") Ex.AssocLeft ] ]
-        prefixOp s f = Ex.Prefix (f <$ reservedOp s)
+                  , infixLeftOp "" App
+                  , infixLeftOp ";" mkSeq ] ]
+        prefixOp    s f = Ex.Prefix (f <$ reservedOp s)
+        infixLeftOp s f = Ex.Infix  (f <$ reservedOp s) Ex.AssocLeft
+        -- Sequencing is a derived form (i.e. syntactic sugar). "$u" is always
+        -- fresh (different from all the free vars in t2 because user-defined
+        -- vars can't start with "$".
+        mkSeq t1 t2 = App (Lambda "$u" TyUnit t2) t1
 
 factor :: Parser Term
 factor = Tru  <$ reserved   "true"
@@ -260,3 +266,24 @@ instance Pretty Type where
 unparse :: Term -> String
 unparse = pShow
 
+
+{-
+Interesting insight about Unit and sequencing (TAPL Ch.11):
+
+Should sequencing be left-associative or right-associative? Does it matter?
+If we associate to the left, we get a lambda term made of applications
+associated to the right and if we associate the sequence to the right we get a
+lambda term associated to the left. Either wait the result seems to be the same
+so does that mean the sequencing on terms is a Monoid with unit as the neutral
+element? What are the consequences of this?
+
+t1;t2;t3
+
+t4;t3, t4 = t1;t2
+(\\x:Unit.t3) t4
+(\\x:Unit.t3) ((\\x:Unit.t2) t1)
+
+t1;t5, t5 = t2;t3
+(\\x:Unit.t5) t1
+(\\x:Unit.((\\x:Unit.t3) t2)) t1
+-}
