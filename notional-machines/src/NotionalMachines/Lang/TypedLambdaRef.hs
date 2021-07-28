@@ -161,7 +161,8 @@ langDef = Tok.LanguageDef
   , Tok.identLetter     = alphaNum <|> oneOf "_'"
   , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~"
   , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
-  , Tok.reservedNames   = ["if", "then", "else", "true", "false", "unit"]
+  , Tok.reservedNames   = ["if", "then", "else", "true", "false", "succ",
+                           "pred", "iszero", "unit", "Bool", "Nat"]
   , Tok.reservedOpNames = []
   , Tok.caseSensitive   = True
   }
@@ -187,26 +188,23 @@ identifier = Tok.identifier lexer
 
 pTerm :: Parser Term
 pTerm = Ex.buildExpressionParser table factor
-  where table = [ [ prefixOp "succ" Succ
-                  , prefixOp "pred" Pred
-                  , prefixOp "iszero" IsZero
-                  , infixLeftOp "" App
-                  , infixLeftOp ";" mkSeq ] ]
-        prefixOp    s f = Ex.Prefix (f <$ reservedOp s)
-        infixLeftOp s f = Ex.Infix  (f <$ reservedOp s) Ex.AssocLeft
+  where table = [ [ Ex.Prefix (Succ   <$ reserved   "succ")
+                  , Ex.Prefix (Pred   <$ reserved   "pred")
+                  , Ex.Prefix (IsZero <$ reserved   "iszero")
+                  , Ex.Infix  (App    <$ reservedOp "")       Ex.AssocLeft
+                  , Ex.Infix  (mkSeq  <$ reservedOp ";")      Ex.AssocLeft ] ]
         -- Sequencing is a derived form (i.e. syntactic sugar). "$u" is always
         -- fresh (different from all the free vars in t2 because user-defined
         -- vars can't start with "$".
         mkSeq t1 t2 = App (Lambda "$u" TyUnit t2) t1
 
 factor :: Parser Term
-factor = Tru  <$ reserved   "true"
-     <|> Fls  <$ reserved   "false"
-     <|> Unit <$ reserved   "unit"
-     <|> Zero <$ reservedOp "0"
+factor = Tru  <$ reserved "true"
+     <|> Fls  <$ reserved "false"
+     <|> Unit <$ reserved "unit"
+     <|> Zero <$ reserved "0"
      <|> pIf
      <|> pLambda
-     -- <|> pApp
      <|> pVar
      <|> pParens pTerm
   where
@@ -237,29 +235,33 @@ parse = first show . Parsec.parse (contents pTerm) "(unknown)"
 
 instance Pretty Term where
   pretty = \case
-    App e1 @ If {} e2 @ App {} -> parens (pretty e1) <+> parens (pretty e2)
-    App e1 @ If {} e2 @ If {}  -> parens (pretty e1) <+> parens (pretty e2)
-    App e1 @ If {} e2          -> parens (pretty e1) <+>         pretty e2
-    App e1         e2 @ If {}  ->         pretty e1  <+> parens (pretty e2)
-    App e1         e2 @ App {} ->         pretty e1  <+> parens (pretty e2)
-    App e1         e2          ->         pretty e1  <+>         pretty e2
-    Lambda name typ e          -> parens (mconcat ["\\", pretty name, ":", pretty typ, ".", pretty e])
-    Var name                   -> pretty name
-    Unit                       -> "unit"
-    Tru                        -> "true"
-    Fls                        -> "false"
-    If t1 t2 t3 @ App {}       -> hsep ["if", pretty t1, "then", pretty t2, "else", parens (pretty t3)]
-    If t1 t2 t3                -> hsep ["if", pretty t1, "then", pretty t2, "else", pretty t3]
-    Zero                       -> "0"
-    Succ t                     -> "succ"   <+> parens (pretty t)
-    Pred t                     -> "pred"   <+> parens (pretty t)
-    IsZero t                   -> "iszero" <+> parens (pretty t)
+    App e1 e2         -> p e1 <+> p e2
+    Lambda name typ e -> parens (mconcat ["\\", pretty name, ":", pretty typ, ". ", pretty e])
+    Var name          -> pretty name
+    Unit              -> "unit"
+    Tru               -> "true"
+    Fls               -> "false"
+    If t1 t2 t3       -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
+    Zero              -> "0"
+    Succ t            -> "succ"   <+> p t
+    Pred t            -> "pred"   <+> p t
+    IsZero t          -> "iszero" <+> p t
+    where p t = (if isAtomic t then id else parens) (pretty t)
+          isAtomic = \case
+            Var {}    -> True
+            Lambda {} -> True -- lambda is not atomic but is always parenthesized
+            Unit      -> True
+            Tru       -> True
+            Fls       -> True
+            Zero      -> True
+            _         -> False
+
 
 instance Pretty Type where
   pretty = \case
-    TyBool -> "Bool"
-    TyNat  -> "Nat"
-    TyUnit -> "Unit"
+    TyBool                 -> "Bool"
+    TyNat                  -> "Nat"
+    TyUnit                 -> "Unit"
     TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
     TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
 
