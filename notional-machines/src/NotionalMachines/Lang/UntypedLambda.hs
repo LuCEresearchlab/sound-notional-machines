@@ -87,7 +87,7 @@ isValue _         = False
 
 ----- Evaluation with error handling ----------
 
-instance SteppableM Exp where
+instance SteppableM Exp Maybe where
   stepM (App      (Lambda name e1) e2 @ (Lambda {})) = Just (subst name e2 e1)
   stepM (App e1 @ (Lambda _    _ ) e2) = do newe <- stepM e2
                                             return (App e1 newe)

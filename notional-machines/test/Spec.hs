@@ -12,7 +12,7 @@ import Test.Tasty.HUnit
 import Data.Foldable (toList)
 import Data.List (intersect)
 import Data.Maybe (fromJust, isNothing)
-import Data.Either (either, isRight, isLeft)
+import Data.Either (either, isRight, isLeft, fromRight)
 import Data.Functor.Identity (Identity)
 import           Data.Set (Set)
 import qualified Data.Set as Set
@@ -90,20 +90,22 @@ eval_produces_value = prop $ do
   e <- forAll genCombinator
   (Lambda.isValue <$> evalM e) === Just True
 
-type_safety :: (Show term, Show typ, Show e, SteppableM term)
-            => Gen term -> (term -> Either e typ) -> (term -> Bool) -> Property
-type_safety g typer isValuer = prop $ do {
+type_safety :: (Show term, Show typ)
+            => Gen term -> (term -> Either String typ) -> (term -> Either String term) -> (term -> Bool) -> Property
+type_safety g typer evaluer isValuer = prop $ do {
   e <- forAll g;
   classify "type checks" $ (isRight . typer) e;
-  classify "eval to val" $ Just True == (isValuer <$> evalM e);
+  classify "eval to val" $ Right True == (isValuer <$> evaluer e);
   annotateShow $ typer e;
-  annotateShow $ evalM e;
-  -- type-checks implies evals to value (doesn't get stuck)
-  (    ((isRight . typer) e && (isValuer . fromJust . evalM) e)
-    || ((isLeft  . typer) e && (isNothing . evalM) e)
+  annotateShow $ evaluer e;
+  --      type-checks  =>  evals to value   (i.e. doesn't get stuck)
+  -- not (type-checks) or (evals to value)
+  (    ((isRight . typer) e && (isValuer . fromJust . eitherToMaybe . evaluer) e)
+    || ((isLeft  . typer) e && (isLeft . evaluer) e)
   ) === True }
 
-is_left_inverse_of :: (Show a, Show b, Eq b) => Gen b -> (a -> Maybe b) -> (b -> a) -> Property
+is_left_inverse_of :: (Applicative f, Show (f b), Eq (f b), Show a, Show b)
+                   => Gen b -> (a -> f b) -> (b -> a) -> Property
 is_left_inverse_of g f f' = prop $ do
   e <- forAll g
   -- classify "closed terms" $ null (freeVs e)
@@ -167,9 +169,9 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
 typLambdaTest :: TestTree
 typLambdaTest = testGroup "Typed Lambda Calculus" [
       testProperty "parse is left inverse of unparse" $
-        is_left_inverse_of TypedLambdaGen.genTerm (eitherToMaybe . TypedLambda.parse) TypedLambda.unparse
+        is_left_inverse_of TypedLambdaGen.genTerm TypedLambda.parse TypedLambda.unparse
     , testProperty "language is type safe" $
-        type_safety TypedLambdaGen.genTerm TypedLambda.typeof TypedLambda.isValue
+        type_safety TypedLambdaGen.genTerm TypedLambda.typeof evalM TypedLambda.isValue
     , testGroup "Type checking" [
           testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
             (Right TypedLambda.TyNat) -- expected
@@ -203,9 +205,9 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
 typLambdaRefTest :: TestTree
 typLambdaRefTest = testGroup "Typed Lambda Ref" [
       testProperty "parse is left inverse of unparse" $
-        is_left_inverse_of TypedLambdaRefGen.genTerm (eitherToMaybe . TypedLambdaRef.parse) TypedLambdaRef.unparse
+        is_left_inverse_of TypedLambdaRefGen.genTerm TypedLambdaRef.parse TypedLambdaRef.unparse
     , testProperty "language is type safe" $
-        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof TypedLambdaRef.isValue
+        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof evalM TypedLambdaRef.isValue
   ]
 
 arithTest :: TestTree

@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
+{-# LANGUAGE MultiParamTypeClasses #-}
+
 module NotionalMachines.Meta.Steppable where
 
 import Data.Function (fix)
@@ -25,16 +27,14 @@ class Eq a => Steppable a where
   trace = allPoints step
 
 
-{- | Similar to `Steppable` but for Maybe values. A `Nothing` is also
- - considered as a fixpoint.
--}
-class Eq a => SteppableM a where
-  stepM :: a -> Maybe a
+{- | Similar to `Steppable` but for step functions that produce a monadic value. -}
+class (Monad m, Eq (m a)) => SteppableM a m where
+  stepM :: a -> m a
 
-  evalM :: a -> Maybe a
+  evalM :: a -> m a
   evalM = fixpointM stepM
 
-  traceM :: a -> [Maybe a]
+  traceM :: Traversable m => a -> [m a]
   traceM = allPointsM stepM
 
 

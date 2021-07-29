@@ -208,7 +208,7 @@ instance Injective Exp ReductExp where
   toNM   = langToNm
   fromNM = nmToLang
 
-instance SteppableM ReductExp where
+instance SteppableM ReductExp Maybe where
   stepM = stepMNM (step :: Exp -> Exp)
 
 bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)

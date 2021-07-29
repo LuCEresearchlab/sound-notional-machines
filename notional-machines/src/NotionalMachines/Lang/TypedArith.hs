@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, MultiParamTypeClasses #-}
 
 {-|
 Description : Typing relation for Untyped Arithmetic Expressions from TAPL Ch.8
@@ -34,7 +34,7 @@ typeof = \case
   IsZero t | typeof t == return TyNat  -> return TyBool -- T-IsZero
   _                                    -> Nothing
 
-instance SteppableM Term where
+instance SteppableM Term Maybe where
   stepM t = const (step t) <$> typeof t
 
 instance Pretty Type where

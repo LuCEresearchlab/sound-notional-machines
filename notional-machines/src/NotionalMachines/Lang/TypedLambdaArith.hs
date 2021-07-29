@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, ViewPatterns, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase, ViewPatterns, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses #-}
 
 {-|
 Description : Simply Typed Lambda Calculus with Booleans and Natural numbers based on TAPL Ch.9
@@ -36,7 +36,7 @@ import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep)
 import Data.Bifunctor (first)
 import Data.List ((\\))
 
-import NotionalMachines.Utils (maybeToEither, eitherToMaybe, pShow)
+import NotionalMachines.Utils (maybeToEither, pShow)
 import NotionalMachines.Meta.Steppable (SteppableM, stepM)
 
 --------------------
@@ -98,8 +98,8 @@ isNumericVal = \case
   Succ t -> isNumericVal t
   _      -> False
 
-instance SteppableM Term where
-  stepM t = const (step' t) <$> eitherToMaybe (typeof t)
+instance SteppableM Term (Either String) where
+  stepM t = const (step' t) <$> typeof t
 
 step' :: Term -> Term
 step' = \case
