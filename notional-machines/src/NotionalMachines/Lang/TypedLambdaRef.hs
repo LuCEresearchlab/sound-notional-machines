@@ -186,6 +186,9 @@ reservedOp = Tok.reservedOp lexer
 identifier :: Parser String
 identifier = Tok.identifier lexer
 
+decimal :: Parser Integer
+decimal = Tok.natural lexer
+
 pTerm :: Parser Term
 pTerm = Ex.buildExpressionParser table factor
   where table = [ [ Ex.Prefix (Succ   <$ reserved   "succ")
@@ -205,7 +208,8 @@ factor = Tru  <$ reserved "true"
      <|> Zero <$ reserved "0"
      <|> pIf
      <|> pLambda
-     <|> pVar
+     <|> Var <$> identifier
+     <|> decToPeano <$> decimal
      <|> pParens pTerm
   where
     pLambda = do { reservedOp "\\"; name <- identifier;
@@ -216,7 +220,6 @@ factor = Tru  <$ reserved "true"
                reserved "then"; t <- pTerm;
                reserved "else"; f <- pTerm;
                return $ If c t f }
-    pVar = Var <$> identifier
 
 pTypAtom :: Parser Type
 pTypAtom = TyBool <$ reserved "Bool"
@@ -231,21 +234,30 @@ pTyp = Ex.buildExpressionParser table pTypAtom
 parse :: String -> Either String Term
 parse = first show . Parsec.parse (contents pTerm) "(unknown)"
 
+decToPeano :: Integer -> Term
+decToPeano 0 = Zero
+decToPeano n = Succ (decToPeano (n - 1))
+
+peanoToDec :: Term -> Integer
+peanoToDec Zero     = 0
+peanoToDec (Succ n) = succ (peanoToDec n)
+peanoToDec t        = error $ "internal error: can't show term as number: " ++ show t
 -----
 
 instance Pretty Term where
   pretty = \case
-    App e1 e2         -> p e1 <+> p e2
-    Lambda name typ e -> parens (mconcat ["\\", pretty name, ":", pretty typ, ". ", pretty e])
-    Var name          -> pretty name
-    Unit              -> "unit"
-    Tru               -> "true"
-    Fls               -> "false"
-    If t1 t2 t3       -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
-    Zero              -> "0"
-    Succ t            -> "succ"   <+> p t
-    Pred t            -> "pred"   <+> p t
-    IsZero t          -> "iszero" <+> p t
+    App e1 e2               -> p e1 <+> p e2
+    Lambda name typ e       -> parens (mconcat ["\\", pretty name, ":", pretty typ, ". ", pretty e])
+    Var name                -> pretty name
+    Unit                    -> "unit"
+    Tru                     -> "true"
+    Fls                     -> "false"
+    If t1 t2 t3             -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
+    Zero                    -> "0"
+    Succ t | isNumericVal t -> pretty (peanoToDec (Succ t))
+    Succ t | otherwise      -> "succ"   <+> p t
+    Pred t                  -> "pred"   <+> p t
+    IsZero t                -> "iszero" <+> p t
     where p t = (if isAtomic t then id else parens) (pretty t)
           isAtomic = \case
             Var {}    -> True
