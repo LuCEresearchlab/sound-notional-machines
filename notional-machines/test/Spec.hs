@@ -1,10 +1,11 @@
+{-# OPTIONS_GHC -Wall #-}
+
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, TypeFamilies #-}
 
 import           Hedgehog hiding (Var, eval, evalM)
 import qualified Hedgehog (eval)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
-import           Hedgehog.Main (defaultMain)
 
 import Test.Tasty
 import Test.Tasty.Hedgehog
@@ -12,10 +13,8 @@ import Test.Tasty.HUnit
 
 import Data.Foldable (toList)
 import Data.List (intersect)
-import Data.Maybe (fromJust, isNothing)
-import Data.Either (either, isRight, isLeft, fromRight)
-import Data.Functor.Identity (Identity)
-import           Data.Set (Set)
+import Data.Maybe (fromJust)
+import Data.Either (isRight)
 import qualified Data.Set as Set
 
 
@@ -40,12 +39,11 @@ import           NotionalMachines.Lang.TypedLambdaRefGenerator as TypedLambdaRef
 
 import           NotionalMachines.Machine.ExpressionTutor
 import           NotionalMachines.Machine.ExpressionTutorGenerator (genExpTreeDiagram)
-import           NotionalMachines.Machine.ExpTree hiding (bisim)
-import qualified NotionalMachines.Machine.ExpTree as ETree  (bisim)
-import           NotionalMachines.Machine.Reduct hiding (bisim)
-import qualified NotionalMachines.Machine.Reduct as R   (bisim)
-import           NotionalMachines.Machine.Alligator hiding (bisim)
-import qualified NotionalMachines.Machine.Alligator as A   (bisim, nmToLang)
+import           NotionalMachines.Machine.Reduct    hiding   (bisim)
+import qualified NotionalMachines.Machine.Reduct    as R     (bisim)
+import           NotionalMachines.Machine.Alligator hiding   (bisim)
+import qualified NotionalMachines.Machine.Alligator as A     (bisim, nmToLang)
+import qualified NotionalMachines.Machine.ExpTree   as ETree (bisim)
 import           NotionalMachines.Machine.AsciiAlligators
 
 import           NotionalMachines.Meta.Bisimulation
@@ -79,10 +77,11 @@ genColor :: MonadGen m => m Color
 genColor = Color <$> (Gen.list (Range.singleton 1) $ Gen.element ['a'..'z'])
 
 
-----------------------
------ Properties -----
-----------------------
+---------------------------
+----- Meta Properties -----
+---------------------------
 
+prop :: PropertyT IO () -> Property
 prop = withTests defaultNumberOfTests . property
 
 ----- Lambda -----
@@ -134,6 +133,7 @@ prop_uniqids = prop $ do
   let ids = uids $ updateUids 0 e
   ids === [0..((length ids) - 1)]
 
+uids :: ReductExpF a -> [a]
 uids = toList
 
 ----- Alligator -----
@@ -159,7 +159,20 @@ game_play_example = prop $ do
   let rightColors = [c1, c2] == [Color "c", Color "b"]
   (rightColors && rightGuess || not rightColors && not rightGuess) === True
 
-----------------------
+---------------------------
+----- Meta Test Cases -----
+---------------------------
+
+eval_to :: (Monad m, Eq (m String), Show (m String))
+        => String -> String -> (String -> m String) -> TestTree
+eval_to input output f = 
+  testCase (input ++ " -->* " ++ output) $ assertEqual ""
+    (return output) -- expected
+    (f input)
+
+-----------------
+----- Tests -----
+-----------------
 
 lambdaTest :: TestTree
 lambdaTest = testGroup "Untyped Lambda Calculus" [
@@ -210,16 +223,26 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
       testProperty "parse is left inverse of unparse" $
         is_left_inverse_of TypedLambdaRefGen.genTerm TypedLambdaRef.parse TypedLambdaRef.unparse
     , testProperty "language is type safe" $
-        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof evalM TypedLambdaRef.isValue
+        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof (fmap fst . TypedLambdaRef.evalM') TypedLambdaRef.isValue
+    , testGroup "Evaluation" [
+          testCase "parse and unparse 'r:=succ(!r); r:=succ(!r); !r'" $ assertEqual ""
+            (Right $ "r := succ (!r); r := succ (!r); !r") -- expected
+            (TypedLambdaRef.unparse <$> TypedLambdaRef.parse "r:=succ(!r); r:=succ(!r); !r")
+        , eval_to "(\\r:Ref Nat. r:=succ(!r); r:=succ(!r); !r) (ref 0)" "2"
+            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
+        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat.          !r) r) (ref 13)" "13"
+            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
+        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat. s := 82; !r) r) (ref 13)" "82"
+            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
+      ]
   ]
 
 arithTest :: TestTree
 arithTest = testGroup "Arith" [
       testProperty "parse is left inverse of unparse" $
         is_left_inverse_of ArithGen.genTerm Arith.parse Arith.unparse
-    , testCase "if iszero succ 0 then false else true -->* true" $ assertEqual ""
-        (Just "true") -- expected
-        ((fmap (Arith.unparse . eval) . Arith.parse) "if iszero succ 0 then false else true")
+    , eval_to "if iszero succ 0 then false else true" "true"
+        (fmap (Arith.unparse . eval) . Arith.parse)
     , testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
         (Just TypedArith.TyNat) -- expected
         (TypedArith.typeof =<< Arith.parse "if iszero 0 then 0 else pred 0")
@@ -333,7 +356,9 @@ alligatorTest = testGroup "Alligators" [
 tests :: TestTree
 tests = testGroup "Tests" [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
 
+defaultNumberOfTests :: TestLimit
 defaultNumberOfTests = 300
 
+main :: IO ()
 main = Test.Tasty.defaultMain tests
 

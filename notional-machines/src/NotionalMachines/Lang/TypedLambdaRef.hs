@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, ViewPatterns, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE LambdaCase, ViewPatterns, PatternSynonyms, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses #-}
 
 {-|
 Description : Simply Typed Lambda Calculus with References, Unit, Booleans, and Natural numbers based on TAPL Ch.3 (WIP)
@@ -13,11 +13,17 @@ WIP...
 module NotionalMachines.Lang.TypedLambdaRef (
   Term(..),
   Type(..),
+
   isValue,
+
   typeof,
   typeof',
+
   parse,
-  unparse
+  unparse,
+
+  evalM',
+  evalRaw
   ) where
 
 import           Text.ParserCombinators.Parsec hiding (parse)
@@ -29,27 +35,37 @@ import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep)
 
 import Data.Bifunctor (first)
 import Data.List ((\\))
+import Data.Map (Map)
+import qualified Data.Map as Map
 
 import NotionalMachines.Utils (maybeToEither, pShow)
-import NotionalMachines.Meta.Steppable (SteppableM, stepM)
+import NotionalMachines.Meta.Steppable (SteppableM, stepM, evalM)
 
 --------------------
 -- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
 --------------------
 data Type = TyFun Type Type
           | TyUnit
+          | TyRef Type
           | TyBool
           | TyNat
           deriving (Eq, Show)
 
 type TypCtx = [(Name, Type)]
 
-data Term = -- lambdas
+-- type TyStore = Map Location Type
+
+data Term = -- Lambdas
             Var Name
           | Lambda Name Type Term
           | App Term Term
             -- Unit
           | Unit
+            -- References
+          | Ref Term
+          | Deref Term
+          | Assign Term Term
+          | Loc Location
             -- Booleans
           | Tru
           | Fls
@@ -62,10 +78,18 @@ data Term = -- lambdas
           deriving (Eq, Show)
 type Name = String
 
+type Location = Int
+
+type Store = Map Location Term
+
+emptyStore :: Store
+emptyStore = Map.empty
+
 isValue :: Term -> Bool
 isValue = \case
   Lambda {} -> True
   Unit      -> True
+  Loc {}    -> True
   Tru       -> True
   Fls       -> True
   t         -> isNumericVal t
@@ -79,58 +103,93 @@ isNumericVal = \case
 typeof :: Term -> Either String Type
 typeof = maybeToEither "type error" . typeof' []
 
+-- TODO: use ReaderT here
 typeof' :: TypCtx -> Term -> Maybe Type
 typeof' ctx = \case
+  -- Lambdas
   Var name                                        -> lookup name ctx     -- T-Var
   Lambda x typ1 (typeof' ((x, typ1):ctx) -> typ2) -> TyFun typ1 <$> typ2 -- T-Abs
-  App (typeof' ctx -> Just (TyFun typ11 typ12))
-      (typeof' ctx -> Just typ2) | typ11 == typ2  -> return typ12        -- T-App
+  App (rec -> Just (TyFun typ11 typ12))
+      (rec -> Just typ2) | typ11 == typ2          -> return typ12        -- T-App
+  -- Unit
   Unit                                            -> return TyUnit       -- T-Unit
+  -- References
+  Ref    (rec -> typ1)                            -> TyRef <$> typ1
+  Deref  (rec -> Just (TyRef typ1))               -> return typ1
+  Assign (rec -> Just (TyRef typ1))
+         (rec -> Just typ2) | typ1 == typ2        -> return TyUnit
+  -- Booleans
   Tru                                             -> return TyBool       -- T-True
   Fls                                             -> return TyBool       -- T-False
   If t1 t2 t3 | typeOfEq t1 TyBool
-             && typeof' ctx t2 == typeof' ctx t3  -> typeof' ctx t2
+             && rec t2 == rec t3                  -> rec t2
+  -- Arithmetic Expressions
   Zero                                            -> return TyNat        -- T-Zero
   Succ t   | typeOfEq t TyNat                     -> return TyNat        -- T-Pred
   Pred t   | typeOfEq t TyNat                     -> return TyNat        -- T-Succ
   IsZero t | typeOfEq t TyNat                     -> return TyBool       -- T-IsZero
   _                                               -> Nothing
-  where typeOfEq t1 t2 = typeof' ctx t1 == Just t2
+  where typeOfEq t1 t2 = rec t1 == Just t2
+        rec = typeof' ctx
 
-instance SteppableM Term (Either String) where
-  stepM t = const (step' t) <$> typeof t
+instance SteppableM (Term, Store) (Either String) where
+  stepM = step'
 
-step' :: Term -> Term
-step' = \case
-  App e1 e2 | not (isValue e1)     -> App (step' e1) e2   -- E-App1
-  App v1 e2 | not (isValue e2)     -> App v1 (step' e2)   -- E-App2
-  App (Lambda name _ e1) e2        -> subst name e2 e1    -- E-AppAbs
-  If Tru t2 _                      -> t2                  -- E-IfTrue
-  If Fls _  t3                     -> t3                  -- E-IfFalse
-  If t1  t2 t3                     -> If (step' t1) t2 t3 -- E-If
-  Succ t                           -> Succ (step' t)      -- E-Succ
-  Pred Zero                        -> Zero                -- E-PredZero
-  Pred (Succ t) | isNumericVal t   -> t                   -- E-PredSucc
-  Pred t                           -> Pred (step' t)      -- E-Pred
-  IsZero Zero                      -> Tru                 -- E-IsZeroZero
-  IsZero (Succ t) | isNumericVal t -> Fls                 -- E-IsZeroSucc
-  IsZero t                         -> IsZero (step' t)    -- E-IsZero
-  t                                -> t
+evalM' :: Term -> Either String (Term, Store)
+evalM' t = evalM (t, emptyStore)
+
+step' :: (Term, Store) -> Either String (Term, Store)
+step' (term, store) = case term of
+  -- Lambdas
+  App t1 t2 | not (isValue t1)     -> (\(t1', store') -> (App t1' t2, store')) <$> step' (t1, store)              -- E-App1
+  App v1 t2 | not (isValue t2)     -> (\(t2', store') -> (App v1 t2', store')) <$> step' (t2, store)             -- E-App2
+  App (Lambda name _ t1) t2        -> return (subst name t2 t1, store)             -- E-AppAbs
+  -- References
+  Ref v | isValue v                -> return (alloc v)                         -- E-RefV
+  Ref t | otherwise                -> (\(t', store') -> (Ref t', store')) <$> step' (t, store) -- E-Ref
+  Deref (Loc l)                    -> case Map.lookup l store of                          -- E-DerefLoc
+                                        Just t -> Right (t, store)
+                                        Nothing -> Left "segmentation fault: invalid reference"
+  Deref t                          -> (\(t', store') -> (Deref t', store')) <$> step' (t, store) -- E-Deref
+  Assign (Loc l) v | isValue v     -> return (Unit, Map.insert l v store)                          -- E-Assign
+  Assign t1 t2 | not (isValue t1)  -> (\(t1', store') -> (Assign t1' t2, store')) <$> step' (t1, store) -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\(t2', store') -> (Assign v1 t2', store')) <$> step' (t2, store) -- E-Assign2
+  -- Booleans
+  If Tru t2 _                      -> return (t2, store)                           -- E-IfTrue
+  If Fls _  t3                     -> return (t3, store)                           -- E-IfFalse
+  If t1  t2 t3                     -> (\(t1', store') -> (If t1' t2 t3, store')) <$> step' (t1, store)  -- E-If
+  -- Arithmetic Expressions
+  Succ t                           -> (\(t', store') -> (Succ t', store')) <$> step' (t, store)  -- E-Succ
+  Pred Zero                        -> return (Zero, store)                         -- E-PredZero
+  Pred (Succ v) | isNumericVal v   -> return (v, store)                            -- E-PredSucc
+  Pred t                           -> (\(t', store') -> (Pred t', store')) <$> step' (t, store)                 -- E-Pred
+  IsZero Zero                      -> return (Tru, store)                          -- E-IsZeroZero
+  IsZero (Succ v) | isNumericVal v -> return (Fls, store)                          -- E-IsZeroSucc
+  IsZero t                         -> (\(t', store') -> (IsZero t', store')) <$> step' (t, store)               -- E-IsZero
+  t                                -> return (t, store)
+  where alloc v = let newLoc = foldl max 0 (Map.keys store)
+                   in (Loc newLoc, Map.insert newLoc v store)
 
 -- Substitute a name by a term in a second term returning the second term with
 -- all occurences of the name replaced by the first term. Renaming of variables
 -- is performed as need to avoid variable capture.
 subst :: Name -> Term -> Term -> Term
-subst x v (App e1 e2)    = App (subst x v e1) (subst x v e2)
-subst x v e  @ (Var y)
-  | x == y               = v
-  | otherwise            = e
-subst x v e1 @ (Lambda y t e2)
-  | x == y               = e1
-  | y `notElem` freeVs v = Lambda y    t (subst x v e2)
-  | otherwise            = Lambda newy t (subst x v (subst y (Var newy) e2))
-  where newy = fresh y
-subst _ _ t              = t
+subst x v e = case e of
+  App e1 e2                            -> App (rec e1) (rec e2)
+  Var y | x == y                       -> v
+        | otherwise                    -> e
+  Lambda y t e2 | x == y               -> e
+                | y `notElem` freeVs v -> Lambda y    t (rec e2)
+                | otherwise            -> Lambda (fresh y) t (rec (subst y (Var (fresh y)) e2))
+  If t1 t2 t3                          -> If (rec t1) (rec t2) (rec t3)
+  Succ t                               -> Succ (rec t)
+  Pred t                               -> Pred (rec t)
+  IsZero t                             -> IsZero (rec t)
+  Ref t                                -> Ref (rec t)
+  Deref t                              -> Deref (rec t)
+  Assign t1 t2                         -> Assign (rec t1) (rec t2)
+  t                                    -> t
+  where rec = subst x v
 
 freeVs :: Term -> [Name]
 freeVs = \case
@@ -141,12 +200,14 @@ freeVs = \case
   Succ t          -> freeVs t
   Pred t          -> freeVs t
   IsZero t        -> freeVs t
+  Ref t           -> freeVs t
+  Deref t         -> freeVs t
+  Assign t1 t2    -> freeVs t1 ++ freeVs t2
   _               -> []
 
 -- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
 fresh a = "_" ++ a
-
 
 --------------------
 -- Parsing and unparsing
@@ -159,8 +220,8 @@ langDef = Tok.LanguageDef
   , Tok.nestedComments  = True
   , Tok.identStart      = letter
   , Tok.identLetter     = alphaNum <|> oneOf "_'"
-  , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~"
-  , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~"
+  , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~;"
+  , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~;"
   , Tok.reservedNames   = ["if", "then", "else", "true", "false", "succ",
                            "pred", "iszero", "unit", "Bool", "Nat"]
   , Tok.reservedOpNames = []
@@ -191,11 +252,14 @@ decimal = Tok.natural lexer
 
 pTerm :: Parser Term
 pTerm = Ex.buildExpressionParser table factor
-  where table = [ [ Ex.Prefix (Succ   <$ reserved   "succ")
+  where table = [ [ Ex.Prefix (Deref  <$ reservedOp "!") ]
+                , [ Ex.Prefix (Succ   <$ reserved   "succ")
                   , Ex.Prefix (Pred   <$ reserved   "pred")
                   , Ex.Prefix (IsZero <$ reserved   "iszero")
-                  , Ex.Infix  (App    <$ reservedOp "")       Ex.AssocLeft
-                  , Ex.Infix  (mkSeq  <$ reservedOp ";")      Ex.AssocLeft ] ]
+                  , Ex.Prefix (Ref    <$ reserved   "ref") ]
+                , [ Ex.Infix  (App    <$ reservedOp "")       Ex.AssocLeft  ]
+                , [ Ex.Infix  (Assign <$ reservedOp ":=")     Ex.AssocRight ]
+                , [ Ex.Infix  (mkSeq  <$ reservedOp ";")      Ex.AssocRight ] ]
         -- Sequencing is a derived form (i.e. syntactic sugar). "$u" is always
         -- fresh (different from all the free vars in t2 because user-defined
         -- vars can't start with "$".
@@ -229,7 +293,8 @@ pTypAtom = TyBool <$ reserved "Bool"
 
 pTyp :: Parser Type
 pTyp = Ex.buildExpressionParser table pTypAtom
-  where table = [ [ Ex.Infix (TyFun <$ reservedOp "->") Ex.AssocRight ] ]
+  where table = [ [ Ex.Infix  (TyFun <$ reservedOp "->")  Ex.AssocRight
+                  , Ex.Prefix (TyRef <$ reservedOp "Ref") ] ]
 
 parse :: String -> Either String Term
 parse = first show . Parsec.parse (contents pTerm) "(unknown)"
@@ -246,18 +311,23 @@ peanoToDec t        = error $ "internal error: can't show term as number: " ++ s
 
 instance Pretty Term where
   pretty = \case
-    App e1 e2               -> p e1 <+> p e2
-    Lambda name typ e       -> parens (mconcat ["\\", pretty name, ":", pretty typ, ". ", pretty e])
-    Var name                -> pretty name
-    Unit                    -> "unit"
-    Tru                     -> "true"
-    Fls                     -> "false"
-    If t1 t2 t3             -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
-    Zero                    -> "0"
-    Succ t | isNumericVal t -> pretty (peanoToDec (Succ t))
-    Succ t | otherwise      -> "succ"   <+> p t
-    Pred t                  -> "pred"   <+> p t
-    IsZero t                -> "iszero" <+> p t
+    App (Lambda "$u" TyUnit t2) t1 -> mconcat [pretty t1, "; ", pretty t2]
+    App e1 e2                      -> p e1 <+> p e2
+    Lambda x t e                   -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
+    Var x                          -> pretty x
+    Unit                           -> "unit"
+    Ref t                          -> "ref" <+> p t
+    Deref t                        -> "!"   <>  p t
+    Assign t1 t2                   -> hsep [p t1, ":=", pretty t2]
+    Loc l                          -> "Loc" <+> pretty l
+    Tru                            -> "true"
+    Fls                            -> "false"
+    If t1 t2 t3                    -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
+    Zero                           -> "0"
+    Succ t | isNumericVal t        -> pretty (peanoToDec (Succ t))
+    Succ t | otherwise             -> "succ"   <+> p t
+    Pred t                         -> "pred"   <+> p t
+    IsZero t                       -> "iszero" <+> p t
     where p t = (if isAtomic t then id else parens) (pretty t)
           isAtomic = \case
             Var {}    -> True
@@ -274,12 +344,23 @@ instance Pretty Type where
     TyBool                 -> "Bool"
     TyNat                  -> "Nat"
     TyUnit                 -> "Unit"
+    TyRef t @ TyFun {}     -> "Ref" <+> parens (pretty t)
+    TyRef t @ TyRef {}     -> "Ref" <+> parens (pretty t)
+    TyRef t                -> "Ref" <+>         pretty t
     TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
+    TyFun t1 @ TyRef {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
     TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
 
 unparse :: Term -> String
 unparse = pShow
 
+----
+
+evalRaw :: String -> Either String Term
+evalRaw = fmap fst
+        . (=<<) evalM'
+        . (=<<) (\t -> const t <$> typeof t)
+        . parse
 
 {-
 Interesting insight about Unit and sequencing (TAPL Ch.11):

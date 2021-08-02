@@ -19,6 +19,7 @@ genTerm =
     , return Fls
     , return Zero
     , return Unit
+    -- , Loc <$> Gen.int (Range.linear 0 10)
     ] [
       -- recursive generators
       Gen.subtermM genTerm (\x -> Lambda <$> genName <*> genType <*> pure x)
@@ -27,6 +28,9 @@ genTerm =
     , Gen.subterm  genTerm Succ
     , Gen.subterm  genTerm Pred
     , Gen.subterm  genTerm IsZero
+    , Gen.subterm  genTerm Ref
+    , Gen.subterm  genTerm Deref
+    , Gen.subterm2 genTerm genTerm Assign
     ]
 
 genType :: MonadGen m => m Type
@@ -39,4 +43,6 @@ genType =
     ] [
       -- recursive generators
       Gen.subterm2 genType genType TyFun
+    , Gen.subterm  genType TyRef
     ]
+
