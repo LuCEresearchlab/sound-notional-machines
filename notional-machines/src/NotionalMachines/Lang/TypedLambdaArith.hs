@@ -37,7 +37,7 @@ import Data.Bifunctor (first)
 import Data.List ((\\))
 
 import NotionalMachines.Utils (maybeToEither, pShow)
-import NotionalMachines.Meta.Steppable (SteppableM, stepM)
+import NotionalMachines.Meta.Steppable (Steppable, step)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
@@ -98,8 +98,8 @@ isNumericVal = \case
   Succ t -> isNumericVal t
   _      -> False
 
-instance SteppableM Term (Either String) where
-  stepM t = const (step' t) <$> typeof t
+instance Steppable Term where
+  step = step'
 
 step' :: Term -> Term
 step' = \case

@@ -94,17 +94,18 @@ eval_produces_value = prop $ do
 
 type_safety :: (Show term, Show typ)
             => Gen term -> (term -> Either String typ) -> (term -> Either String term) -> (term -> Bool) -> Property
-type_safety g typer evaluer isValuer = prop $ do {
-  e <- forAll g;
-  classify "type checks" $ (isRight . typer) e;
-  classify "eval to val" $ Right True == (isValuer <$> evaluer e);
-  annotateShow $ typer e;
-  annotateShow $ evaluer e;
-  --      type-checks  =>  evals to value   (i.e. doesn't get stuck)
-  -- not (type-checks) or (evals to value)
-  (    ((isRight . typer) e && (isValuer . fromJust . eitherToMaybe . evaluer) e)
-    || ((isLeft  . typer) e && (isLeft . evaluer) e)
-  ) === True }
+type_safety g typer evaluer isValuer = prop $ do
+  e <- forAll g
+  classify "type checks" $ (isRight . typer) e
+  classify "eval to val" $ Right True == (isValuer <$> evaluer e)
+  annotateShow $ typer e
+  annotateShow $ evaluer e
+  annotateShow $ isValuer <$> evaluer e
+  -- type-checks => evals to value  (i.e. doesn't get stuck)
+  -- a => b == (not a) || b
+  let a = (isRight . typer) e
+  let b = (isValuer . fromJust . eitherToMaybe . evaluer) e
+  ((not a) || b) === True
 
 is_left_inverse_of :: (Applicative f, Show (f b), Eq (f b), Show a, Show b)
                    => Gen b -> (a -> f b) -> (b -> a) -> Property
@@ -173,7 +174,7 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
       testProperty "parse is left inverse of unparse" $
         is_left_inverse_of TypedLambdaGen.genTerm TypedLambda.parse TypedLambda.unparse
     , testProperty "language is type safe" $
-        type_safety TypedLambdaGen.genTerm TypedLambda.typeof evalM TypedLambda.isValue
+        type_safety TypedLambdaGen.genTerm TypedLambda.typeof (return . eval) TypedLambda.isValue
     , testGroup "Type checking" [
           testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
             (Right TypedLambda.TyNat) -- expected
