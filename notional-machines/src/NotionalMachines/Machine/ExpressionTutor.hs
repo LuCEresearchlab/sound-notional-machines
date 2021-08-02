@@ -75,7 +75,7 @@ holeP :: NodeContentElem
 holeP = Hole (Plug (-1,-1))
 
 -- | Smart constructor for Nodes that ensures that the Plugs are numbered
--- following this patter:
+-- following this pattern:
 --   - The plug on the top of each node is numbered as `Plug (n, 0)` where `n`
 --   is the id of the node.
 --   - The holes inside a node `j` are numbered `Plug (j, m)` where `m` goes
@@ -100,9 +100,10 @@ checkPlugs n = if validPlugs n then Just n else Nothing
 -- View the Expression Tutor graph as a tree
 --------------------
 
--- | View a diagram as a Tree leaf. The constructor creates a diagram just
--- with a root. The pattern matches if the root has no holes (so no outgoing
--- edges), giving back that node.
+-- | View a diagram as a Tree leaf. The constructor creates a diagram just with
+-- a root. The pattern matches if the root has no holes (so no outgoing edges),
+-- giving back that node. Notice that the existence of other nodes and edges is
+-- not taken into account when matching the pattern.
 pattern DiaLeaf :: Node -> ExpTreeDiagram
 pattern DiaLeaf n <- ExpTreeDiagram _ _ (Just n @ (holes -> [])) where
   DiaLeaf n = ExpTreeDiagram (Set.singleton n) Set.empty (Just n)
