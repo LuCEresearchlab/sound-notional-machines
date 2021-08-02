@@ -56,5 +56,5 @@ allPoints g x = if g x == x then [x] else x:(allPoints g (g x))
 -- the result is `mzero`.
 allPointsM :: (Eq (m a), Monad m, Traversable m) => (a -> m a) -> a -> [m a]
 allPointsM g x = if g x == return x then [return x]
-                                    else fmap join $ mapM (allPointsM g) (g x)
+                                    else (return x):(fmap join $ mapM (allPointsM g) (g x))
 
