@@ -1,6 +1,7 @@
 {-# LANGUAGE TemplateHaskell, OverloadedStrings, TypeFamilies #-}
 
 import           Hedgehog hiding (Var, eval, evalM)
+import qualified Hedgehog (eval)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 import           Hedgehog.Main (defaultMain)
@@ -38,6 +39,7 @@ import qualified NotionalMachines.Lang.TypedLambdaRef as TypedLambdaRef
 import           NotionalMachines.Lang.TypedLambdaRefGenerator as TypedLambdaRefGen
 
 import           NotionalMachines.Machine.ExpressionTutor
+import           NotionalMachines.Machine.ExpressionTutorGenerator (genExpTreeDiagram)
 import           NotionalMachines.Machine.ExpTree hiding (bisim)
 import qualified NotionalMachines.Machine.ExpTree as ETree  (bisim)
 import           NotionalMachines.Machine.Reduct hiding (bisim)
@@ -249,21 +251,28 @@ expressionTutorTest = testGroup "Expressiontutor" [
       , testProperty "commutation proof for type annotated diagram" $
           bisimulationCommutes ArithGen.genTerm TypedArithET.annotateTypeBisim
     ],
-    testCase "Malformed Diagram" $ assertEqual ""
-      (Nothing) -- expected
-      (Inj.fromNM $ ExpTreeDiagram {
-                      nodes = Set.fromList
-                                [Node { nodePlug = Plug (0,0),
-                                        typ = Nothing,
-                                        content = [C "lambda", NameDef "x", Hole (Plug (0,1))] },
-                                 Node { nodePlug = Plug (1,0),
-                                        typ = Nothing,
-                                        content = [C "lambda", NameDef "y", Hole (Plug (1,1))] }],
-                      edges = Set.fromList [Edge (Plug (0,1)) (Plug (1,0)),
-                                            Edge (Plug (1,1)) (Plug (0,0))],
-                      root  = Just (Node { nodePlug = Plug (0,0),
-                                           typ = Nothing,
-                                           content = [C "lambda", NameDef "x", Hole (Plug (0,1))] }) } :: Maybe Lambda.Exp)
+    testGroup "Malformed diagrams" [
+        testProperty "Random diagram doesn't crash" $ prop $
+          do d <- forAll genExpTreeDiagram
+             _ <- Hedgehog.eval (Inj.fromNM d :: Maybe Lambda.Exp)
+             success
+      , testCase "Diagram with cycles to NM terminates" $ assertEqual ""
+          (Nothing) -- expected
+          (Inj.fromNM $ ExpTreeDiagram {
+             nodes = Set.fromList [
+               Node { nodePlug = Plug (0,0),
+                      typ = Nothing,
+                      content = [C "lambda", NameDef "x", Hole (Plug (0,1))] },
+               Node { nodePlug = Plug (1,0),
+                      typ = Nothing,
+                      content = [C "lambda", NameDef "y", Hole (Plug (1,1))] }],
+             edges = Set.fromList [Edge (Plug (0,1)) (Plug (1,0)),
+                                   Edge (Plug (1,1)) (Plug (0,0))],
+             root  = Just (Node {
+               nodePlug = Plug (0,0),
+               typ = Nothing,
+               content = [C "lambda", NameDef "x", Hole (Plug (0,1))] }) } :: Maybe Lambda.Exp)
+    ] 
   ]
 
 expTreeTest :: TestTree
