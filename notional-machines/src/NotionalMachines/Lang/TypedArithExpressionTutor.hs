@@ -4,7 +4,7 @@
 
 module NotionalMachines.Lang.TypedArithExpressionTutor where
 
-import Control.Monad.State.Lazy (State, StateT(..), liftM3)
+import Control.Monad.State.Lazy (State, StateT(..), liftM3, lift)
 import Control.Monad ((<=<))
 
 import Data.Set (Set)
@@ -64,7 +64,7 @@ etToArith = etToLang go
       DiaBranch NodeSucc {}   [t]        -> Succ   <$> go t
       DiaBranch NodePred {}   [t]        -> Pred   <$> go t
       DiaBranch NodeIsZero {} [t]        -> IsZero <$> go t
-      _ -> StateT (const Nothing) -- "incorrect diagram"
+      _ -> lift Nothing -- "incorrect diagram"
 
 instance Injective Term TyExpTreeDiagram where
   toNM = TyExpTreeDiagram . arithToET

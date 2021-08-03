@@ -4,7 +4,7 @@
 
 module NotionalMachines.Lang.UntypedLambdaExpressionTutor where
 
-import Control.Monad.State.Lazy (State, StateT(..))
+import Control.Monad.State.Lazy (State, StateT(..), lift)
 
 import Data.Set (Set)
 
@@ -41,7 +41,7 @@ etToLambda = etToLang go
       DiaLeaf   (NodeVar    name _)          -> return (Var name)
       DiaBranch (NodeLambda name _) [n]      -> Lambda name <$> go n
       DiaBranch (NodeApp    _)      [n1, n2] -> App <$> go n1 <*> go n2
-      _ -> StateT (const Nothing) -- "incorrect diagram"
+      _ -> lift Nothing -- "incorrect diagram"
 
 
 instance Injective Exp ExpTreeDiagram where
