@@ -223,7 +223,7 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
       testProperty "parse is left inverse of unparse" $
         is_left_inverse_of TypedLambdaRefGen.genTerm TypedLambdaRef.parse TypedLambdaRef.unparse
     , testProperty "language is type safe" $
-        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof (fmap fst . TypedLambdaRef.evalM') TypedLambdaRef.isValue
+        type_safety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof TypedLambdaRef.evalM' TypedLambdaRef.isValue
     , testGroup "Evaluation" [
           testCase "parse and unparse 'r:=succ(!r); r:=succ(!r); !r'" $ assertEqual ""
             (Right $ "r := succ (!r); r := succ (!r); !r") -- expected

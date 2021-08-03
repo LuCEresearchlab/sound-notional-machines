@@ -33,6 +33,8 @@ import qualified Text.Parsec.Token as Tok
 
 import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep)
 
+import Control.Monad.State.Lazy (StateT, get, withStateT, lift, evalStateT)
+
 import Data.Bifunctor (first)
 import Data.List ((\\))
 import Data.Map (Map)
@@ -132,43 +134,41 @@ typeof' ctx = \case
   where typeOfEq t1 t2 = rec t1 == Just t2
         rec = typeof' ctx
 
-instance SteppableM (Term, Store) (Either String) where
+instance SteppableM Term (StateT Store (Either String)) where
   stepM = step'
 
-evalM' :: Term -> Either String (Term, Store)
-evalM' t = evalM (t, emptyStore)
+evalM' :: Term -> Either String Term
+evalM' t = evalStateT (evalM t) emptyStore
 
-step' :: (Term, Store) -> Either String (Term, Store)
-step' (term, store) = case term of
+step' :: Term -> StateT Store (Either String) Term
+step' = \case
   -- Lambdas
-  App t1 t2 | not (isValue t1)     -> (\(t1', store') -> (App t1' t2, store')) <$> step' (t1, store)              -- E-App1
-  App v1 t2 | not (isValue t2)     -> (\(t2', store') -> (App v1 t2', store')) <$> step' (t2, store)             -- E-App2
-  App (Lambda name _ t1) t2        -> return (subst name t2 t1, store)             -- E-AppAbs
+  App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 )    <$> step' t1                   -- E-App1
+  App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2')    <$> step' t2                   -- E-App2
+  App (Lambda name _ t1) t2        -> return $ subst name t2 t1                               -- E-AppAbs
   -- References
-  Ref v | isValue v                -> return (alloc v)                         -- E-RefV
-  Ref t | otherwise                -> (\(t', store') -> (Ref t', store')) <$> step' (t, store) -- E-Ref
-  Deref (Loc l)                    -> case Map.lookup l store of                          -- E-DerefLoc
-                                        Just t -> Right (t, store)
-                                        Nothing -> Left "segmentation fault: invalid reference"
-  Deref t                          -> (\(t', store') -> (Deref t', store')) <$> step' (t, store) -- E-Deref
-  Assign (Loc l) v | isValue v     -> return (Unit, Map.insert l v store)                          -- E-Assign
-  Assign t1 t2 | not (isValue t1)  -> (\(t1', store') -> (Assign t1' t2, store')) <$> step' (t1, store) -- E-Assign1
-  Assign v1 t2 | otherwise         -> (\(t2', store') -> (Assign v1 t2', store')) <$> step' (t2, store) -- E-Assign2
-  -- Booleans
-  If Tru t2 _                      -> return (t2, store)                           -- E-IfTrue
-  If Fls _  t3                     -> return (t3, store)                           -- E-IfFalse
-  If t1  t2 t3                     -> (\(t1', store') -> (If t1' t2 t3, store')) <$> step' (t1, store)  -- E-If
-  -- Arithmetic Expressions
-  Succ t                           -> (\(t', store') -> (Succ t', store')) <$> step' (t, store)  -- E-Succ
-  Pred Zero                        -> return (Zero, store)                         -- E-PredZero
-  Pred (Succ v) | isNumericVal v   -> return (v, store)                            -- E-PredSucc
-  Pred t                           -> (\(t', store') -> (Pred t', store')) <$> step' (t, store)                 -- E-Pred
-  IsZero Zero                      -> return (Tru, store)                          -- E-IsZeroZero
-  IsZero (Succ v) | isNumericVal v -> return (Fls, store)                          -- E-IsZeroSucc
-  IsZero t                         -> (\(t', store') -> (IsZero t', store')) <$> step' (t, store)               -- E-IsZero
-  t                                -> return (t, store)
-  where alloc v = let newLoc = foldl max 0 (Map.keys store)
-                   in (Loc newLoc, Map.insert newLoc v store)
+  Ref v | isValue v                -> do newLoc <- fmap (foldl max 0 . Map.keys) get
+                                         withStateT (Map.insert newLoc v) (pure $ Loc newLoc) -- E-RefV
+  Ref t | otherwise                -> Ref   <$> step' t                                       -- E-Ref
+  Deref (Loc l)                    -> do t <- fmap (Map.lookup l) get
+                                         lift $ maybeToEither "internal error: invalid ref" t -- E-DerefLoc
+  Deref t                          -> Deref <$> step' t                                       -- E-Deref
+  Assign (Loc l) v | isValue v     -> withStateT (Map.insert l v) (return Unit)
+  Assign t1 t2 | not (isValue t1)  -> (\t1' -> Assign t1' t2 ) <$> step' t1                   -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> step' t2                   -- E-Assign2
+  -- -- Booleans
+  If Tru t2 _                      -> return t2                                               -- E-IfTrue
+  If Fls _  t3                     -> return t3                                               -- E-IfFalse
+  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> step' t1                   -- E-If
+  -- -- Arithmetic Expressions
+  Succ t                           -> Succ   <$> step' t                                      -- E-Succ
+  Pred Zero                        -> return Zero                                             -- E-PredZero
+  Pred (Succ v) | isNumericVal v   -> return v                                                -- E-PredSucc
+  Pred t                           -> Pred   <$> step' t                                      -- E-Pred
+  IsZero Zero                      -> return Tru                                              -- E-IsZeroZero
+  IsZero (Succ v) | isNumericVal v -> return Fls                                              -- E-IsZeroSucc
+  IsZero t                         -> IsZero <$> step' t                                      -- E-IsZero
+  t                                -> return t
 
 -- Substitute a name by a term in a second term returning the second term with
 -- all occurences of the name replaced by the first term. Renaming of variables
@@ -357,8 +357,7 @@ unparse = pShow
 ----
 
 evalRaw :: String -> Either String Term
-evalRaw = fmap fst
-        . (=<<) evalM'
+evalRaw = (=<<) evalM'
         . (=<<) (\t -> const t <$> typeof t)
         . parse
 

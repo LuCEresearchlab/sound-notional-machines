@@ -60,3 +60,5 @@ stepMNM f = fmap (Inj.toNM . f) . Inj.fromNM
 -- =>
 -- instance Steppable ExpAsTree
 
+-- TODO: there's a step that is typeof
+--       and there is a step which is 1 step of typeof (requires aux tree?)

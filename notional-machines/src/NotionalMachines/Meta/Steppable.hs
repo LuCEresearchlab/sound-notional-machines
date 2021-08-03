@@ -28,7 +28,7 @@ class Eq a => Steppable a where
 
 
 {- | Similar to `Steppable` but for step functions that produce a monadic value. -}
-class (Monad m, Eq (m a)) => SteppableM a m where
+class (Eq a, Monad m) => SteppableM a m where
   stepM :: a -> m a
 
   evalM :: a -> m a
@@ -44,8 +44,8 @@ fixpoint g = fix (\rec x -> if g x == x then x else rec (g x))
 
 -- | Similar to `fixpoint` for functions that return monads. It also stops when
 -- the result is `mzero`.
-fixpointM :: (Eq (m a), Monad m) => (a -> m a) -> a -> m a
-fixpointM g = fix (\rec x -> if g x == return x then return x else rec =<< g x)
+fixpointM :: (Eq a, Monad m) => (a -> m a) -> a -> m a
+fixpointM g = fix (\rec x -> g x >>= \gx -> if gx == x then return x else rec gx)
 
 -- | Returns a list of repeated applications of @f@ to @x@ stopping when the
 -- fixpoint is reached.
@@ -54,7 +54,6 @@ allPoints g x = if g x == x then [x] else x:(allPoints g (g x))
 
 -- | Similar to `allPoints` for functions that return monads. It also stops when
 -- the result is `mzero`.
-allPointsM :: (Eq (m a), Monad m, Traversable m) => (a -> m a) -> a -> [m a]
-allPointsM g x = if g x == return x then [return x]
-                                    else (return x):(fmap join $ mapM (allPointsM g) (g x))
-
+allPointsM :: (Eq a, Monad m, Traversable m) => (a -> m a) -> a -> [m a]
+allPointsM g x = join <$> mapM go (g x)
+  where go gx = if gx == x then [return x] else (return x):((allPointsM g) gx)
