@@ -81,12 +81,24 @@ data Term = -- Lambdas
           deriving (Eq, Show)
 type Name = String
 
+------ Store Manipulation ------
 type Location = Int
-
 type Store = Map Location Term
 
 emptyStore :: Store
 emptyStore = Map.empty
+
+alloc :: Term -> StateT Store (Either String) Term
+alloc v = do newLoc <- fmap (succ . foldl max (-1) . Map.keys) get
+             withStateT (Map.insert newLoc v) (return $ Loc newLoc) 
+
+deref :: Location -> StateT Store (Either String) Term
+deref l = (lift . maybeToEither errorMsg . Map.lookup l) =<< get
+  where errorMsg = "error: address not found: " ++ show l
+
+assign :: Location -> Term -> StateT Store (Either String) Term
+assign l v = withStateT (Map.insert l v) (return Unit)
+-------------------
 
 isValue :: Term -> Bool
 isValue = \case
@@ -117,16 +129,15 @@ typeof' ctx = \case
   -- Unit
   Unit                                            -> return TyUnit       -- T-Unit
   -- References
-  Ref    (rec -> typ1)                            -> TyRef <$> typ1
-  Deref  (rec -> Just (TyRef typ1))               -> return typ1
+  Ref t                                           -> TyRef <$> rec t     -- T-Ref
+  Deref  (rec -> Just (TyRef typ1))               -> return typ1         -- T-Deref
   Assign (rec -> Just (TyRef typ1))
-         (rec -> Just typ2) | typ1 == typ2        -> return TyUnit
-  -- Booleans
+         (rec -> Just typ2) | typ1 == typ2        -> return TyUnit       -- T-Assign
+  -- Booleans + Arith
   Tru                                             -> return TyBool       -- T-True
   Fls                                             -> return TyBool       -- T-False
   If t1 t2 t3 | typeOfEq t1 TyBool
              && rec t2 == rec t3                  -> rec t2
-  -- Arithmetic Expressions
   Zero                                            -> return TyNat        -- T-Zero
   Succ t   | typeOfEq t TyNat                     -> return TyNat        -- T-Pred
   Pred t   | typeOfEq t TyNat                     -> return TyNat        -- T-Succ
@@ -147,31 +158,28 @@ evalM' t = evalStateT (evalM t) emptyStore
 step' :: Term -> StateT Store (Either String) Term
 step' = \case
   -- Lambdas
-  App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 )    <$> step' t1                   -- E-App1
-  App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2')    <$> step' t2                   -- E-App2
-  App (Lambda name _ t1) t2        -> return $ subst name t2 t1                               -- E-AppAbs
+  App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 ) <$> step' t1    -- E-App1
+  App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2') <$> step' t2    -- E-App2
+  App (Lambda name _ t1) t2        -> return $ subst name t2 t1             -- E-AppAbs
   -- References
-  Ref v | isValue v                -> do newLoc <- fmap (succ . foldl max (-1) . Map.keys) get
-                                         withStateT (Map.insert newLoc v) (pure $ Loc newLoc) -- E-RefV
-  Ref t | otherwise                -> Ref   <$> step' t                                       -- E-Ref
-  Deref (Loc l)                    -> do t <- fmap (Map.lookup l) get
-                                         lift $ maybeToEither "internal error: invalid ref" t -- E-DerefLoc
-  Deref t                          -> Deref <$> step' t                                       -- E-Deref
-  Assign (Loc l) v | isValue v     -> withStateT (Map.insert l v) (return Unit)
-  Assign t1 t2 | not (isValue t1)  -> (\t1' -> Assign t1' t2 ) <$> step' t1                   -- E-Assign1
-  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> step' t2                   -- E-Assign2
-  -- -- Booleans
-  If Tru t2 _                      -> return t2                                               -- E-IfTrue
-  If Fls _  t3                     -> return t3                                               -- E-IfFalse
-  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> step' t1                   -- E-If
-  -- -- Arithmetic Expressions
-  Succ t                           -> Succ   <$> step' t                                      -- E-Succ
-  Pred Zero                        -> return Zero                                             -- E-PredZero
-  Pred (Succ v) | isNumericVal v   -> return v                                                -- E-PredSucc
-  Pred t                           -> Pred   <$> step' t                                      -- E-Pred
-  IsZero Zero                      -> return Tru                                              -- E-IsZeroZero
-  IsZero (Succ v) | isNumericVal v -> return Fls                                              -- E-IsZeroSucc
-  IsZero t                         -> IsZero <$> step' t                                      -- E-IsZero
+  Ref v | isValue v                -> alloc v                               -- E-RefV
+  Ref t | otherwise                -> Ref   <$> step' t                     -- E-Ref
+  Deref (Loc l)                    -> deref l                               -- E-DerefLoc
+  Deref t                          -> Deref <$> step' t                     -- E-Deref
+  Assign (Loc l) v | isValue v     -> assign l v                            -- E-Assign
+  Assign t1 t2 | not (isValue t1)  -> (\t1' -> Assign t1' t2 ) <$> step' t1 -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> step' t2 -- E-Assign2
+  -- Booleans + Arith
+  If Tru t2 _                      -> return t2                             -- E-IfTrue
+  If Fls _  t3                     -> return t3                             -- E-IfFalse
+  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> step' t1 -- E-If
+  Succ t                           -> Succ   <$> step' t                    -- E-Succ
+  Pred Zero                        -> return Zero                           -- E-PredZero
+  Pred (Succ v) | isNumericVal v   -> return v                              -- E-PredSucc
+  Pred t                           -> Pred   <$> step' t                    -- E-Pred
+  IsZero Zero                      -> return Tru                            -- E-IsZeroZero
+  IsZero (Succ v) | isNumericVal v -> return Fls                            -- E-IsZeroSucc
+  IsZero t                         -> IsZero <$> step' t                    -- E-IsZero
   t                                -> return t
 
 -- Substitute a name by a term in a second term returning the second term with
