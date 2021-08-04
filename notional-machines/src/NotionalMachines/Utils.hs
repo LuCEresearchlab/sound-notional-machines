@@ -10,7 +10,7 @@ import qualified Hedgehog.Range as Range
 
 import Control.Monad (forM_)
 
-import Text.Pretty.Simple (pPrint)
+import Text.Pretty.Simple (pPrintOpt, CheckColorTty(..), defaultOutputOptionsDarkBg, outputOptionsCompact)
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
 
@@ -26,6 +26,9 @@ maybeToEither l = maybe (Left l) Right
 pShow :: Pretty a => a -> String
 pShow = show . pretty
 
+shortPrint :: Show a => a -> IO ()
+shortPrint = pPrintOpt CheckColorTty defaultOutputOptionsDarkBg {outputOptionsCompact = True}
+
 ------- Generators utils ----------
 
 genName :: MonadGen m => m String
@@ -35,11 +38,11 @@ sample :: Gen a -> IO a
 sample gen = Gen.sample gen
 
 printSample :: Show a => Int -> Gen a -> IO ()
-printSample n gen = forM_ [1..n] (\_ -> pPrint =<< Gen.sample gen)
+printSample n gen = forM_ [1..n] (\_ -> shortPrint =<< Gen.sample gen)
 
 genAndSolve :: (Show a, Show b) => IO a -> (a -> b) -> IO b
 genAndSolve gen solver =
             do e <- gen
-               pPrint e
+               shortPrint e
                return $ solver e
 
