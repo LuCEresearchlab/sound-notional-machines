@@ -5,7 +5,6 @@
 module NotionalMachines.Meta.Steppable where
 
 import Data.Function (fix)
-import Control.Monad (join)
 
 {- | A type @a@ is Steppable if it provides a function @step@ which can be
  - repeatedly applied to a value of type @a@ until you reach a fix point (until
@@ -34,7 +33,7 @@ class (Eq a, Monad m) => SteppableM a m where
   evalM :: a -> m a
   evalM = fixpointM stepM
 
-  traceM :: Traversable m => a -> [m a]
+  traceM :: Eq (m a) => a -> [m a]
   traceM = allPointsM stepM
 
 
@@ -42,8 +41,7 @@ class (Eq a, Monad m) => SteppableM a m where
 fixpoint :: Eq a => (a -> a) -> a -> a
 fixpoint g = fix (\rec x -> if g x == x then x else rec (g x))
 
--- | Similar to `fixpoint` for functions that return monads. It also stops when
--- the result is `mzero`.
+-- | Similar to `fixpoint` for functions that return monads.
 fixpointM :: (Eq a, Monad m) => (a -> m a) -> a -> m a
 fixpointM g = fix (\rec x -> g x >>= \gx -> if gx == x then return x else rec gx)
 
@@ -52,8 +50,9 @@ fixpointM g = fix (\rec x -> g x >>= \gx -> if gx == x then return x else rec gx
 allPoints :: Eq a => (a -> a) -> a -> [a]
 allPoints g x = if g x == x then [x] else x:(allPoints g (g x))
 
--- | Similar to `allPoints` for functions that return monads. It also stops when
--- the result is `mzero`.
-allPointsM :: (Eq a, Monad m, Traversable m) => (a -> m a) -> a -> [m a]
-allPointsM g x = join <$> mapM go (g x)
-  where go gx = if gx == x then [return x] else (return x):((allPointsM g) gx)
+-- | Similar to `allPoints` for functions that return monads.
+allPointsM :: (Eq (m a), Monad m) => (a -> m a) -> a -> [m a]
+allPointsM g = untilEq . iterate ((=<<) g) . return
+  where untilEq (x1:x2:xs) | x1 == x2  = [x1]
+                           | otherwise = x1:(untilEq (x2:xs))
+        untilEq xs = xs

@@ -23,7 +23,8 @@ module NotionalMachines.Lang.TypedLambdaRef (
   unparse,
 
   evalM',
-  evalRaw
+  evalRaw,
+  trace
   ) where
 
 import           Text.ParserCombinators.Parsec hiding (parse)
@@ -33,7 +34,7 @@ import qualified Text.Parsec.Token as Tok
 
 import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep, Doc)
 
-import Control.Monad.State.Lazy (StateT, get, withStateT, lift, evalStateT)
+import Control.Monad.State.Lazy (StateT, get, withStateT, lift, evalStateT, runStateT, (<=<))
 
 import Data.Bifunctor (first)
 import Data.List ((\\))
@@ -41,7 +42,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 
 import NotionalMachines.Utils (maybeToEither, pShow)
-import NotionalMachines.Meta.Steppable (SteppableM, stepM, evalM)
+import NotionalMachines.Meta.Steppable (SteppableM, stepM, evalM, traceM)
 
 --------------------
 -- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
@@ -133,6 +134,9 @@ typeof' ctx = \case
   _                                               -> Nothing
   where typeOfEq t1 t2 = rec t1 == Just t2
         rec = typeof' ctx
+
+typecheck :: Term -> Either String Term
+typecheck t = const t <$> typeof t
 
 instance SteppableM Term (StateT Store (Either String)) where
   stepM = step'
@@ -359,9 +363,21 @@ unparse = pShow
 ----
 
 evalRaw :: String -> Either String Term
-evalRaw = (=<<) evalM'
-        . (=<<) (\t -> const t <$> typeof t)
-        . parse
+evalRaw = evalM' <=< typecheck <=< parse
+
+trace :: String -> Either String [(String, Store)]
+trace = fmap (fmap (first unparse))
+      . (=<<) (
+          mapM (flip runStateT emptyStore)
+        . traceM
+      )
+      . (=<<) typecheck
+      . parse 
+
+-- This instance is required for tracing because it needs to compare StateTs.
+instance Eq (StateT Store (Either String) Term) where
+  s1 == s2 = evalStateT s1 emptyStore == evalStateT s2 emptyStore
+
 
 {-
 Interesting insight about Unit and sequencing (TAPL Ch.11):
