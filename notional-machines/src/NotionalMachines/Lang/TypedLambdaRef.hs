@@ -151,7 +151,7 @@ step' = \case
   App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2')    <$> step' t2                   -- E-App2
   App (Lambda name _ t1) t2        -> return $ subst name t2 t1                               -- E-AppAbs
   -- References
-  Ref v | isValue v                -> do newLoc <- fmap (foldl max 0 . Map.keys) get
+  Ref v | isValue v                -> do newLoc <- fmap (succ . foldl max (-1) . Map.keys) get
                                          withStateT (Map.insert newLoc v) (pure $ Loc newLoc) -- E-RefV
   Ref t | otherwise                -> Ref   <$> step' t                                       -- E-Ref
   Deref (Loc l)                    -> do t <- fmap (Map.lookup l) get
