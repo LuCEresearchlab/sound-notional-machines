@@ -18,7 +18,7 @@ $ ghcid --command="ghci variable-as-a-box.hs"
 Run the stack based projects in continous compilation/testing with
 
 ```
-$ ghcid --command="stack ghci variable-as-a-box:lib variable-as-a-box:test:variable-as-a-box-test --ghci-options=-fobject-code" --test "main"
+$ stack test --file-watch
 ```
 
 ## What do we use this for?
