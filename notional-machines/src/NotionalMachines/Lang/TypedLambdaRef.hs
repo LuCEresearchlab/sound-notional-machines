@@ -31,7 +31,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import qualified Text.Parsec.Expr as Ex
 import qualified Text.Parsec.Token as Tok
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep)
+import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep, Doc)
 
 import Control.Monad.State.Lazy (StateT, get, withStateT, lift, evalStateT)
 
@@ -328,28 +328,30 @@ instance Pretty Term where
     Succ t | otherwise             -> "succ"   <+> p t
     Pred t                         -> "pred"   <+> p t
     IsZero t                       -> "iszero" <+> p t
-    where p t = (if isAtomic t then id else parens) (pretty t)
-          isAtomic = \case
-            Var {}    -> True
-            Lambda {} -> True -- lambda is not atomic but is always parenthesized
-            Unit      -> True
-            Tru       -> True
-            Fls       -> True
-            Zero      -> True
-            _         -> False
-
+    where p = parenIf $ \case App    {}                     -> True
+                              If     {}                     -> True
+                              Succ t | not (isNumericVal t) -> True
+                              Pred   {}                     -> True
+                              IsZero {}                     -> True
+                              Ref    {}                     -> True
+                              Deref  {}                     -> True
+                              Assign {}                     -> True
+                              Loc    {}                     -> True
+                              _                             -> False
 
 instance Pretty Type where
   pretty = \case
-    TyBool                 -> "Bool"
-    TyNat                  -> "Nat"
-    TyUnit                 -> "Unit"
-    TyRef t @ TyFun {}     -> "Ref" <+> parens (pretty t)
-    TyRef t @ TyRef {}     -> "Ref" <+> parens (pretty t)
-    TyRef t                -> "Ref" <+>         pretty t
-    TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
-    TyFun t1 @ TyRef {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
-    TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
+    TyBool      -> "Bool"
+    TyNat       -> "Nat"
+    TyUnit      -> "Unit"
+    TyRef t     -> "Ref" <+> p t
+    TyFun t1 t2 -> mconcat [p t1, "->", pretty t2]
+    where p = parenIf $ \case TyFun {} -> True
+                              TyRef {} -> True
+                              _        -> False
+
+parenIf :: Pretty a => (a -> Bool) -> a -> Doc b
+parenIf f t = (if f t then parens else id) (pretty t)
 
 unparse :: Term -> String
 unparse = pShow
