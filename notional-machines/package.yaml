@@ -27,6 +27,7 @@ dependencies:
 - hedgehog
 - prettyprinter
 - pretty-simple
+- repline
 
 library:
   source-dirs: src

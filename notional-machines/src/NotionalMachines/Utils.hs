@@ -27,7 +27,7 @@ pShow :: Pretty a => a -> String
 pShow = show . pretty
 
 shortPrint :: Show a => a -> IO ()
-shortPrint = pPrintOpt CheckColorTty defaultOutputOptionsDarkBg {outputOptionsCompact = True}
+shortPrint = pPrintOpt CheckColorTty defaultOutputOptionsDarkBg {outputOptionsCompact = False}
 
 ------- Generators utils ----------
 

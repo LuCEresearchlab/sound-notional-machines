@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ec1fcf216482dda1f3398d15c4ce7bc969dbdaf5e4e441d64c486a76f29f63fc
+-- hash: 5f5b434867a28f02f099d943cf57798c13dca9873f672ca45c99e43bb0c06af1
 
 name:           notional-machines
 version:        0.1.0.0
@@ -30,8 +30,10 @@ library
       NotionalMachines.Lang.TypedArith.Main
       NotionalMachines.Lang.TypedLambdaArith.Generators
       NotionalMachines.Lang.TypedLambdaArith.Main
+      NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax
       NotionalMachines.Lang.TypedLambdaRef.Generators
       NotionalMachines.Lang.TypedLambdaRef.Main
+      NotionalMachines.Lang.TypedLambdaRef.ParserUnparser
       NotionalMachines.Lang.UntypedArith.Generators
       NotionalMachines.Lang.UntypedArith.Main
       NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax
@@ -66,6 +68,7 @@ library
     , parsec
     , pretty-simple
     , prettyprinter
+    , repline
   default-language: Haskell2010
 
 executable notional-machines-exe
@@ -84,6 +87,7 @@ executable notional-machines-exe
     , parsec
     , pretty-simple
     , prettyprinter
+    , repline
   default-language: Haskell2010
 
 test-suite notional-machines-test
@@ -105,6 +109,7 @@ test-suite notional-machines-test
     , pretty-show
     , pretty-simple
     , prettyprinter
+    , repline
     , tasty
     , tasty-hedgehog
     , tasty-hunit

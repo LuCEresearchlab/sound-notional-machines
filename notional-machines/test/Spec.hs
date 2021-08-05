@@ -228,22 +228,22 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
             (TypedLambdaRef.unparse <$> TypedLambdaRef.parse "r:=succ(!r); r:=succ(!r); !r")
     ]
     , testGroup "Evaluation" [
-          eval_to "if iszero (pred 2) then 0 else (if iszero (pred 0) then succ 2 else 0)" "3"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\r:Ref Nat. if false then (r := 82; !r) else (!r)) (ref 13)" "13"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\r:Ref Nat. r:=succ(!r); r:=succ(!r); !r) (ref 0)" "2"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat.          !r) r) (ref 13)" "13"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat. s := 82; !r) r) (ref 13)" "82"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat. r := 0; r := !s; !r)) (ref 2) (ref 2)" "2"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat.         r := !s; !r)) (ref 2) (ref 2)" "2"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
-        , eval_to "(\\x:Ref Nat.(\\r:Ref Nat.(\\s:Ref Nat.r := 0; r := !s; !r)) x x) (ref 2)" "0"
-            (fmap TypedLambdaRef.unparse . TypedLambdaRef.evalRaw)
+          eval_to "if iszero (pred 2) then 0 else (if iszero (pred 0) then succ 2 else 0)" "3 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\r:Ref Nat. if false then (r := 82; !r) else (!r)) (ref 13)" "13 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\r:Ref Nat. r:=succ(!r); r:=succ(!r); !r) (ref 0)" "2 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat.          !r) r) (ref 13)" "13 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat. s := 82; !r) r) (ref 13)" "82 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat. r := 0; r := !s; !r)) (ref 2) (ref 2)" "2 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\r:Ref Nat.(\\s:Ref Nat.         r := !s; !r)) (ref 2) (ref 2)" "2 : Nat"
+            (TypedLambdaRef.replEval)
+        , eval_to "(\\x:Ref Nat.(\\r:Ref Nat.(\\s:Ref Nat.r := 0; r := !s; !r)) x x) (ref 2)" "0 : Nat"
+            (TypedLambdaRef.replEval)
     ]
   ]
 
