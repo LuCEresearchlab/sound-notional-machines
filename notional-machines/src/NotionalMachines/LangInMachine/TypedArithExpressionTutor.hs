@@ -2,7 +2,7 @@
 
 {-# LANGUAGE PatternSynonyms, MultiParamTypeClasses, LambdaCase #-}
 
-module NotionalMachines.Lang.TypedArithExpressionTutor where
+module NotionalMachines.LangInMachine.TypedArithExpressionTutor where
 
 import Control.Monad.State.Lazy (State, StateT(..), liftM3, lift)
 import Control.Monad ((<=<))
@@ -10,17 +10,17 @@ import Control.Monad ((<=<))
 import Data.Set (Set)
 import Data.Text.Prettyprint.Doc
 
-import           NotionalMachines.Lang.ArithExpressionTutor ()
+import           NotionalMachines.Lang.UntypedArith.Main (Term(..))
+import           NotionalMachines.Lang.TypedArith.Main (typeof)
+import qualified NotionalMachines.Lang.TypedArith.Main as TypedArith (Type)
+import           NotionalMachines.Machine.ExpressionTutor.Main hiding (Type)
+import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type)
 
-import           NotionalMachines.Lang.Arith (Term(..))
-import           NotionalMachines.Lang.TypedArith (typeof)
-import qualified NotionalMachines.Lang.TypedArith as TypedArith (Type)
-import           NotionalMachines.Machine.ExpressionTutor hiding (Type)
-import qualified NotionalMachines.Machine.ExpressionTutor as ET (Type)
+import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
-import NotionalMachines.Meta.Injective
-import NotionalMachines.Meta.Bisimulation
-import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Injective (Injective, toNM, fromNM)
+import NotionalMachines.Meta.Bisimulation (Bisimulation(..), mkInjBisim)
+import NotionalMachines.Meta.Steppable (step)
 
 newtype TyExpTreeDiagram = TyExpTreeDiagram ExpTreeDiagram deriving (Eq, Show)
 
@@ -72,14 +72,14 @@ instance Injective Term TyExpTreeDiagram where
 
 -- Ask for the type of a diagram not annotated with types
 typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTreeDiagram (Maybe ET.Type)
-typeOfBisim = Bisim { fLang  = typeof
+typeOfBisim = MkBisim { fLang  = typeof
                     , fNM    = fmap (show . pretty) . typeof <=< fromNM
                     , alphaA = toNM
                     , alphaB = fmap (show . pretty) }
 
 -- Annotate diagram with types
 annotateTypeBisim :: Bisimulation Term Term ExpTreeDiagram (Maybe TyExpTreeDiagram)
-annotateTypeBisim = Bisim { fLang  = id
+annotateTypeBisim = MkBisim { fLang  = id
                           , fNM    = fmap (toNM :: Term -> TyExpTreeDiagram) . fromNM
                           , alphaA = toNM
                           , alphaB = return . toNM }

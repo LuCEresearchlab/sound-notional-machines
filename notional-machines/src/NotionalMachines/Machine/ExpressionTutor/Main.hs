@@ -2,7 +2,7 @@
 
 {-# LANGUAGE PatternSynonyms, ViewPatterns #-}
 
-module NotionalMachines.Machine.ExpressionTutor (
+module NotionalMachines.Machine.ExpressionTutor.Main (
   ExpTreeDiagram(..),
   NodeContentElem(..),
   Type,

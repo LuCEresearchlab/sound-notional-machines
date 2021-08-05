@@ -1,16 +1,17 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module NotionalMachines.Machine.ExpressionTutorGenerator where
+module NotionalMachines.Machine.ExpressionTutor.Generators where
 
 import           Hedgehog (MonadGen)
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
-import NotionalMachines.Lang.UntypedLambda
-import NotionalMachines.Lang.UntypedLambdaExpressionTutor ()
-import NotionalMachines.Lang.UntypedLambdaGenerator
+import NotionalMachines.Lang.UntypedLambda.Main
+import NotionalMachines.Lang.UntypedLambda.Generators
 
-import NotionalMachines.Machine.ExpressionTutor
+import NotionalMachines.Machine.ExpressionTutor.Main
+
+import NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor ()
 
 import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Steppable

@@ -32,19 +32,19 @@ import           NotionalMachines.Meta.Steppable (Steppable, step)
 -- alphaB . f' == f . alphaA
 --------------------------
 
-data Bisimulation a' b' a b = Bisim { fLang  :: a' -> b'
-                                    , fNM    :: a  -> b
-                                    , alphaA :: a' -> a
-                                    , alphaB :: b' -> b }
+data Bisimulation a' b' a b = MkBisim { fLang  :: a' -> b'
+                                      , fNM    :: a  -> b
+                                      , alphaA :: a' -> a
+                                      , alphaB :: b' -> b }
 
 mkBijBisim :: (Bijective l n, Steppable l) => Bisimulation l l n n
-mkBijBisim = Bisim { fLang  = step
+mkBijBisim = MkBisim { fLang  = step
                    , fNM    = stepNM step
                    , alphaA = Bij.toNM
                    , alphaB = Bij.toNM }
 
 mkInjBisim :: (Injective l n) => (l -> l) -> Bisimulation l l n (Maybe n)
-mkInjBisim f = Bisim { fLang  = f
+mkInjBisim f = MkBisim { fLang  = f
                      , fNM    = stepMNM f
                      , alphaA = Inj.toNM
                      , alphaB = return . Inj.toNM }

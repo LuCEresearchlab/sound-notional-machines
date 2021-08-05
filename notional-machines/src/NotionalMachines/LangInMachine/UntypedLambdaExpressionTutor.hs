@@ -2,18 +2,18 @@
 
 {-# LANGUAGE PatternSynonyms, MultiParamTypeClasses, LambdaCase #-}
 
-module NotionalMachines.Lang.UntypedLambdaExpressionTutor where
+module NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor where
 
 import Control.Monad.State.Lazy (State, StateT(..), lift)
 
 import Data.Set (Set)
 
-import NotionalMachines.Lang.UntypedLambda (Exp(..))
-import NotionalMachines.Machine.ExpressionTutor
+import NotionalMachines.Lang.UntypedLambda.Main (Exp(..))
+import NotionalMachines.Machine.ExpressionTutor.Main (ExpTreeDiagram(..), NodeContentElem(..), pattern MkNode, pattern DiaBranch, pattern DiaLeaf, newDiaBranch, newDiaLeaf, etToLang, langToET, checkCycle, holeP)
 
-import NotionalMachines.Meta.Injective
-import NotionalMachines.Meta.Bisimulation
-import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Injective (Injective, toNM, fromNM)
+import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
+import NotionalMachines.Meta.Steppable (step)
 
 
 pattern NodeVar    name i <- MkNode i _       [NameUse name] where

@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module NotionalMachines.Lang.UntypedLambdaGenerator where
+module NotionalMachines.Lang.UntypedLambda.Generators where
 
 import           Hedgehog hiding (Var)
 import qualified Hedgehog.Gen as Gen
 
-import NotionalMachines.Lang.UntypedLambda (Exp(..), freeVs)
+import NotionalMachines.Lang.UntypedLambda.Main (Exp(..), freeVs)
 
 import NotionalMachines.Utils (genName)
 

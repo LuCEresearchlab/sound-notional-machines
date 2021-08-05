@@ -12,8 +12,8 @@ For example, let's implement the following instance for the untyped lambda calcu
 >   toAscii = \case
 >     Var name           -> egg name
 >     Lambda name e      -> hungryAlligator name (toAscii e)
->     App e1 e2 @ App {} -> toAscii e1 `inFrontOf` oldAlligator (toAscii e2)
->     App e1 e2          -> toAscii e1 `inFrontOf` toAscii e2
+>     App e1 e2 @ App {} -> toAscii e1 <> oldAlligator (toAscii e2)
+>     App e1 e2          -> toAscii e1 <> toAscii e2
 
 Now we can pretty-print the /Y-combinator/ like this:
 
@@ -29,7 +29,7 @@ f---------------<
 
 -}
 
-module NotionalMachines.Machine.AsciiAlligators (
+module NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (
   AsciiAlligators,
   AsAsciiAlligators(..),
 

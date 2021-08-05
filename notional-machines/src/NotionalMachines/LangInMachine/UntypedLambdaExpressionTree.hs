@@ -2,18 +2,14 @@
 
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module NotionalMachines.Machine.ExpTree where
+module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree where
 
-import NotionalMachines.Lang.UntypedLambda (Exp(..))
+import NotionalMachines.Lang.UntypedLambda.Main (Exp(..))
+import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree(..))
 
-import NotionalMachines.Meta.Steppable
-import NotionalMachines.Meta.Bijective
-import NotionalMachines.Meta.Bisimulation
-
-data ExpAsTree = Box String
-               | BinaryBox ExpAsTree ExpAsTree
-               | LambdaBox String ExpAsTree
-               deriving (Eq, Show)
+import NotionalMachines.Meta.Steppable (Steppable, step)
+import NotionalMachines.Meta.Bijective (Bijective, toNM, fromNM)
+import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, stepNM)
 
 langToNM :: Exp -> ExpAsTree
 langToNM (Var name)      = Box name
@@ -49,4 +45,5 @@ bisim = mkBijBisim
 -- -- alphaB = alphaA
 -- -- fNM :: ANM -> BNM
 -- -- fNM = alphaB . fPL . alphaA'
+
 

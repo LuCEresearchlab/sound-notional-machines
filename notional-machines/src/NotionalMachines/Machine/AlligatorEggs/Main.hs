@@ -4,22 +4,17 @@
              GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances,
              MultiParamTypeClasses #-}
 
-module NotionalMachines.Machine.Alligator where
+module NotionalMachines.Machine.AlligatorEggs.Main where
 
-import Data.Function ((&))
 import           Data.Map (Map)
 import qualified Data.Map as Map
 
-import Control.Monad.State.Lazy
+import Control.Monad.State.Lazy (State, evalState, get, put, fix)
 
-import           NotionalMachines.Machine.AsciiAlligators (AsAsciiAlligators, toAscii)
-import qualified NotionalMachines.Machine.AsciiAlligators as Ascii (egg, hungryAlligator, oldAlligator)
+import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
+import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator, oldAlligator)
 
-import NotionalMachines.Lang.UntypedLambda
-
-import NotionalMachines.Meta.Bisimulation
-import NotionalMachines.Meta.Steppable
-import NotionalMachines.Meta.Injective
+import NotionalMachines.Meta.Steppable (Steppable, step, eval)
 
 
 newtype Color = Color String deriving (Eq, Ord, Read)
@@ -44,6 +39,9 @@ data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
 
 type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
+
+instance Steppable AlligatorFamilies where
+  step = eatingRule . colorRule . oldAgeRule
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
@@ -141,25 +139,6 @@ deBruijnAlligators families = fmap (go (-1) 0 Map.empty) families
       OldAlligator as -> OldAlligator (go freeVarIx depth env <$> as)
       Egg c -> Egg (maybe freeVarIx (depth -) (Map.lookup c env)) -- update freeVarIx
 
--------------------------
--- Lang to NM and back --
--------------------------
-nmToLang :: Show a => [AlligatorFamilyF a] -> Maybe Exp
-nmToLang families =
-  -- TODO: improve this by resolving the typing weirdness of [Als]
-  fmap f2e families & \case []           -> Nothing
-                            me:[]        -> me
-                            me1:me2:rest -> foldl (liftM2 App) (liftM2 App me1 me2) rest
-  where f2e (HungryAlligator c proteges) = Lambda (show c) <$> nmToLang proteges
-        f2e (OldAlligator proteges) = nmToLang proteges
-        f2e (Egg c) = Just (Var (show c))
-
-langToNm :: Exp -> [AlligatorFamily]
-langToNm (Var name)              = [Egg (toColor name)]
-langToNm (Lambda name e)         = [HungryAlligator (toColor name) (langToNm e)]
-langToNm (App e1 e2 @ (App _ _)) = langToNm e1 ++ [OldAlligator (langToNm e2)]
-langToNm (App e1 e2)             = langToNm e1 ++ langToNm e2
-
 --------------------------------------------------------
 -- Ascii Alligators representation of AlligatorFamily --
 --------------------------------------------------------
@@ -168,42 +147,6 @@ instance Show a => AsAsciiAlligators [AlligatorFamilyF a] where
     HungryAlligator c proteges -> Ascii.hungryAlligator (show c) (toAscii proteges)
     OldAlligator proteges      -> Ascii.oldAlligator (toAscii proteges)
     Egg c                      -> Ascii.egg (show c)
-
-------------------
-
---    A  --f-->  B
---
---    ^          ^
---    |          |
---  alphaA    alphaB
---    |          |
---    |          |
---
---    A' --f'--> B'
-
-instance Injective Exp AlligatorFamilies where
-  toNM   = langToNm
-  fromNM = nmToLang
-
-instance Steppable AlligatorFamilies where
-  step = eatingRule . colorRule . oldAgeRule
-
-bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
-bisim = Bisim { fLang  = eval
-              , fNM    = deBruijnAlligators . eval
-              , alphaA = toNM
-              , alphaB = deBruijnAlligators . toNM }
-
--- Commutation proof:
--- alpha_B . f' == f . alpha_A
-
--- alphaBCmpf' :: A' -> B
--- -- alphaBCmpf' = alphaB . f'
--- alphaBCmpf' = langToNm . eval
-
--- fCmpalphaA :: A' -> B
--- -- fCmpalphaA = f . alphaA
--- fCmpalphaA = eval . langToNm
 
 
 -- Analysis:

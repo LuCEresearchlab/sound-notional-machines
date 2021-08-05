@@ -28,7 +28,7 @@ See all intermediate steps like so:
 
 -}
 
-module NotionalMachines.Lang.Arith (
+module NotionalMachines.Lang.UntypedArith.Main (
   Term(..),
   isValue,
   parse,

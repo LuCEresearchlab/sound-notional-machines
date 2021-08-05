@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module NotionalMachines.Lang.ArithGenerator where
+module NotionalMachines.Lang.UntypedArith.Generators where
 
 import           Hedgehog (MonadGen)
 import qualified Hedgehog.Gen as Gen
 
-import NotionalMachines.Lang.Arith (Term(..))
+import NotionalMachines.Lang.UntypedArith.Main (Term(..))
 
 
 genTerm :: MonadGen m => m Term

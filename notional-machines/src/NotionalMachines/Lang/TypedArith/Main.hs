@@ -10,14 +10,14 @@ Besides the `typeof` function, this module provides an instance of `StepabbleM`
 which typechecks the term and only evaluates it if it's type-safe.
 -}
 
-module NotionalMachines.Lang.TypedArith (
+module NotionalMachines.Lang.TypedArith.Main (
   typeof,
   Type(..)
   ) where
 
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
-import NotionalMachines.Lang.Arith
+import NotionalMachines.Lang.UntypedArith.Main (Term(..))
 import NotionalMachines.Meta.Steppable (SteppableM, stepM, step)
 
 data Type = TyBool | TyNat deriving (Eq, Show)

@@ -10,7 +10,7 @@ WIP...
 
 -}
 
-module NotionalMachines.Lang.TypedLambdaRef (
+module NotionalMachines.Lang.TypedLambdaRef.Main (
   Term(..),
   Type(..),
 
@@ -36,6 +36,7 @@ import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep, Doc)
 
 import Control.Monad.State.Lazy (StateT, get, withStateT, lift, evalStateT, runStateT, (<=<))
 
+
 import Data.Bifunctor (first)
 import Data.List ((\\))
 import Data.Map (Map)
@@ -43,6 +44,7 @@ import qualified Data.Map as Map
 
 import NotionalMachines.Utils (maybeToEither, pShow)
 import NotionalMachines.Meta.Steppable (SteppableM, stepM, evalM, traceM)
+
 
 --------------------
 -- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
@@ -191,7 +193,7 @@ subst x v e = case e of
   Var y | x == y                       -> v
         | otherwise                    -> e
   Lambda y t e2 | x == y               -> e
-                | y `notElem` freeVs v -> Lambda y    t (rec e2)
+                | y `notElem` freeVs v -> Lambda y t (rec e2)
                 | otherwise            -> Lambda (fresh y) t (rec (subst y (Var (fresh y)) e2))
   If t1 t2 t3                          -> If (rec t1) (rec t2) (rec t3)
   Succ t                               -> Succ (rec t)

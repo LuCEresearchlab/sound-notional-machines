@@ -2,7 +2,7 @@
 
 {-# LANGUAGE MultiParamTypeClasses, LambdaCase #-}
 
-module NotionalMachines.Lang.UntypedLambda where
+module NotionalMachines.Lang.UntypedLambda.Main where
 
 import Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
@@ -13,8 +13,6 @@ import Data.List ((\\))
 import Data.Maybe (fromJust)
 
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, step, stepM)
-import NotionalMachines.Machine.AsciiAlligators
-
 import NotionalMachines.Utils (pShow)
 
 --------------------
@@ -124,17 +122,6 @@ instance Pretty Exp where
 
 unparse :: Exp -> String
 unparse = pShow
-
---------------------------------------------
--- Ascii Alligators representation of Exp --
---------------------------------------------
-instance AsAsciiAlligators Exp where
-  toAscii = \case
-    Var name           -> egg name
-    Lambda name e      -> hungryAlligator name (toAscii e)
-    App e1 e2 @ App {} -> toAscii e1 `inFrontOf` oldAlligator (toAscii e2)
-    App e1 e2          -> toAscii e1 `inFrontOf` toAscii e2
-
 
 --------------
 -- Examples --

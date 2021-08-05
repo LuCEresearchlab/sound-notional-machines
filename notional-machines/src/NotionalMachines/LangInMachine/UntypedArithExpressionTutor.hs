@@ -2,14 +2,14 @@
 
 {-# LANGUAGE PatternSynonyms, MultiParamTypeClasses, LambdaCase #-}
 
-module NotionalMachines.Lang.ArithExpressionTutor where
+module NotionalMachines.LangInMachine.UntypedArithExpressionTutor where
 
 import Control.Monad.State.Lazy (State, StateT(..), liftM3, lift)
 
 import Data.Set (Set)
 
-import NotionalMachines.Lang.Arith (Term(..))
-import NotionalMachines.Machine.ExpressionTutor
+import NotionalMachines.Lang.UntypedArith.Main (Term(..))
+import NotionalMachines.Machine.ExpressionTutor.Main
 
 import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Bisimulation

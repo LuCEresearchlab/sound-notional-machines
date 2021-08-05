@@ -4,13 +4,13 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e6db6206f395993d0746be71a207962a672b3cdab6688128f5877314f669cfa0
+-- hash: ec1fcf216482dda1f3398d15c4ce7bc969dbdaf5e4e441d64c486a76f29f63fc
 
 name:           notional-machines
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/githubuser/lambda#readme>
-homepage:       https://github.com/githubuser/lambda#readme
-bug-reports:    https://github.com/githubuser/lambda/issues
+description:    Please see the README on GitHub at <https://github.com/LuCEresearchlab/structured-notional-machines#readme>
+homepage:       https://github.com/luceresearchlab/structured-notional-machines#readme
+bug-reports:    https://github.com/luceresearchlab/structured-notional-machines/issues
 author:         Author name here
 maintainer:     example@example.com
 copyright:      2021 Author name here
@@ -23,28 +23,32 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/githubuser/lambda
+  location: https://github.com/luceresearchlab/structured-notional-machines
 
 library
   exposed-modules:
-      NotionalMachines.Lang.Arith
-      NotionalMachines.Lang.ArithExpressionTutor
-      NotionalMachines.Lang.ArithGenerator
-      NotionalMachines.Lang.TypedArith
-      NotionalMachines.Lang.TypedArithExpressionTutor
-      NotionalMachines.Lang.TypedLambdaArith
-      NotionalMachines.Lang.TypedLambdaArithGenerator
-      NotionalMachines.Lang.TypedLambdaRef
-      NotionalMachines.Lang.TypedLambdaRefGenerator
-      NotionalMachines.Lang.UntypedLambda
-      NotionalMachines.Lang.UntypedLambdaExpressionTutor
-      NotionalMachines.Lang.UntypedLambdaGenerator
-      NotionalMachines.Machine.Alligator
-      NotionalMachines.Machine.AsciiAlligators
-      NotionalMachines.Machine.ExpressionTutor
-      NotionalMachines.Machine.ExpressionTutorGenerator
-      NotionalMachines.Machine.ExpTree
-      NotionalMachines.Machine.Reduct
+      NotionalMachines.Lang.TypedArith.Main
+      NotionalMachines.Lang.TypedLambdaArith.Generators
+      NotionalMachines.Lang.TypedLambdaArith.Main
+      NotionalMachines.Lang.TypedLambdaRef.Generators
+      NotionalMachines.Lang.TypedLambdaRef.Main
+      NotionalMachines.Lang.UntypedArith.Generators
+      NotionalMachines.Lang.UntypedArith.Main
+      NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax
+      NotionalMachines.Lang.UntypedLambda.Generators
+      NotionalMachines.Lang.UntypedLambda.Main
+      NotionalMachines.LangInMachine.TypedArithExpressionTutor
+      NotionalMachines.LangInMachine.UntypedArithExpressionTutor
+      NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs
+      NotionalMachines.LangInMachine.UntypedLambdaExpressionTree
+      NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor
+      NotionalMachines.LangInMachine.UntypedLambdaReduct
+      NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
+      NotionalMachines.Machine.AlligatorEggs.Main
+      NotionalMachines.Machine.ExpressionTree.Main
+      NotionalMachines.Machine.ExpressionTutor.Generators
+      NotionalMachines.Machine.ExpressionTutor.Main
+      NotionalMachines.Machine.Reduct.Main
       NotionalMachines.Meta.Bijective
       NotionalMachines.Meta.Bisimulation
       NotionalMachines.Meta.Injective

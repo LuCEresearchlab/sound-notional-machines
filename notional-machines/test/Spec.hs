@@ -18,40 +18,38 @@ import Data.Either (isRight)
 import qualified Data.Set as Set
 
 
-import qualified NotionalMachines.Lang.UntypedLambda as Lambda
-import qualified NotionalMachines.Lang.UntypedLambdaExpressionTutor as LambdaET (bisim)
-import           NotionalMachines.Lang.UntypedLambdaGenerator
-
-import qualified NotionalMachines.Lang.Arith as Arith
-import qualified NotionalMachines.Lang.ArithExpressionTutor as ArithET (bisim)
-import           NotionalMachines.Lang.ArithGenerator as ArithGen
-
-import qualified NotionalMachines.Lang.TypedArith as TypedArith
-import qualified NotionalMachines.Lang.TypedArithExpressionTutor as TypedArithET
-
-import qualified NotionalMachines.Lang.TypedLambdaArith as TypedLambda
+import qualified NotionalMachines.Lang.UntypedLambda.Main       as Lambda
+import qualified NotionalMachines.Lang.UntypedLambda.Generators as LambdaGen
+import           NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax ()
+import qualified NotionalMachines.Lang.UntypedArith.Main       as Arith
+import qualified NotionalMachines.Lang.UntypedArith.Generators as ArithGen
+import qualified NotionalMachines.Lang.TypedArith.Main as TypedArith
+import qualified NotionalMachines.Lang.TypedLambdaArith.Main       as TypedLambda
 -- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET
-import           NotionalMachines.Lang.TypedLambdaArithGenerator as TypedLambdaGen
-
-import qualified NotionalMachines.Lang.TypedLambdaRef as TypedLambdaRef
+import qualified NotionalMachines.Lang.TypedLambdaArith.Generators as TypedLambdaGen
+import qualified NotionalMachines.Lang.TypedLambdaRef.Main       as TypedLambdaRef
 -- import qualified NotionalMachines.Lang.TypedLambdaRefExpressionTutor as LambdaRefET
-import           NotionalMachines.Lang.TypedLambdaRefGenerator as TypedLambdaRefGen
+import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as TypedLambdaRefGen
 
-import           NotionalMachines.Machine.ExpressionTutor
-import           NotionalMachines.Machine.ExpressionTutorGenerator (genExpTreeDiagram)
-import           NotionalMachines.Machine.Reduct    hiding   (bisim)
-import qualified NotionalMachines.Machine.Reduct    as R     (bisim)
-import           NotionalMachines.Machine.Alligator hiding   (bisim)
-import qualified NotionalMachines.Machine.Alligator as A     (bisim, nmToLang)
-import qualified NotionalMachines.Machine.ExpTree   as ETree (bisim)
-import           NotionalMachines.Machine.AsciiAlligators
+import           NotionalMachines.Machine.ExpressionTutor.Main (ExpTreeDiagram(..), NodeContentElem(..), Node(..), Plug(..), Edge(..))
+import           NotionalMachines.Machine.ExpressionTutor.Generators (genExpTreeDiagram)
+import           NotionalMachines.Machine.Reduct.Main (ReductExp, ReductExpF(..), updateUids)
+import           NotionalMachines.Machine.AlligatorEggs.Main
+import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
 
-import           NotionalMachines.Meta.Bisimulation
-import           NotionalMachines.Meta.Steppable
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree  as ETree        (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct          as R            (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs   as A            (bisim, nmToLang)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor as LambdaET     (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor  as ArithET      (bisim)
+import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor    as TypedArithET (evalBisim, typeOfBisim, annotateTypeBisim, TyExpTreeDiagram)
+
+import           NotionalMachines.Meta.Bisimulation (Bisimulation(..))
+import           NotionalMachines.Meta.Steppable (eval, evalM)
 import qualified NotionalMachines.Meta.Injective as Inj
 import qualified NotionalMachines.Meta.Bijective as Bij
 
-import NotionalMachines.Utils
+import NotionalMachines.Utils (eitherToMaybe, genName)
 
 ----------------------
 ----- Generators -----
@@ -88,7 +86,7 @@ prop = withTests defaultNumberOfTests . property
 
 eval_produces_value :: Property
 eval_produces_value = prop $ do
-  e <- forAll genCombinator
+  e <- forAll LambdaGen.genCombinator
   (Lambda.isValue <$> evalM e) === Just True
 
 type_safety :: (Show term, Show typ)
@@ -140,7 +138,7 @@ uids = toList
 
 color_rule :: Property
 color_rule = prop $ do
-  e1 <- forAll genExp
+  e1 <- forAll LambdaGen.genExp
   case alphaA A.bisim e1 of
     a1:a2:_ ->
       let newA2 = recolor a1 a2
@@ -179,7 +177,7 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
       testProperty "eval produces a value"
         eval_produces_value
     , testProperty "parse is left inverse of unparse" $
-        is_left_inverse_of genExp Lambda.parse Lambda.unparse
+        is_left_inverse_of LambdaGen.genExp Lambda.parse Lambda.unparse
   ]
 
 typLambdaTest :: TestTree
@@ -267,9 +265,9 @@ expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
     testGroup "Untyped Lambda" [
         testProperty "nmToLang is left inverse of langToNm" $
-          is_left_inverse_of genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTreeDiagram)
+          is_left_inverse_of LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTreeDiagram)
       , testProperty "commutation proof" $
-          bisimulationCommutes genExp LambdaET.bisim
+          bisimulationCommutes LambdaGen.genExp LambdaET.bisim
     ],
     testGroup "Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
@@ -314,17 +312,17 @@ expressionTutorTest = testGroup "Expressiontutor" [
 expTreeTest :: TestTree
 expTreeTest = testGroup "Expression Trees" [
       testProperty "nmToLang is inverse of langToNm" $
-        is_equivalent_to genExp (Bij.fromNM . Bij.toNM) id
+        is_equivalent_to LambdaGen.genExp (Bij.fromNM . Bij.toNM) id
     , testProperty "commutation proof" $
-        bisimulationCommutes genExp ETree.bisim
+        bisimulationCommutes LambdaGen.genExp ETree.bisim
   ]
 
 reductTest :: TestTree
 reductTest = testGroup "Reduct" [
       testProperty "nmToLang is left inverse of langToNm" $
-        is_left_inverse_of genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ReductExp)
+        is_left_inverse_of LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ReductExp)
     , testProperty "commutation proof" $
-        bisimulationCommutes genExp R.bisim
+        bisimulationCommutes LambdaGen.genExp R.bisim
     , testProperty "reduct trees have unique ids"
         prop_uniqids
   ]
@@ -332,9 +330,9 @@ reductTest = testGroup "Reduct" [
 alligatorTest :: TestTree
 alligatorTest = testGroup "Alligators" [
       testProperty "nmToLang is left inverse of langToNm" $
-        is_left_inverse_of genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
+        is_left_inverse_of LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
     , testProperty "commutation proof" $
-        bisimulationCommutes genExp A.bisim
+        bisimulationCommutes LambdaGen.genExp A.bisim
     , testProperty "color rule"
         color_rule
     , testProperty "In example, right guess <=> right colors"
@@ -362,7 +360,7 @@ alligatorTest = testGroup "Alligators" [
             (f "(\\x.(\\x.x)) (\\x.x)")
       ])
     , testProperty "asciiAlligator nm == asciiAlligators lambda" $
-       is_equivalent_to genExp (show . toAscii . (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)) (show . toAscii)
+       is_equivalent_to LambdaGen.genExp (show . toAscii . (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)) (show . toAscii)
   ]
 
 tests :: TestTree
