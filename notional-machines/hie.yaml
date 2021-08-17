@@ -1,0 +1,8 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "notional-machines:lib"
+    - path: "./app"
+      component: "notional-machines:exe:notional-machines-exe"
+    - path: "./test"
+      component: "notional-machines:test:notional-machines-test"
