@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5f5b434867a28f02f099d943cf57798c13dca9873f672ca45c99e43bb0c06af1
+-- hash: 8e015fbdff2ea25bc79052bb65d091780008028f1e5506fa5f9649c39e139745
 
 name:           notional-machines
 version:        0.1.0.0
@@ -105,8 +105,6 @@ test-suite notional-machines-test
     , mtl
     , notional-machines
     , parsec
-    , pretty
-    , pretty-show
     , pretty-simple
     , prettyprinter
     , repline

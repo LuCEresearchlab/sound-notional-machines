@@ -57,5 +57,3 @@ tests:
     - tasty-hunit
     - tasty-hedgehog
     - hedgehog
-    - pretty
-    - pretty-show
