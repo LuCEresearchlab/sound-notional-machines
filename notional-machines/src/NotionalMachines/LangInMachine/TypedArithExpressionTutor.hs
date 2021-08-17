@@ -24,7 +24,7 @@ import NotionalMachines.Meta.Bisimulation (Bisimulation (..), mkInjBisim)
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
 import NotionalMachines.Meta.Steppable    (step)
 
-newtype TyExpTreeDiagram = TyExpTreeDiagram ExpTreeDiagram
+newtype TyExpTutorDiagram = TyExpTutorDiagram ExpTutorDiagram
   deriving (Eq, Show)
 
 pattern NodeTrue   t i =  MkNode i t [C "true"]
@@ -39,9 +39,9 @@ pattern NodePred   t i <- MkNode i t [C "pred",   Hole {}] where
 pattern NodeIsZero t i <- MkNode i t [C "iszero", Hole {}] where
         NodeIsZero t i =  MkNode i t [C "iszero", holeP]
 
-arithToET :: Term -> ExpTreeDiagram
+arithToET :: Term -> ExpTutorDiagram
 arithToET = langToET go
-  where go :: Term -> State Int ExpTreeDiagram
+  where go :: Term -> State Int ExpTutorDiagram
         go s = case s of
           Tru         -> newDiaLeaf   (NodeTrue   (typeArithToET s))
           Fls         -> newDiaLeaf   (NodeFalse  (typeArithToET s))
@@ -54,10 +54,10 @@ arithToET = langToET go
 typeArithToET :: Term -> Maybe ET.Type
 typeArithToET = Just . show . typeof
 
-etToArith :: ExpTreeDiagram -> Maybe Term
+etToArith :: ExpTutorDiagram -> Maybe Term
 etToArith = etToLang go
   where
-    go :: ExpTreeDiagram -> StateT (Set Int) Maybe Term
+    go :: ExpTutorDiagram -> StateT (Set Int) Maybe Term
     go d = checkCycle d $ case d of
       DiaLeaf   NodeTrue {}              -> return Tru
       DiaLeaf   NodeFalse {}             -> return Fls
@@ -69,24 +69,24 @@ etToArith = etToLang go
       DiaBranch NodeIsZero {} [t]        -> IsZero <$> go t
       _ -> lift Nothing -- "incorrect diagram"
 
-instance Injective Term TyExpTreeDiagram where
-  toNM = TyExpTreeDiagram . arithToET
-  fromNM (TyExpTreeDiagram d) = etToArith d
+instance Injective Term TyExpTutorDiagram where
+  toNM = TyExpTutorDiagram . arithToET
+  fromNM (TyExpTutorDiagram d) = etToArith d
 
 -- Ask for the type of a diagram not annotated with types
-typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTreeDiagram (Maybe ET.Type)
+typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
 typeOfBisim = MkBisim { fLang  = typeof
                     , fNM    = fmap (show . pretty) . typeof <=< fromNM
                     , alphaA = toNM
                     , alphaB = fmap (show . pretty) }
 
 -- Annotate diagram with types
-annotateTypeBisim :: Bisimulation Term Term ExpTreeDiagram (Maybe TyExpTreeDiagram)
+annotateTypeBisim :: Bisimulation Term Term ExpTutorDiagram (Maybe TyExpTutorDiagram)
 annotateTypeBisim = MkBisim { fLang  = id
-                          , fNM    = fmap (toNM :: Term -> TyExpTreeDiagram) . fromNM
+                          , fNM    = fmap (toNM :: Term -> TyExpTutorDiagram) . fromNM
                           , alphaA = toNM
                           , alphaB = return . toNM }
 
 -- Evaluation
-evalBisim :: Bisimulation Term Term TyExpTreeDiagram (Maybe TyExpTreeDiagram)
+evalBisim :: Bisimulation Term Term TyExpTutorDiagram (Maybe TyExpTutorDiagram)
 evalBisim = mkInjBisim step

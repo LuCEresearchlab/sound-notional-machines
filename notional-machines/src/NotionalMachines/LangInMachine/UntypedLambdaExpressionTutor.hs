@@ -11,7 +11,7 @@ import Control.Monad.State.Lazy (State, StateT (..), lift)
 import Data.Set (Set)
 
 import NotionalMachines.Lang.UntypedLambda.Main      (Exp (..))
-import NotionalMachines.Machine.ExpressionTutor.Main (ExpTreeDiagram (..), NodeContentElem (..),
+import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), NodeContentElem (..),
                                                       checkCycle, etToLang, holeP, langToET,
                                                       newDiaBranch, newDiaLeaf, pattern DiaBranch,
                                                       pattern DiaLeaf, pattern MkNode)
@@ -28,20 +28,20 @@ pattern NodeLambda name i <- MkNode i _       [C "lambda", NameDef name, Hole {}
 pattern NodeApp         i <- MkNode i _       [Hole {}, Hole {}] where
         NodeApp         i =  MkNode i Nothing [holeP,   holeP]
 
-lambdaToET :: Exp -> ExpTreeDiagram
+lambdaToET :: Exp -> ExpTutorDiagram
 lambdaToET = langToET go
-  where go :: Exp -> State Int ExpTreeDiagram
+  where go :: Exp -> State Int ExpTutorDiagram
         go = \case
           Var name      -> newDiaLeaf   (NodeVar    name)
           Lambda name e -> newDiaBranch (NodeLambda name) go [e]
           App e1 e2     -> newDiaBranch  NodeApp          go [e1, e2]
 
 
-etToLambda :: ExpTreeDiagram -> Maybe Exp
+etToLambda :: ExpTutorDiagram -> Maybe Exp
 etToLambda = etToLang go
   where
     -- traverse diagram to build Exp keeping track of visited nodes to not get stuck
-    go :: ExpTreeDiagram -> StateT (Set Int) Maybe Exp
+    go :: ExpTutorDiagram -> StateT (Set Int) Maybe Exp
     go d = checkCycle d $ case d of
       DiaLeaf   (NodeVar    name _)          -> return (Var name)
       DiaBranch (NodeLambda name _) [n]      -> Lambda name <$> go n
@@ -49,11 +49,11 @@ etToLambda = etToLang go
       _                                      -> lift Nothing -- "incorrect diagram"
 
 
-instance Injective Exp ExpTreeDiagram where
+instance Injective Exp ExpTutorDiagram where
   toNM   = lambdaToET
   fromNM = etToLambda
 
-bisim :: Bisimulation Exp Exp ExpTreeDiagram (Maybe ExpTreeDiagram)
+bisim :: Bisimulation Exp Exp ExpTutorDiagram (Maybe ExpTutorDiagram)
 bisim = mkInjBisim step
 -- bisim = Bisim { fLang  = step
 --               , fNM    = stepM

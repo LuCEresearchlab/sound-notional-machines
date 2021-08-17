@@ -34,13 +34,13 @@ import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as TypedLambdaR
 
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
 import NotionalMachines.Machine.AlligatorEggs.Main
-import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTreeDiagram)
-import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTreeDiagram (..),
+import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
+import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTutorDiagram (..),
                                                             Node (..), NodeContentElem (..),
                                                             Plug (..))
 import NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..), updateUids)
 
-import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor    as TypedArithET (TyExpTreeDiagram,
+import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor    as TypedArithET (TyExpTutorDiagram,
                                                                                               annotateTypeBisim,
                                                                                               evalBisim,
                                                                                               typeOfBisim)
@@ -271,19 +271,19 @@ expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
     testGroup "Untyped Lambda" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTreeDiagram)
+          isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTutorDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes LambdaGen.genExp LambdaET.bisim
     ],
     testGroup "Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTreeDiagram)
+          isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTutorDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes ArithGen.genTerm ArithET.bisim
     ],
     testGroup "Typed Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> TypedArithET.TyExpTreeDiagram)
+          isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> TypedArithET.TyExpTutorDiagram)
       , testProperty "commutation proof for evaluation bisimulation" $
           bisimulationCommutes ArithGen.genTerm TypedArithET.evalBisim
       , testProperty "commutation proof for typeof bisim (ask for type of term)" $
@@ -293,12 +293,12 @@ expressionTutorTest = testGroup "Expressiontutor" [
     ],
     testGroup "Malformed diagrams" [
         testProperty "Random diagram doesn't crash" $ prop $
-          do d <- forAll genExpTreeDiagram
+          do d <- forAll genExpTutorDiagram
              _ <- Hedgehog.eval (Inj.fromNM d :: Maybe Lambda.Exp)
              success
       , testCase "Diagram with cycles to NM terminates" $ assertEqual ""
           Nothing -- expected
-          (Inj.fromNM $ ExpTreeDiagram {
+          (Inj.fromNM $ ExpTutorDiagram {
              nodes = Set.fromList [
                Node { nodePlug = Plug (0,0),
                       typ = Nothing,

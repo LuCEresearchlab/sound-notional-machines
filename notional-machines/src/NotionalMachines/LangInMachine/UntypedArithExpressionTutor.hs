@@ -29,9 +29,9 @@ pattern NodePred   i <- MkNode i Nothing [C "pred",   Hole {}] where
 pattern NodeIsZero i <- MkNode i Nothing [C "iszero", Hole {}] where
         NodeIsZero i =  MkNode i Nothing [C "iszero", holeP]
 
-arithToET :: Term -> ExpTreeDiagram
+arithToET :: Term -> ExpTutorDiagram
 arithToET = langToET go
-  where go :: Term -> State Int ExpTreeDiagram
+  where go :: Term -> State Int ExpTutorDiagram
         go = \case
           Tru         -> newDiaLeaf   NodeTrue
           Fls         -> newDiaLeaf   NodeFalse
@@ -41,10 +41,10 @@ arithToET = langToET go
           Pred t      -> newDiaBranch NodePred   go [t]
           IsZero t    -> newDiaBranch NodeIsZero go [t]
 
-etToArith :: ExpTreeDiagram -> Maybe Term
+etToArith :: ExpTutorDiagram -> Maybe Term
 etToArith = etToLang go
   where
-    go :: ExpTreeDiagram -> StateT (Set Int) Maybe Term
+    go :: ExpTutorDiagram -> StateT (Set Int) Maybe Term
     go d = checkCycle d $ case d of
       DiaLeaf   NodeTrue {}              -> return Tru
       DiaLeaf   NodeFalse {}             -> return Fls
@@ -56,9 +56,9 @@ etToArith = etToLang go
       DiaBranch NodeIsZero {} [t]        -> IsZero <$> go t
       _ -> lift Nothing -- "incorrect diagram"
 
-instance Injective Term ExpTreeDiagram where
+instance Injective Term ExpTutorDiagram where
   toNM   = arithToET
   fromNM = etToArith
 
-bisim :: Bisimulation Term Term ExpTreeDiagram (Maybe ExpTreeDiagram)
+bisim :: Bisimulation Term Term ExpTutorDiagram (Maybe ExpTutorDiagram)
 bisim = mkInjBisim step

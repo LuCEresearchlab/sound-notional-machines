@@ -16,11 +16,11 @@ import NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor ()
 import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Steppable
 
-genExpTreeDiagram :: MonadGen m => m ExpTreeDiagram
-genExpTreeDiagram = do n <- Gen.set (Range.linear 0 5) genNode
-                       e <- Gen.set (Range.linear 0 5) genEdge
-                       r <- Gen.maybe genNode
-                       return $ ExpTreeDiagram n e r
+genExpTutorDiagram :: MonadGen m => m ExpTutorDiagram
+genExpTutorDiagram = do n <- Gen.set (Range.linear 0 5) genNode
+                        e <- Gen.set (Range.linear 0 5) genEdge
+                        r <- Gen.maybe genNode
+                        return $ ExpTutorDiagram n e r
 
 genNode :: MonadGen m => m Node
 genNode = do n <- genPlug
@@ -59,16 +59,16 @@ genString = Gen.list (Range.linear 0 10) $ Gen.element ['a'..'z']
 genLambda :: IO String
 genLambda = unparse <$> Gen.sample genExp
 
-solveParseActivity :: String -> Maybe ExpTreeDiagram
+solveParseActivity :: String -> Maybe ExpTutorDiagram
 solveParseActivity = fmap toNM . parse
 
 
 ---- Unparse activity ----
 
-generateUnparseActivity :: IO ExpTreeDiagram
+generateUnparseActivity :: IO ExpTutorDiagram
 generateUnparseActivity = toNM <$> Gen.sample genExp
 
-solveUnparseActivity :: ExpTreeDiagram -> Maybe String
+solveUnparseActivity :: ExpTutorDiagram -> Maybe String
 solveUnparseActivity = fmap unparse . fromNM
 
 
@@ -77,7 +77,7 @@ solveUnparseActivity = fmap unparse . fromNM
 generateEvalActivity :: IO String
 generateEvalActivity = unparse <$> Gen.sample genCombinator
 
-solveEvalActivity :: String -> Maybe ExpTreeDiagram
+solveEvalActivity :: String -> Maybe ExpTutorDiagram
 solveEvalActivity = fmap (toNM . eval) . parse
 
 
