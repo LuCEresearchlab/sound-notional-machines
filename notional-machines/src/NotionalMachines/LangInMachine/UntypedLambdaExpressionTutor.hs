@@ -1,19 +1,24 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
 
-{-# LANGUAGE PatternSynonyms, MultiParamTypeClasses, LambdaCase #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 module NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor where
 
-import Control.Monad.State.Lazy (State, StateT(..), lift)
+import Control.Monad.State.Lazy (State, StateT (..), lift)
 
 import Data.Set (Set)
 
-import NotionalMachines.Lang.UntypedLambda.Main (Exp(..))
-import NotionalMachines.Machine.ExpressionTutor.Main (ExpTreeDiagram(..), NodeContentElem(..), pattern MkNode, pattern DiaBranch, pattern DiaLeaf, newDiaBranch, newDiaLeaf, etToLang, langToET, checkCycle, holeP)
+import NotionalMachines.Lang.UntypedLambda.Main      (Exp (..))
+import NotionalMachines.Machine.ExpressionTutor.Main (ExpTreeDiagram (..), NodeContentElem (..),
+                                                      checkCycle, etToLang, holeP, langToET,
+                                                      newDiaBranch, newDiaLeaf, pattern DiaBranch,
+                                                      pattern DiaLeaf, pattern MkNode)
 
-import NotionalMachines.Meta.Injective (Injective, toNM, fromNM)
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
-import NotionalMachines.Meta.Steppable (step)
+import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
+import NotionalMachines.Meta.Steppable    (step)
 
 
 pattern NodeVar    name i <- MkNode i _       [NameUse name] where
@@ -41,7 +46,7 @@ etToLambda = etToLang go
       DiaLeaf   (NodeVar    name _)          -> return (Var name)
       DiaBranch (NodeLambda name _) [n]      -> Lambda name <$> go n
       DiaBranch (NodeApp    _)      [n1, n2] -> App <$> go n1 <*> go n2
-      _ -> lift Nothing -- "incorrect diagram"
+      _                                      -> lift Nothing -- "incorrect diagram"
 
 
 instance Injective Exp ExpTreeDiagram where

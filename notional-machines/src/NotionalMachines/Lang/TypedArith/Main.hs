@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
-{-# LANGUAGE LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 {-|
 Description : Typing relation for Untyped Arithmetic Expressions from TAPL Ch.8
@@ -15,10 +16,10 @@ module NotionalMachines.Lang.TypedArith.Main (
   Type(..)
   ) where
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty)
+import Data.Text.Prettyprint.Doc               (Pretty, pretty)
 
-import NotionalMachines.Lang.UntypedArith.Main (Term(..))
-import NotionalMachines.Meta.Steppable (SteppableM, stepM, step)
+import NotionalMachines.Lang.UntypedArith.Main (Term (..))
+import NotionalMachines.Meta.Steppable         (SteppableM, step, stepM)
 
 data Type = TyBool | TyNat deriving (Eq, Show)
 

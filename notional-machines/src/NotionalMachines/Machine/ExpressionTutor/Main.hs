@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE PatternSynonyms, ViewPatterns #-}
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns    #-}
 
 module NotionalMachines.Machine.ExpressionTutor.Main (
   ExpTreeDiagram(..),
@@ -28,8 +29,8 @@ module NotionalMachines.Machine.ExpressionTutor.Main (
   etToLang
   ) where
 
-import Control.Monad.State.Lazy (State, StateT(..), get, modify, evalState, evalStateT, withStateT)
-import Control.Monad (join, mplus)
+import Control.Monad            (join, mplus)
+import Control.Monad.State.Lazy (State, StateT (..), evalState, evalStateT, get, modify, withStateT)
 
 import           Data.Set (Set)
 import qualified Data.Set as Set
@@ -44,20 +45,29 @@ import NotionalMachines.Utils (maybeHead)
 --------------------
 data ExpTreeDiagram = ExpTreeDiagram { nodes :: Set Node
                                      , edges :: Set Edge
-                                     , root  :: Maybe Node }
-                                     deriving (Show, Eq)
+                                     , root  :: Maybe Node
+                                     }
+  deriving (Eq, Show)
+
 data Node = Node { nodePlug :: Plug
                  , typ      :: Maybe Type
-                 -- , value    :: NodeValue
-                 , content  :: [NodeContentElem] }
-                 deriving (Show, Eq, Ord)
+                   -- , value    :: NodeValue
+                 , content  :: [NodeContentElem]
+                 }
+  deriving (Eq, Ord, Show)
+
 data NodeContentElem = C String
                      | NameDef String
                      | NameUse String
                      | Hole Plug -- (Maybe Type)
-                     deriving (Show, Eq, Ord)
-newtype Plug = Plug (Int, Int) deriving (Show, Eq, Ord)
-data Edge = Edge Plug Plug deriving Show
+  deriving (Eq, Ord, Show)
+
+newtype Plug = Plug (Int, Int)
+  deriving (Eq, Ord, Show)
+
+data Edge = Edge Plug Plug
+  deriving (Show)
+
 type Type = String
 
 -- the graph is undirected
@@ -85,7 +95,7 @@ pattern MkNode i t parts <- (checkPlugs -> Just (Node (Plug (i,_)) t parts)) whe
         MkNode i t parts = Node (Plug (i,0)) t (updateHoleIds parts)
           where updateHoleIds = snd . mapAccumL update1 1
                 update1 n (Hole _) = (n+1, Hole (Plug (i,n)))
-                update1 n o = (n, o)
+                update1 n o        = (n, o)
 
 checkPlugs :: Node -> Maybe Node
 checkPlugs n = if validPlugs n then Just n else Nothing

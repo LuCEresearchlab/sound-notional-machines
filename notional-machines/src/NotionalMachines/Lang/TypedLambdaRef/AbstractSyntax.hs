@@ -1,6 +1,10 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, ViewPatterns, FlexibleInstances, MultiParamTypeClasses, TupleSections #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   Term(..),
@@ -18,14 +22,14 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   typecheck
   ) where
 
-import Control.Monad.State.Lazy (StateT, get, withStateT, lift, evalStateT)
+import Control.Monad.State.Lazy (StateT, evalStateT, get, lift, withStateT)
 
-import Data.List ((\\))
-import           Data.Map (Map)
-import qualified Data.Map as Map
+import           Data.List ((\\))
+import           Data.Map  (Map)
+import qualified Data.Map  as Map
 
-import NotionalMachines.Utils (maybeToEither)
-import NotionalMachines.Meta.Steppable (SteppableM, stepM, evalM)
+import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
+import NotionalMachines.Utils          (maybeToEither)
 
 
 --------------------
@@ -36,7 +40,7 @@ data Type = TyFun Type Type
           | TyRef Type
           | TyBool
           | TyNat
-          deriving (Eq, Show)
+  deriving (Eq, Show)
 
 type TypCtx = [(Name, Type)]
 
@@ -62,7 +66,8 @@ data Term = -- Lambdas
           | Succ Term
           | Pred Term
           | IsZero Term
-          deriving (Eq, Show)
+  deriving (Eq, Show)
+
 type Name = String
 
 ------ Store Manipulation ------
@@ -74,7 +79,7 @@ emptyStore = Map.empty
 
 alloc :: Term -> StateT Store (Either String) Term
 alloc v = do newLoc <- fmap (succ . foldl max (-1) . Map.keys) get
-             withStateT (Map.insert newLoc v) (return $ Loc newLoc) 
+             withStateT (Map.insert newLoc v) (return $ Loc newLoc)
 
 deref :: Location -> StateT Store (Either String) Term
 deref l = (lift . maybeToEither errorMsg . Map.lookup l) =<< get

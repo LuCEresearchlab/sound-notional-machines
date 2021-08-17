@@ -2,10 +2,10 @@
 
 module NotionalMachines.Lang.UntypedArith.Generators where
 
-import           Hedgehog (MonadGen)
+import           Hedgehog     (MonadGen)
 import qualified Hedgehog.Gen as Gen
 
-import NotionalMachines.Lang.UntypedArith.Main (Term(..))
+import NotionalMachines.Lang.UntypedArith.Main (Term (..))
 
 
 genTerm :: MonadGen m => m Term

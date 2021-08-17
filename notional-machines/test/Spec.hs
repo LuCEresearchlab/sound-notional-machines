@@ -1,53 +1,59 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE OverloadedStrings, TypeFamilies #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
 
-import           Hedgehog hiding (Var, eval, evalM)
-import qualified Hedgehog (eval)
-import qualified Hedgehog.Gen as Gen
+import           Hedgehog       hiding (Var, eval, evalM)
+import qualified Hedgehog       (eval)
+import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
 import Test.Tasty
-import Test.Tasty.Hedgehog
 import Test.Tasty.HUnit
+import Test.Tasty.Hedgehog
 
-import Data.Foldable (toList)
-import Data.List (intersect)
-import Data.Maybe (fromJust)
-import Data.Either (isRight)
-import qualified Data.Set as Set
+import           Data.Either   (isRight)
+import           Data.Foldable (toList)
+import           Data.List     (intersect)
+import           Data.Maybe    (fromJust)
+import qualified Data.Set      as Set
 
 
-import qualified NotionalMachines.Lang.UntypedLambda.Main       as Lambda
-import qualified NotionalMachines.Lang.UntypedLambda.Generators as LambdaGen
+import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
+import qualified NotionalMachines.Lang.TypedLambdaArith.Main              as TypedLambda
+import qualified NotionalMachines.Lang.UntypedArith.Generators            as ArithGen
+import qualified NotionalMachines.Lang.UntypedArith.Main                  as Arith
 import           NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax ()
-import qualified NotionalMachines.Lang.UntypedArith.Main       as Arith
-import qualified NotionalMachines.Lang.UntypedArith.Generators as ArithGen
-import qualified NotionalMachines.Lang.TypedArith.Main as TypedArith
-import qualified NotionalMachines.Lang.TypedLambdaArith.Main       as TypedLambda
+import qualified NotionalMachines.Lang.UntypedLambda.Generators           as LambdaGen
+import qualified NotionalMachines.Lang.UntypedLambda.Main                 as Lambda
 -- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET
 import qualified NotionalMachines.Lang.TypedLambdaArith.Generators as TypedLambdaGen
-import qualified NotionalMachines.Lang.TypedLambdaRef.Main       as TypedLambdaRef
+import qualified NotionalMachines.Lang.TypedLambdaRef.Main         as TypedLambdaRef
 -- import qualified NotionalMachines.Lang.TypedLambdaRefExpressionTutor as LambdaRefET
 import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as TypedLambdaRefGen
 
-import           NotionalMachines.Machine.ExpressionTutor.Main (ExpTreeDiagram(..), NodeContentElem(..), Node(..), Plug(..), Edge(..))
-import           NotionalMachines.Machine.ExpressionTutor.Generators (genExpTreeDiagram)
-import           NotionalMachines.Machine.Reduct.Main (ReductExp, ReductExpF(..), updateUids)
-import           NotionalMachines.Machine.AlligatorEggs.Main
-import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
+import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
+import NotionalMachines.Machine.AlligatorEggs.Main
+import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTreeDiagram)
+import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTreeDiagram (..),
+                                                            Node (..), NodeContentElem (..),
+                                                            Plug (..))
+import NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..), updateUids)
 
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree  as ETree        (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct          as R            (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs   as A            (bisim, nmToLang)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor as LambdaET     (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor  as ArithET      (bisim)
-import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor    as TypedArithET (evalBisim, typeOfBisim, annotateTypeBisim, TyExpTreeDiagram)
+import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor    as TypedArithET (TyExpTreeDiagram,
+                                                                                              annotateTypeBisim,
+                                                                                              evalBisim,
+                                                                                              typeOfBisim)
+import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor  as ArithET (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs   as A (bisim, nmToLang)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree  as ETree (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor as LambdaET (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct          as R (bisim)
 
-import           NotionalMachines.Meta.Bisimulation (Bisimulation(..))
-import           NotionalMachines.Meta.Steppable (eval, evalM)
-import qualified NotionalMachines.Meta.Injective as Inj
-import qualified NotionalMachines.Meta.Bijective as Bij
+import qualified NotionalMachines.Meta.Bijective    as Bij
+import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
+import qualified NotionalMachines.Meta.Injective    as Inj
+import           NotionalMachines.Meta.Steppable    (eval, evalM)
 
 import NotionalMachines.Utils (eitherToMaybe, genName)
 

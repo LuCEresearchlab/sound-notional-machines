@@ -1,23 +1,29 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable,
-             GeneralizedNewtypeDeriving, LambdaCase, FlexibleInstances,
-             MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 
 module NotionalMachines.Machine.AlligatorEggs.Main where
 
 import           Data.Map (Map)
 import qualified Data.Map as Map
 
-import Control.Monad.State.Lazy (State, evalState, get, put, fix)
+import Control.Monad.State.Lazy (State, evalState, fix, get, put)
 
 import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
-import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator, oldAlligator)
+import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator,
+                                                                              oldAlligator)
 
-import NotionalMachines.Meta.Steppable (Steppable, step, eval)
+import NotionalMachines.Meta.Steppable (Steppable, eval, step)
 
 
-newtype Color = Color String deriving (Eq, Ord, Read)
+newtype Color = Color String
+  deriving (Eq, Ord, Read)
 
 instance Show Color where
   show (Color c) = c
@@ -35,7 +41,7 @@ nextColor (Color c) = Color ('_':c)
 data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
                         | OldAlligator [AlligatorFamilyF a]
                         | Egg a
-                        deriving (Show, Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Foldable, Functor, Show, Traversable)
 
 type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
@@ -61,7 +67,7 @@ eatingRule families = families
 -- appear in neither family.
 colorRule :: [AlligatorFamily] -> [AlligatorFamily]
 colorRule (a @ (HungryAlligator _ _):family:rest) = a:recolor a family:rest
-colorRule families = families
+colorRule families                                = families
 
 recolor :: AlligatorFamily -> AlligatorFamily -> AlligatorFamily
 recolor a1 a2 = evalState (mapM go a2) ([], color0)
@@ -83,8 +89,8 @@ nextNotIn xs ys = fix (\rec x -> if all (notElem x) [xs, ys] then x else rec (ne
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
 oldAgeRule (OldAlligator [protege] : rest) = protege : rest
-oldAgeRule (OldAlligator proteges : rest) = OldAlligator (step proteges) : rest
-oldAgeRule families = families
+oldAgeRule (OldAlligator proteges : rest)  = OldAlligator (step proteges) : rest
+oldAgeRule families                        = families
 
 ----------------------
 -- Gameplay --
@@ -119,7 +125,7 @@ guess a testCases colors = all check testCases
                             case cs of
                               -- if there are no more colors to replace the emptyColor
                               -- then keep the emptyColor (nothing else we can do).
-                              [] -> return c
+                              []   -> return c
                               -- replace empty color with next color in the list and
                               -- put the rest back in the state to be used next.
                               x:xs -> put xs >> return x

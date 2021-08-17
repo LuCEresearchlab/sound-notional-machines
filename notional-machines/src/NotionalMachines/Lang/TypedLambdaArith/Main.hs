@@ -1,6 +1,10 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, ViewPatterns, OverloadedStrings, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 {-|
 Description : Simply Typed Lambda Calculus with Booleans and Natural numbers based on TAPL Ch.9
@@ -26,18 +30,18 @@ module NotionalMachines.Lang.TypedLambdaArith.Main (
   unparse
   ) where
 
+import qualified Text.Parsec.Expr              as Ex
+import qualified Text.Parsec.Token             as Tok
 import           Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
-import qualified Text.Parsec.Expr as Ex
-import qualified Text.Parsec.Token as Tok
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep)
+import Data.Text.Prettyprint.Doc (Pretty, hsep, parens, pretty, (<+>))
 
 import Data.Bifunctor (first)
-import Data.List ((\\))
+import Data.List      ((\\))
 
-import NotionalMachines.Utils (maybeToEither, pShow)
 import NotionalMachines.Meta.Steppable (Steppable, step)
+import NotionalMachines.Utils          (maybeToEither, pShow)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
@@ -45,7 +49,7 @@ import NotionalMachines.Meta.Steppable (Steppable, step)
 data Type = TyFun Type Type
           | TyBool
           | TyNat
-          deriving (Eq, Show)
+  deriving (Eq, Show)
 
 type TypCtx = [(Name, Type)]
 
@@ -62,7 +66,8 @@ data Term = -- lambdas
           | Succ Term
           | Pred Term
           | IsZero Term
-          deriving (Eq, Show)
+  deriving (Eq, Show)
+
 type Name = String
 
 typeof :: Term -> Either String Type
@@ -249,8 +254,8 @@ instance Pretty Term where
 
 instance Pretty Type where
   pretty = \case
-    TyBool -> "Bool"
-    TyNat  -> "Nat"
+    TyBool                 -> "Bool"
+    TyNat                  -> "Nat"
     TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
     TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
 

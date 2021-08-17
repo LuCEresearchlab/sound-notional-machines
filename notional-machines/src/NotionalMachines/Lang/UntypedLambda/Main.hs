@@ -1,19 +1,20 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE MultiParamTypeClasses, LambdaCase #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module NotionalMachines.Lang.UntypedLambda.Main where
 
-import Text.ParserCombinators.Parsec hiding (parse)
+import           Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty, dot, backslash, parens, (<+>))
+import Data.Text.Prettyprint.Doc (Pretty, backslash, dot, parens, pretty, (<+>))
 
-import Data.List ((\\))
+import Data.List  ((\\))
 import Data.Maybe (fromJust)
 
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, step, stepM)
-import NotionalMachines.Utils (pShow)
+import NotionalMachines.Utils          (pShow)
 
 --------------------
 -- Bisimulation
@@ -45,7 +46,7 @@ import NotionalMachines.Utils (pShow)
 data Exp = App Exp Exp
          | Lambda Name Exp
          | Var Name
-         deriving (Show, Read, Eq, Ord)
+  deriving (Eq, Ord, Read, Show)
 type Name = String
 
 --------------------
@@ -53,9 +54,9 @@ type Name = String
 --------------------
 instance Steppable Exp where
   step (App e1 @ Lambda {} e2 @ App {}) = App e1 (step e2)
-  step (App (Lambda name e1) e2) = subst name e2 e1
-  step (App e1 e2) = App (step e1) e2
-  step p = p
+  step (App (Lambda name e1) e2)        = subst name e2 e1
+  step (App e1 e2)                      = App (step e1) e2
+  step p                                = p
 
 -- substitution
 subst :: Name -> Exp -> Exp -> Exp
@@ -70,9 +71,9 @@ subst x v e1 @ (Lambda y e2)
   where newy = fresh y
 
 freeVs :: Exp -> [Name]
-freeVs (Var name) = [name]
+freeVs (Var name)      = [name]
 freeVs (Lambda name e) = freeVs e \\ [name]
-freeVs (App e1 e2) = freeVs e1 ++ freeVs e2
+freeVs (App e1 e2)     = freeVs e1 ++ freeVs e2
 
 -- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
@@ -99,7 +100,7 @@ instance SteppableM Exp Maybe where
 --------------------
 parse :: String -> Maybe Exp
 parse s = case Parsec.parse pExp "(unknown)" s of
-            Left _ -> Nothing
+            Left _  -> Nothing
             Right e -> Just e
 
 pExp :: Parser Exp

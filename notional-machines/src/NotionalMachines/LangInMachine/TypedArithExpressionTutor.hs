@@ -1,28 +1,31 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
 
-{-# LANGUAGE PatternSynonyms, MultiParamTypeClasses, LambdaCase #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 module NotionalMachines.LangInMachine.TypedArithExpressionTutor where
 
-import Control.Monad.State.Lazy (State, StateT(..), liftM3, lift)
-import Control.Monad ((<=<))
+import Control.Monad            ((<=<))
+import Control.Monad.State.Lazy (State, StateT (..), lift, liftM3)
 
-import Data.Set (Set)
+import Data.Set                  (Set)
 import Data.Text.Prettyprint.Doc
 
-import           NotionalMachines.Lang.UntypedArith.Main (Term(..))
-import           NotionalMachines.Lang.TypedArith.Main (typeof)
-import qualified NotionalMachines.Lang.TypedArith.Main as TypedArith (Type)
+import           NotionalMachines.Lang.TypedArith.Main         (typeof)
+import qualified NotionalMachines.Lang.TypedArith.Main         as TypedArith (Type)
+import           NotionalMachines.Lang.UntypedArith.Main       (Term (..))
 import           NotionalMachines.Machine.ExpressionTutor.Main hiding (Type)
 import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type)
 
 import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
-import NotionalMachines.Meta.Injective (Injective, toNM, fromNM)
-import NotionalMachines.Meta.Bisimulation (Bisimulation(..), mkInjBisim)
-import NotionalMachines.Meta.Steppable (step)
+import NotionalMachines.Meta.Bisimulation (Bisimulation (..), mkInjBisim)
+import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
+import NotionalMachines.Meta.Steppable    (step)
 
-newtype TyExpTreeDiagram = TyExpTreeDiagram ExpTreeDiagram deriving (Eq, Show)
+newtype TyExpTreeDiagram = TyExpTreeDiagram ExpTreeDiagram
+  deriving (Eq, Show)
 
 pattern NodeTrue   t i =  MkNode i t [C "true"]
 pattern NodeFalse  t i =  MkNode i t [C "false"]

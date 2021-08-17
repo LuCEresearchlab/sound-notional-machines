@@ -1,18 +1,20 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
 
-{-# LANGUAGE PatternSynonyms, MultiParamTypeClasses, LambdaCase #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PatternSynonyms       #-}
 
 module NotionalMachines.LangInMachine.UntypedArithExpressionTutor where
 
-import Control.Monad.State.Lazy (State, StateT(..), liftM3, lift)
+import Control.Monad.State.Lazy (State, StateT (..), lift, liftM3)
 
 import Data.Set (Set)
 
-import NotionalMachines.Lang.UntypedArith.Main (Term(..))
+import NotionalMachines.Lang.UntypedArith.Main       (Term (..))
 import NotionalMachines.Machine.ExpressionTutor.Main
 
-import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Bisimulation
+import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Steppable
 
 pattern NodeTrue   i =  MkNode i Nothing [C "true"]

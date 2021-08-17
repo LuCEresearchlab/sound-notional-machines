@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable    #-}
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
 
 module NotionalMachines.Machine.Reduct.Main where
 
@@ -8,8 +10,8 @@ import Control.Monad.State.Lazy
 
 import Data.List (delete)
 
+import Data.Maybe             (mapMaybe)
 import NotionalMachines.Utils (maybeHead)
-import Data.Maybe (mapMaybe)
 
 --------------------
 -- Bisimulation
@@ -39,12 +41,14 @@ import Data.Maybe (mapMaybe)
 -- Reduct
 --------------------
 newtype ReductGame = ReductGame [ReductLevel]
-data ReductLevel = ReductLevel { nodeStage  :: [ReductExp] -- roots of expressions
+data ReductLevel = ReductLevel { nodeStage  :: [ReductExp]
+                                 -- ^ roots of expressions
                                , isReducing :: Bool
                                , nodeBench  :: [ReductExp]
                                , goal       :: ReductExp
                                , counter    :: Uid
-                               , won        :: Bool }
+                               , won        :: Bool
+                               }
 
 type Uid = Int
 
@@ -52,7 +56,7 @@ type Uid = Int
 data ReductExpF a = HolePlug (Maybe (ReductExpF a)) (Maybe (ReductExpF a)) a
                   | HolePipe Name (Maybe (ReductExpF a)) a
                   | Pipe Name a
-                  deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 type Name = String
 
 type ReductExp = ReductExpF Uid
@@ -66,7 +70,7 @@ sEqual :: ReductExp -> ReductExp -> Bool
 sEqual (HolePlug a1 b1 _) (HolePlug a2 b2 _) = msEqual a1 a2 && msEqual b1 b2
 sEqual (HolePipe n1 a1 _) (HolePipe n2 a2 _) = n1 == n2 && msEqual a1 a2
 sEqual (Pipe n1 _)        (Pipe n2 _)        = n1 == n2
-sEqual _ _ = False
+sEqual _ _                                   = False
 
 msEqual :: Maybe ReductExp -> Maybe ReductExp -> Bool
 msEqual Nothing  Nothing  = True
@@ -166,4 +170,4 @@ rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
     mapME :: (Maybe ReductExp -> Maybe ReductExp) -> ReductExp -> ReductExp
     mapME g (HolePlug mt1 mt2 uid)  = HolePlug (g mt1) (g mt2) uid
     mapME g (HolePipe name mt1 uid) = HolePipe name (g mt1) uid
-    mapME _ e @ Pipe {} = e
+    mapME _ e @ Pipe {}             = e

@@ -4,8 +4,9 @@
 
 module NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax where
 
-import NotionalMachines.Lang.UntypedLambda.Main (Exp(..))
-import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii, hungryAlligator, oldAlligator, egg)
+import NotionalMachines.Lang.UntypedLambda.Main           (Exp (..))
+import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, egg, hungryAlligator,
+                                                           oldAlligator, toAscii)
 
 --------------------------------------------
 -- Ascii Alligators representation of Exp --

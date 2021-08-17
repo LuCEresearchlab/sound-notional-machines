@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
-{-# LANGUAGE LambdaCase, OverloadedStrings, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
   parse,
@@ -11,15 +13,16 @@ import Data.Bifunctor (first)
 
 import qualified Data.Map as Map
 
+import qualified Text.Parsec.Expr              as Ex
+import qualified Text.Parsec.Token             as Tok
 import           Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as Parsec (parse)
-import qualified Text.Parsec.Expr as Ex
-import qualified Text.Parsec.Token as Tok
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty, parens, (<+>), hsep, Doc)
+import Data.Text.Prettyprint.Doc (Doc, Pretty, hsep, parens, pretty, (<+>))
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Type(..), Term(..), Store, isNumericVal)
-import NotionalMachines.Utils (pShow)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..),
+                                                            isNumericVal)
+import NotionalMachines.Utils                              (pShow)
 
 
 --------------------

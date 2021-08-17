@@ -4,12 +4,12 @@
 
 module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree where
 
-import NotionalMachines.Lang.UntypedLambda.Main (Exp(..))
-import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree(..))
+import NotionalMachines.Lang.UntypedLambda.Main     (Exp (..))
+import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..))
 
-import NotionalMachines.Meta.Steppable (Steppable, step)
-import NotionalMachines.Meta.Bijective (Bijective, toNM, fromNM)
+import NotionalMachines.Meta.Bijective    (Bijective, fromNM, toNM)
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, stepNM)
+import NotionalMachines.Meta.Steppable    (Steppable, step)
 
 langToNM :: Exp -> ExpAsTree
 langToNM (Var name)      = Box name

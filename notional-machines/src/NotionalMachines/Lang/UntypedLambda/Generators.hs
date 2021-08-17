@@ -2,10 +2,10 @@
 
 module NotionalMachines.Lang.UntypedLambda.Generators where
 
-import           Hedgehog hiding (Var)
+import           Hedgehog     hiding (Var)
 import qualified Hedgehog.Gen as Gen
 
-import NotionalMachines.Lang.UntypedLambda.Main (Exp(..), freeVs)
+import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), freeVs)
 
 import NotionalMachines.Utils (genName)
 
@@ -28,7 +28,7 @@ bindFreeVars :: Exp -> Exp
 bindFreeVars e = foldl (\en var -> App (Lambda var en) (Lambda "a" (Var "a"))) e (freeVs e)
 
 depth :: Exp -> Int
-depth (Var _) = 0
+depth (Var _)      = 0
 depth (Lambda _ e) = depth e + 1
-depth (App e1 e2) = max (depth e1 + 1) (depth e2 + 1)
+depth (App e1 e2)  = max (depth e1 + 1) (depth e2 + 1)
 

@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase, OverloadedStrings #-}
+{-# LANGUAGE LambdaCase        #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 {-|
 Description : The Untyped Arithmetic Expressions from TAPL Ch.3
@@ -35,14 +36,14 @@ module NotionalMachines.Lang.UntypedArith.Main (
   unparse
   ) where
 
-import Text.ParserCombinators.Parsec hiding (parse)
+import           Text.ParserCombinators.Parsec hiding (parse)
 import qualified Text.ParserCombinators.Parsec as P
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty, hsep, (<+>))
+import Data.Text.Prettyprint.Doc (Pretty, hsep, pretty, (<+>))
 
+import Data.Functor                    (($>))
 import NotionalMachines.Meta.Steppable (Steppable, step)
-import NotionalMachines.Utils (eitherToMaybe, pShow)
-import Data.Functor (($>))
+import NotionalMachines.Utils          (eitherToMaybe, pShow)
 
 data Term = -- Booleans
             Tru
@@ -53,7 +54,7 @@ data Term = -- Booleans
           | Succ Term
           | Pred Term
           | IsZero Term
-          deriving (Eq, Show)
+  deriving (Eq, Show)
 
 isValue :: Term -> Bool
 isValue Tru = True
@@ -61,9 +62,9 @@ isValue Fls = True
 isValue t   = isNumericVal t
 
 isNumericVal :: Term -> Bool
-isNumericVal Zero = True
+isNumericVal Zero     = True
 isNumericVal (Succ t) = isNumericVal t
-isNumericVal _ = False
+isNumericVal _        = False
 
 instance Steppable Term where
   step = \case

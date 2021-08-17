@@ -1,15 +1,16 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module NotionalMachines.LangInMachine.UntypedLambdaReduct where
 
-import NotionalMachines.Lang.UntypedLambda.Main (Exp(..))
-import NotionalMachines.Machine.Reduct.Main (ReductExp, ReductExpF(..), updateUids)
+import NotionalMachines.Lang.UntypedLambda.Main (Exp (..))
+import NotionalMachines.Machine.Reduct.Main     (ReductExp, ReductExpF (..), updateUids)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim, stepMNM)
-import NotionalMachines.Meta.Steppable (SteppableM, stepM, step)
-import NotionalMachines.Meta.Injective (Injective, toNM, fromNM)
+import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
+import NotionalMachines.Meta.Steppable    (SteppableM, step, stepM)
 
 
 --------------------

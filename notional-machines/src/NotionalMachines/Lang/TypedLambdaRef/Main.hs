@@ -28,19 +28,21 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   repl
   ) where
 
-import Control.Monad ((<=<))
-import Control.Monad.Trans (liftIO)
+import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
+import Control.Monad.Trans      (liftIO)
 
 import Data.Bifunctor (bimap)
-import Data.List (intercalate)
+import Data.List      (intercalate)
 
-import System.Console.Repline (HaskelineT, ReplOpts(..), CompleterStyle(..), WordCompleter, ExitDecision(..), evalReplOpts)
+import System.Console.Repline (CompleterStyle (..), ExitDecision (..), HaskelineT, ReplOpts (..),
+                               WordCompleter, evalReplOpts)
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Term(..), Type(..), Store, emptyStore, typeof, typecheck, evalM', isValue)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..), emptyStore,
+                                                            evalM', isValue, typecheck, typeof)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
-import NotionalMachines.Meta.Steppable (traceM)
-import NotionalMachines.Utils (shortPrint, pShow)
+import NotionalMachines.Meta.Steppable                     (traceM)
+import NotionalMachines.Utils                              (pShow, shortPrint)
 
 
 eval :: String -> Either String (Term, Type)

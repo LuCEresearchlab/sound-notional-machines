@@ -2,12 +2,12 @@
 
 module NotionalMachines.Machine.ExpressionTutor.Generators where
 
-import           Hedgehog (MonadGen)
-import qualified Hedgehog.Gen as Gen
+import           Hedgehog       (MonadGen)
+import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
-import NotionalMachines.Lang.UntypedLambda.Main
 import NotionalMachines.Lang.UntypedLambda.Generators
+import NotionalMachines.Lang.UntypedLambda.Main
 
 import NotionalMachines.Machine.ExpressionTutor.Main
 

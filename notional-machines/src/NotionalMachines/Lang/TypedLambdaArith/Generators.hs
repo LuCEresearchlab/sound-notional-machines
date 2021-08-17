@@ -2,10 +2,10 @@
 
 module NotionalMachines.Lang.TypedLambdaArith.Generators where
 
-import           Hedgehog (MonadGen)
+import           Hedgehog     (MonadGen)
 import qualified Hedgehog.Gen as Gen
 
-import NotionalMachines.Lang.TypedLambdaArith.Main (Term(..), Type(..))
+import NotionalMachines.Lang.TypedLambdaArith.Main (Term (..), Type (..))
 
 import NotionalMachines.Utils (genName)
 

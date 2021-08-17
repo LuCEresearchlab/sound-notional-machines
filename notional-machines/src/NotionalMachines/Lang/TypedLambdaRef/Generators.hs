@@ -2,10 +2,10 @@
 
 module NotionalMachines.Lang.TypedLambdaRef.Generators where
 
-import           Hedgehog (MonadGen)
+import           Hedgehog     (MonadGen)
 import qualified Hedgehog.Gen as Gen
 
-import NotionalMachines.Lang.TypedLambdaRef.Main (Term(..), Type(..))
+import NotionalMachines.Lang.TypedLambdaRef.Main (Term (..), Type (..))
 
 import NotionalMachines.Utils (genName)
 
