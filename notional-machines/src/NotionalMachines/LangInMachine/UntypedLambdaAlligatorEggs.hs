@@ -21,7 +21,7 @@ nmToLang :: Show a => [AlligatorFamilyF a] -> Maybe Exp
 nmToLang families =
   -- TODO: improve this by resolving the typing weirdness of [Als]
   fmap f2e families & \case []           -> Nothing
-                            me:[]        -> me
+                            [me]         -> me
                             me1:me2:rest -> foldl (liftM2 App) (liftM2 App me1 me2) rest
   where f2e (HungryAlligator c proteges) = Lambda (show c) <$> nmToLang proteges
         f2e (OldAlligator proteges) = nmToLang proteges

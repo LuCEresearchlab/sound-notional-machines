@@ -42,6 +42,7 @@ import Data.Text.Prettyprint.Doc (Pretty, pretty, hsep, (<+>))
 
 import NotionalMachines.Meta.Steppable (Steppable, step)
 import NotionalMachines.Utils (eitherToMaybe, pShow)
+import Data.Functor (($>))
 
 data Term = -- Booleans
             Tru
@@ -95,14 +96,14 @@ parse :: String -> Maybe Term
 parse = eitherToMaybe . P.parse pTerm "(unknown)"
 
 pTerm :: Parser Term
-pTerm = string "true"  *> return Tru
-    <|> string "false" *> return Fls
-    <|> try (If <$> (string "if" <* spaces >> pTerm)
+pTerm = string "true"  $> Tru
+    <|> string "false" $> Fls
+    <|> char '0'       $> Zero
+    <|> try (If <$> (string "if" *> spaces *> pTerm)
                 <*> (between spaces spaces (string "then") >> pTerm)
                 <*> (between spaces spaces (string "else") >> pTerm))
-    <|> char '0' *> return Zero
-    <|> Succ   <$> (string "succ"   <* spaces >> pTerm)
-    <|> Pred   <$> (string "pred"   <* spaces >> pTerm)
+    <|> Succ   <$> (string "succ"   *> spaces *> pTerm)
+    <|> Pred   <$> (string "pred"   *> spaces *> pTerm)
     <|> IsZero <$> (string "iszero" *> spaces *> pTerm)
     <|> between (char '(') (char ')') pTerm
     <* eof

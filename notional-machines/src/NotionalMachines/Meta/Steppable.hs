@@ -48,11 +48,11 @@ fixpointM g = fix (\rec x -> g x >>= \gx -> if gx == x then return x else rec gx
 -- | Returns a list of repeated applications of @f@ to @x@ stopping when the
 -- fixpoint is reached.
 allPoints :: Eq a => (a -> a) -> a -> [a]
-allPoints g x = if g x == x then [x] else x:(allPoints g (g x))
+allPoints g x = if g x == x then [x] else x : allPoints g (g x)
 
 -- | Similar to `allPoints` for functions that return monads.
 allPointsM :: (Eq (m a), Monad m) => (a -> m a) -> a -> [m a]
-allPointsM g = untilEq . iterate ((=<<) g) . return
+allPointsM g = untilEq . iterate (g =<<) . return
   where untilEq (x1:x2:xs) | x1 == x2  = [x1]
-                           | otherwise = x1:(untilEq (x2:xs))
+                           | otherwise = x1 : untilEq (x2:xs)
         untilEq xs = xs

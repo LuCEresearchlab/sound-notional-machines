@@ -35,7 +35,7 @@ typeof = \case
   _                                    -> Nothing
 
 instance SteppableM Term Maybe where
-  stepM t = const (step t) <$> typeof t
+  stepM t = step t <$ typeof t
 
 instance Pretty Type where
   pretty = \case

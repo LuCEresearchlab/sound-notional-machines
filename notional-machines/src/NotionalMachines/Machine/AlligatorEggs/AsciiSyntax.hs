@@ -62,7 +62,7 @@ oldAlligator a @ (AsciiAl ss) = AsciiAl (alligatorBody a : ss)
 
 -- | 'hungryAlligator' @var a@ returns a hungry alligator identified by @var@ protecting @a@.
 hungryAlligator :: String -> AsciiAlligators -> AsciiAlligators
-hungryAlligator var a @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : (indent ss))
+hungryAlligator var a @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : indent ss)
   where indent = map (' ':)
         hungryAlligatorBody = var ++ alligatorBody a ++ "<"
 

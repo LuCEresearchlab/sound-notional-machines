@@ -56,7 +56,7 @@ data NodeContentElem = C String
                      | NameUse String
                      | Hole Plug -- (Maybe Type)
                      deriving (Show, Eq, Ord)
-data Plug = Plug (Int, Int) deriving (Show, Eq, Ord)
+newtype Plug = Plug (Int, Int) deriving (Show, Eq, Ord)
 data Edge = Edge Plug Plug deriving Show
 type Type = String
 
@@ -85,7 +85,7 @@ pattern MkNode i t parts <- (checkPlugs -> Just (Node (Plug (i,_)) t parts)) whe
         MkNode i t parts = Node (Plug (i,0)) t (updateHoleIds parts)
           where updateHoleIds = snd . mapAccumL update1 1
                 update1 n (Hole _) = (n+1, Hole (Plug (i,n)))
-                update1 n o = (n, o) 
+                update1 n o = (n, o)
 
 checkPlugs :: Node -> Maybe Node
 checkPlugs n = if validPlugs n then Just n else Nothing
@@ -122,7 +122,7 @@ pattern DiaBranch r ns <- (diaBranch -> Just (r, ns)) where
               -- Make an edge between the next available hole of n1 and the plug of n2
               mkEdge d n1 n2 = Edge (nodePlug n2) <$> maybeHead (emptyHoles d n1)
               -- plugs from a node that are not present in any edge
-              emptyHoles d = filter (\p -> all (not . inEdge p) (edges d)) . holes
+              emptyHoles d = filter (\p -> not (any (inEdge p) (edges d))) . holes
               inEdge p (Edge p1 p2) = p1 == p || p2 == p
 
 -- | Returns the root node and a list of diagrams rooted at its children
@@ -135,7 +135,7 @@ diaBranch d = (\r -> (r, children r)) <$> root d
 -- | Created leaf-like diagram using the constructor @c@ to create a new that
 -- will be assigned a new id.
 newDiaLeaf :: (Int -> Node) -> State Int ExpTreeDiagram
-newDiaLeaf c = incUid (\uid -> DiaLeaf (c uid))
+newDiaLeaf c = incUid (DiaLeaf . c)
 
 -- | Create a branch-like diagram using the constructor @c@ and recursively
 -- continue bulding the diagram using @f@. This will connect the node created

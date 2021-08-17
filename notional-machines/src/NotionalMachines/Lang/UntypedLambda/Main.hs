@@ -52,7 +52,7 @@ type Name = String
 -- Interpreter for Untyped Lambda Calculus
 --------------------
 instance Steppable Exp where
-  step (App (e1 @ Lambda {}) (e2 @ App {})) = App e1 (step e2)
+  step (App e1 @ Lambda {} e2 @ App {}) = App e1 (step e2)
   step (App (Lambda name e1) e2) = subst name e2 e1
   step (App e1 e2) = App (step e1) e2
   step p = p
@@ -86,13 +86,13 @@ isValue _         = False
 ----- Evaluation with error handling ----------
 
 instance SteppableM Exp Maybe where
-  stepM (App      (Lambda name e1) e2 @ (Lambda {})) = Just (subst name e2 e1)
+  stepM (App      (Lambda name e1) e2 @ Lambda {}) = Just (subst name e2 e1)
   stepM (App e1 @ (Lambda _    _ ) e2) = do newe <- stepM e2
                                             return (App e1 newe)
   stepM (App e1                    e2) = do newe <- stepM e1
                                             return (App newe e2)
-  stepM p @ (Lambda {}) = Just p
-  stepM (Var {}) = Nothing
+  stepM p @ Lambda {} = Just p
+  stepM Var {} = Nothing
 
 --------------------
 -- Parsing and unparsing
@@ -140,7 +140,7 @@ fls    = "(\\t.\\f.f)"
 eFalse :: Exp
 eFalse = fromJust $ parse fls
 sAnd   :: String
-sAnd   = ("\\b.\\c.b c " ++ fls)
+sAnd   = "\\b.\\c.b c " ++ fls
 eAnd   :: Exp
 eAnd   = fromJust $ parse sAnd
 eOr    :: Exp

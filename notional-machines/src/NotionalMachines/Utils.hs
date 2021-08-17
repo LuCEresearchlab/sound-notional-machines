@@ -35,7 +35,7 @@ genName :: MonadGen m => m String
 genName = Gen.list (Range.singleton 1) $ Gen.element ['a'..'z']
 
 sample :: Gen a -> IO a
-sample gen = Gen.sample gen
+sample = Gen.sample
 
 printSample :: Show a => Int -> Gen a -> IO ()
 printSample n gen = forM_ [1..n] (\_ -> shortPrint =<< Gen.sample gen)

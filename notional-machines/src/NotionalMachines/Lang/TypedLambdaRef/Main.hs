@@ -60,8 +60,8 @@ formatTT :: (Term, Type) -> String
 formatTT (term, typ) = pShow term ++ " : " ++ pShow typ
 
 trace :: String -> Either String [(String, String)]
-trace = (format . runTrace . traceM . fst) <=< typecheck <=< parse 
-  where runTrace = mapM (flip runStateT emptyStore)
+trace = format . runTrace . traceM . fst <=< typecheck <=< parse
+  where runTrace = mapM (`runStateT` emptyStore)
         format = fmap (fmap (bimap pShow pShow))
 
 -- This instance is required for tracing because it needs to compare StateTs.
@@ -119,7 +119,7 @@ repl = evalReplOpts $ ReplOpts
   , options          = opts
   , prefix           = Just ':'
   , multilineCommand = Nothing
-  , tabComplete      = (Word completer)
+  , tabComplete      = Word completer
   , initialiser      = ini
   , finaliser        = final
   }

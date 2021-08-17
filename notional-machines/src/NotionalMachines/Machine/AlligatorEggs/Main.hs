@@ -46,7 +46,7 @@ instance Steppable AlligatorFamilies where
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
 eatingRule :: [AlligatorFamily] -> [AlligatorFamily]
-eatingRule (a @ (HungryAlligator _ _):(as @ (OldAlligator _:_))) = a:(oldAgeRule as)
+eatingRule (a @ (HungryAlligator _ _):as @ (OldAlligator _:_)) = a : oldAgeRule as
 eatingRule ((HungryAlligator c p):family:rest) = fmap hatch p ++ rest
   where hatch (Egg c1) = if c == c1 then family else Egg c1
         hatch a @ (HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (fmap hatch as)
@@ -82,8 +82,8 @@ nextNotIn xs ys = fix (\rec x -> if all (notElem x) [xs, ys] then x else rec (ne
 
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: [AlligatorFamily] -> [AlligatorFamily]
-oldAgeRule (OldAlligator (protege:[]):rest) = protege:rest
-oldAgeRule (OldAlligator proteges:rest) = (OldAlligator (step proteges)):rest
+oldAgeRule (OldAlligator [protege] : rest) = protege : rest
+oldAgeRule (OldAlligator proteges : rest) = OldAlligator (step proteges) : rest
 oldAgeRule families = families
 
 ----------------------
@@ -129,7 +129,7 @@ emptyColor :: Color
 emptyColor = Color "?"
 
 deBruijnAlligators :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
-deBruijnAlligators families = fmap (go (-1) 0 Map.empty) families
+deBruijnAlligators = fmap (go (-1) 0 Map.empty)
   where
     go :: Int -> Int -> Map Color Int -> AlligatorFamilyF Color -> AlligatorFamilyF Int
     go freeVarIx depth env a = case a of
@@ -204,9 +204,9 @@ aid = HungryAlligator (Color "a") [Egg (Color "a")]
 
 -- church booleans
 atru :: AlligatorFamily
-atru = HungryAlligator (Color "a") [HungryAlligator (Color "b") [(Egg (Color "a"))]]
+atru = HungryAlligator (Color "a") [HungryAlligator (Color "b") [Egg (Color "a")]]
 afls :: AlligatorFamily
-afls = HungryAlligator (Color "a") [HungryAlligator (Color "b") [(Egg (Color "b"))]]
+afls = HungryAlligator (Color "a") [HungryAlligator (Color "b") [Egg (Color "b")]]
 aand :: AlligatorFamily
 aand = HungryAlligator (Color "p") [
          HungryAlligator (Color "q") [

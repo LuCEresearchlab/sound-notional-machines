@@ -7,9 +7,9 @@ module NotionalMachines.Machine.Reduct.Main where
 import Control.Monad.State.Lazy
 
 import Data.List (delete)
-import Data.Maybe (fromMaybe, mapMaybe)
 
 import NotionalMachines.Utils (maybeHead)
+import Data.Maybe (mapMaybe)
 
 --------------------
 -- Bisimulation
@@ -38,7 +38,7 @@ import NotionalMachines.Utils (maybeHead)
 --------------------
 -- Reduct
 --------------------
-data ReductGame = ReductGame [ReductLevel]
+newtype ReductGame = ReductGame [ReductLevel]
 data ReductLevel = ReductLevel { nodeStage  :: [ReductExp] -- roots of expressions
                                , isReducing :: Bool
                                , nodeBench  :: [ReductExp]
@@ -122,8 +122,8 @@ rApplyAction a l = let nr = a l in nr { won = rWon nr }
 -- Reduce if possible `e` in level `l`. After that, the nodes can't be changed
 -- anymore (can't change program after execution starts).
 aReduce :: ReductExp -> (ReductExp -> Maybe ReductExp) -> ReductLevel -> ReductLevel
-aReduce e stepM l = fromMaybe l (newLevel . updateUids (counter l) <$> stepM e)
-  where updateNode old new xs = new : (delete old xs)
+aReduce e stepM l = maybe l (newLevel . updateUids (counter l)) (stepM e)
+  where updateNode old new xs = new : delete old xs
         newLevel newNode = l { nodeStage  = updateNode e newNode (nodeStage l)
                              , isReducing = True
                              , counter    = rUid newNode }
@@ -149,25 +149,21 @@ aConnect a i b l = if any (`notElem` (nodeStage l)) [a, b] then l
 
 -- Bring `e` from the bench to the stage.
 aBenchTake :: ReductExp -> ReductLevel -> ReductLevel
-aBenchTake e l = if e `notElem` (nodeBench l) then l
-                 else l { nodeStage = e : (nodeStage l)
+aBenchTake e l = if e `notElem` nodeBench l then l
+                 else l { nodeStage = e : nodeStage l
                         , nodeBench = delete e (nodeBench l) }
 
 -- Disconnect a node from the expression putting it back in the stage.
 rDisconnect :: ReductExp -> ReductLevel -> ReductLevel
 rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
-                  else l { nodeStage = n : (fmap (disconnect n) (nodeStage l)) }
+                  else l { nodeStage = n : fmap (disconnect n) (nodeStage l) }
   where
     disconnect :: ReductExp -> ReductExp -> ReductExp
-    disconnect t = mapME go
-      where go mt = eitherOr ((tryDisconnect t) =<< mt) (disconnect t <$> mt)
-            tryDisconnect t1 t2 = if t1 == t2 then Nothing else Just t2
-            -- If the first is not Nothing take the second.
-            eitherOr :: Maybe b -> Maybe a -> Maybe a
-            eitherOr = liftM2 (flip const)
+    disconnect t = mapME $ \mt -> (tryDisconnect t =<< mt) *> (disconnect t <$> mt)
+      where tryDisconnect t1 t2 = if t1 == t2 then Nothing else Just t2
 
     -- Map over the Maybe ReductExp part
     mapME :: (Maybe ReductExp -> Maybe ReductExp) -> ReductExp -> ReductExp
     mapME g (HolePlug mt1 mt2 uid)  = HolePlug (g mt1) (g mt2) uid
     mapME g (HolePipe name mt1 uid) = HolePipe name (g mt1) uid
-    mapME _ e @ (Pipe {}) = e
+    mapME _ e @ Pipe {} = e
