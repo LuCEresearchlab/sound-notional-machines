@@ -33,7 +33,8 @@ module NotionalMachines.Lang.UntypedArith.Main (
   Term(..),
   isValue,
   parse,
-  unparse
+  unparse,
+  repl
   ) where
 
 import           Text.ParserCombinators.Parsec hiding (parse)
@@ -42,8 +43,9 @@ import qualified Text.ParserCombinators.Parsec as P
 import Data.Text.Prettyprint.Doc (Pretty, hsep, pretty, (<+>))
 
 import Data.Functor                    (($>))
-import NotionalMachines.Meta.Steppable (Steppable, step)
-import NotionalMachines.Utils          (eitherToMaybe, pShow)
+import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
+import NotionalMachines.Utils          (eitherToMaybe, handleEr, maybeToEither, mkHelpMsg, mkRepl,
+                                        pShow, shortPrint)
 
 data Term = -- Booleans
             Tru
@@ -111,3 +113,23 @@ pTerm = string "true"  $> Tru
 
 unparse :: Term -> String
 unparse = pShow
+
+--------------------
+-- REPL
+--------------------
+repl :: IO ()
+repl = mkRepl "Arith> " evalCmd opts
+  where
+    opts :: [(String, String -> IO ())]
+    opts = [ ("help" , helpCmd),
+             ("trace", traceCmd)
+           ]
+
+    evalCmd :: String -> IO ()
+    evalCmd = handleEr putStrLn . maybeToEither "Error" . fmap (pShow . eval) . parse
+
+    traceCmd :: String -> IO ()
+    traceCmd = handleEr shortPrint . maybeToEither "Error" . fmap trace . parse
+
+    helpCmd :: String -> IO ()
+    helpCmd _ = putStrLn $ mkHelpMsg "3" (map fst opts)

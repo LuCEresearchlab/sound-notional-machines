@@ -22,7 +22,7 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   unparse,
 
   evalM',
-  trace,
+  replTrace,
 
   replEval,
   repl
@@ -30,19 +30,16 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
 
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
-import Control.Monad.Trans      (liftIO)
 
 import Data.Bifunctor (bimap)
-import Data.List      (intercalate)
 
-import System.Console.Repline (CompleterStyle (..), ExitDecision (..), HaskelineT, ReplOpts (..),
-                               WordCompleter, evalReplOpts)
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..), emptyStore,
                                                             evalM', isValue, typecheck, typeof)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (traceM)
-import NotionalMachines.Utils                              (pShow, shortPrint)
+import NotionalMachines.Utils                              (handleEr, mkHelpMsg, mkRepl, pShow,
+                                                            shortPrint)
 
 
 eval :: String -> Either String (Term, Type)
@@ -61,8 +58,8 @@ replType = fmap formatTT . typecheck <=< parse
 formatTT :: (Term, Type) -> String
 formatTT (term, typ) = pShow term ++ " : " ++ pShow typ
 
-trace :: String -> Either String [(String, String)]
-trace = format . runTrace . traceM . fst <=< typecheck <=< parse
+replTrace :: String -> Either String [(String, String)]
+replTrace = format . runTrace . traceM . fst <=< typecheck <=< parse
   where runTrace = mapM (`runStateT` emptyStore)
         format = fmap (fmap (bimap pShow pShow))
 
@@ -71,59 +68,28 @@ instance Eq (StateT Store (Either String) Term) where
   s1 == s2 = evalStateT s1 emptyStore == evalStateT s2 emptyStore
 
 
-------------
-type Repl a = HaskelineT IO a
-
--- Tab Completion: return a completion for partial words entered
-completer :: Monad m => WordCompleter m
-completer _ = return []
--- completer n = do let names = ["kirk", "spock", "mccoy"]
---                  return $ filter (isPrefixOf n) names
-
-handleEr :: (a -> IO ()) -> Either String a -> IO ()
-handleEr = either (\l -> putStrLn $ "Error: " ++ l)
-
--- Commands
-
--- Evaluation : handle each line user inputs
-evalCmd :: String -> Repl ()
-evalCmd = liftIO . handleEr putStrLn . replEval
-
-helpCmd :: String -> Repl ()
-helpCmd _ = liftIO $ putStrLn msg
-  where msg = unlines ["The syntax of the language follows TAPL Ch.13",
-                       "REPL commands: " ++ intercalate ", " (map fst opts)]
-
-typeCmd :: String -> Repl ()
-typeCmd = liftIO . handleEr putStrLn . replType
-
-traceCmd :: String -> Repl ()
-traceCmd = liftIO . handleEr shortPrint . trace
-
-opts :: [(String, String -> Repl ())]
-opts =
-  [ ("help" , helpCmd),
-    ("type" , typeCmd),
-    ("trace", traceCmd)
-  ]
-
-ini :: Repl ()
-ini = liftIO $ putStrLn "Welcome!"
-
-final :: Repl ExitDecision
-final = do liftIO $ putStrLn "Goodbye!"
-           return Exit
-
+--------------------
+-- REPL
+--------------------
 repl :: IO ()
-repl = evalReplOpts $ ReplOpts
-  { banner           = const (pure "LambdaRef> ")
-  , command          = evalCmd
-  , options          = opts
-  , prefix           = Just ':'
-  , multilineCommand = Nothing
-  , tabComplete      = Word completer
-  , initialiser      = ini
-  , finaliser        = final
-  }
+repl = mkRepl "LambdaRef> " evalCmd opts
+  where
+    opts :: [(String, String -> IO ())]
+    opts =
+      [ ("help" , helpCmd),
+        ("type" , typeCmd),
+        ("trace", traceCmd)
+      ]
 
+    evalCmd :: String -> IO ()
+    evalCmd = handleEr putStrLn . replEval
+
+    traceCmd :: String -> IO ()
+    traceCmd = handleEr shortPrint . replTrace
+
+    typeCmd :: String -> IO ()
+    typeCmd = handleEr putStrLn . replType
+
+    helpCmd :: String -> IO ()
+    helpCmd _ = putStrLn $ mkHelpMsg "13" (map fst opts)
 

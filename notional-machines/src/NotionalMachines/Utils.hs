@@ -2,17 +2,22 @@
 
 module NotionalMachines.Utils where
 
-import Data.List (uncons)
+import Data.List (intercalate, uncons)
 
-import           Hedgehog
+import           Hedgehog       hiding (eval)
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
 import Control.Monad (forM_)
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty)
-import Text.Pretty.Simple        (CheckColorTty (..), defaultOutputOptionsDarkBg,
-                                  outputOptionsCompact, pPrintOpt)
+import Control.Monad.Trans             (liftIO)
+import Data.Bifunctor                  (second)
+import Data.Text.Prettyprint.Doc       (Pretty, pretty)
+import NotionalMachines.Meta.Steppable (Steppable, eval, trace)
+import System.Console.Repline          (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
+                                        ReplOpts (..), evalReplOpts)
+import Text.Pretty.Simple              (CheckColorTty (..), defaultOutputOptionsDarkBg,
+                                        outputOptionsCompact, pPrintOpt)
 
 
 maybeHead :: [a] -> Maybe a
@@ -46,4 +51,31 @@ genAndSolve gen solver =
             do e <- gen
                shortPrint e
                return $ solver e
+
+-- REPL
+
+type Repl a = HaskelineT IO a
+mkRepl :: String
+       -> (String -> IO ())           -- ^ eval function
+       -> [(String, String -> IO ())] -- ^ a function per repl option
+       -> IO ()
+mkRepl replBanner evalCmd opts = evalReplOpts $ ReplOpts
+  { banner           = const (pure replBanner)
+  , command          = liftIO . evalCmd
+  , options          = map (second (liftIO .)) opts
+  , prefix           = Just ':'
+  , multilineCommand = Nothing
+  , tabComplete      = (Word . const . return) []
+  , initialiser      = liftIO $ putStrLn "Welcome!"
+  , finaliser        = do liftIO $ putStrLn "Goodbye!"
+                          return Exit
+  }
+
+mkHelpMsg :: String -> [String] -> String
+mkHelpMsg bookCh opts =
+  unlines ["The syntax of the language follows TAPL Ch." ++ bookCh,
+           "REPL commands: " ++ intercalate ", " opts]
+
+handleEr :: (a -> IO ()) -> Either String a -> IO ()
+handleEr = either (\l -> putStrLn $ "Error: " ++ l)
 
