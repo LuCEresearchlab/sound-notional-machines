@@ -95,8 +95,8 @@ evalProducesValue = prop $ do
   e <- forAll LambdaGen.genCombinator
   (Lambda.isValue <$> evalM e) === Just True
 
-typeSafety :: (Show term, Show typ)
-            => Gen term -> (term -> Either String typ) -> (term -> Either String term) -> (term -> Bool) -> Property
+typeSafety :: (Show term, Show typ, Show er, Eq er)
+            => Gen term -> (term -> Either er typ) -> (term -> Either er term) -> (term -> Bool) -> Property
 typeSafety g typer evaluer isValuer = prop $ do
   e <- forAll g
   classify "type checks" $ (isRight . typer) e
@@ -260,11 +260,11 @@ arithTest = testGroup "Arith" [
     , evalTo "if iszero succ 0 then false else true" "true"
         (fmap (Arith.unparse . eval) . Arith.parse)
     , testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
-        (Just TypedArith.TyNat) -- expected
-        (TypedArith.typeof =<< Arith.parse "if iszero 0 then 0 else pred 0")
+        (Right TypedArith.TyNat) -- expected
+        (TypedArith.typeof =<< TypedArith.parse "if iszero 0 then 0 else pred 0")
     , testCase "if true then 0 else false : ??" $ assertEqual ""
-        Nothing -- expected
-        (TypedArith.typeof =<< Arith.parse "if true then 0 else false")
+        (Left TypedArith.TypeError) -- expected
+        (TypedArith.typeof =<< TypedArith.parse "if true then 0 else false")
   ]
 
 expressionTutorTest :: TestTree

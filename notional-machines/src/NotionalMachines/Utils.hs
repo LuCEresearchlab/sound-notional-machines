@@ -71,10 +71,17 @@ mkRepl replBanner evalCmd opts = evalReplOpts $ ReplOpts
                           return Exit
   }
 
-mkHelpMsg :: String -> [String] -> String
-mkHelpMsg bookCh opts =
-  unlines ["The syntax of the language follows TAPL Ch." ++ bookCh,
-           "REPL commands: " ++ intercalate ", " opts]
+mkHelpCmd :: String -> [String] -> String -> IO ()
+mkHelpCmd bookCh opts = \_ -> putStrLn msg
+  where
+    msg = unlines ["The syntax of the language follows TAPL Ch." ++ bookCh,
+                   "REPL commands: " ++ intercalate ", " opts]
+
+mkCmd :: Show b => (a -> Either b String) -> a -> IO ()
+mkCmd f = either print putStrLn . f
+
+mkTraceCmd :: (Show b, Show a) => (c -> Either b a) -> c -> IO ()
+mkTraceCmd replTrace = either print shortPrint . replTrace
 
 handleEr :: (a -> IO ()) -> Either String a -> IO ()
 handleEr = either (\l -> putStrLn $ "Error: " ++ l)

@@ -21,7 +21,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Data.Text.Prettyprint.Doc (Doc, Pretty, hsep, parens, pretty, (<+>))
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..),
-                                                            isNumericVal)
+                                                            isNumericVal, Error (ParseError))
 import NotionalMachines.Utils                              (pShow)
 
 
@@ -112,8 +112,8 @@ pTyp = Ex.buildExpressionParser table pTypAtom
   where table = [ [ Ex.Infix  (TyFun <$ reservedOp "->")  Ex.AssocRight
                   , Ex.Prefix (TyRef <$ reservedOp "Ref") ] ]
 
-parse :: String -> Either String Term
-parse = first show . Parsec.parse (contents pTerm) "(unknown)"
+parse :: String -> Either Error Term
+parse = first (ParseError . show) . Parsec.parse (contents pTerm) "(unknown)"
 
 decToPeano :: Integer -> Term
 decToPeano 0 = Zero

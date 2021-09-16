@@ -10,6 +10,8 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   Term(..),
   Type(..),
 
+  Error(..),
+
   Store,
   emptyStore,
 
@@ -35,6 +37,11 @@ import NotionalMachines.Utils          (maybeToEither)
 --------------------
 -- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
 --------------------
+data Error = ParseError String
+           | TypeError
+           | RuntimeError String
+  deriving (Eq, Show)
+
 data Type = TyFun Type Type
           | TyUnit
           | TyRef Type
@@ -77,15 +84,15 @@ type Store = Map Location Term
 emptyStore :: Store
 emptyStore = Map.empty
 
-alloc :: Term -> StateT Store (Either String) Term
+alloc :: Term -> StateT Store (Either Error) Term
 alloc v = do newLoc <- fmap (succ . foldl max (-1) . Map.keys) get
              withStateT (Map.insert newLoc v) (return $ Loc newLoc)
 
-deref :: Location -> StateT Store (Either String) Term
-deref l = (lift . maybeToEither errorMsg . Map.lookup l) =<< get
-  where errorMsg = "error: address not found: " ++ show l
+deref :: Location -> StateT Store (Either Error) Term
+deref l = (lift . maybeToEither er . Map.lookup l) =<< get
+  where er = RuntimeError $ "address not found: " ++ show l
 
-assign :: Location -> Term -> StateT Store (Either String) Term
+assign :: Location -> Term -> StateT Store (Either Error) Term
 assign l v = withStateT (Map.insert l v) (return Unit)
 -------------------
 
@@ -104,8 +111,8 @@ isNumericVal = \case
   Succ t -> isNumericVal t
   _      -> False
 
-typeof :: Term -> Either String Type
-typeof = maybeToEither "type error" . typeof' []
+typeof :: Term -> Either Error Type
+typeof = maybeToEither TypeError . typeof' []
 
 typeof' :: TypCtx -> Term -> Maybe Type
 typeof' ctx = \case
@@ -134,16 +141,16 @@ typeof' ctx = \case
   where typeOfEq t1 t2 = rec t1 == Just t2
         rec = typeof' ctx
 
-typecheck :: Term -> Either String (Term, Type)
+typecheck :: Term -> Either Error (Term, Type)
 typecheck t = (t, ) <$> typeof t
 
-instance SteppableM Term (StateT Store (Either String)) where
+instance SteppableM Term (StateT Store (Either Error)) where
   stepM = step'
 
-evalM' :: Term -> Either String Term
+evalM' :: Term -> Either Error Term
 evalM' t = evalStateT (evalM t) emptyStore
 
-step' :: Term -> StateT Store (Either String) Term
+step' :: Term -> StateT Store (Either Error) Term
 step' = \case
   -- Lambdas
   App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 ) <$> step' t1    -- E-App1

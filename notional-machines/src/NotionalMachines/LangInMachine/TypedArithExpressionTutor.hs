@@ -23,6 +23,7 @@ import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..), mkInjBisim)
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
 import NotionalMachines.Meta.Steppable    (step)
+import NotionalMachines.Utils (eitherToMaybe)
 
 newtype TyExpTutorDiagram = TyExpTutorDiagram ExpTutorDiagram
   deriving (Eq, Show)
@@ -75,17 +76,17 @@ instance Injective Term TyExpTutorDiagram where
 
 -- Ask for the type of a diagram not annotated with types
 typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
-typeOfBisim = MkBisim { fLang  = typeof
-                    , fNM    = fmap (show . pretty) . typeof <=< fromNM
-                    , alphaA = toNM
-                    , alphaB = fmap (show . pretty) }
+typeOfBisim = MkBisim { fLang  = eitherToMaybe . typeof
+                      , fNM    = fmap (show . pretty) . eitherToMaybe . typeof <=< fromNM
+                      , alphaA = toNM
+                      , alphaB = fmap (show . pretty) }
 
 -- Annotate diagram with types
 annotateTypeBisim :: Bisimulation Term Term ExpTutorDiagram (Maybe TyExpTutorDiagram)
 annotateTypeBisim = MkBisim { fLang  = id
-                          , fNM    = fmap (toNM :: Term -> TyExpTutorDiagram) . fromNM
-                          , alphaA = toNM
-                          , alphaB = return . toNM }
+                            , fNM    = fmap (toNM :: Term -> TyExpTutorDiagram) . fromNM
+                            , alphaA = toNM
+                            , alphaB = return . toNM }
 
 -- Evaluation
 evalBisim :: Bisimulation Term Term TyExpTutorDiagram (Maybe TyExpTutorDiagram)

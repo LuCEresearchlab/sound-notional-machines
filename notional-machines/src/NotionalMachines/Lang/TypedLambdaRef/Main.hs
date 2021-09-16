@@ -28,68 +28,55 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   repl
   ) where
 
-import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
 
 import Data.Bifunctor (bimap)
 
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..), emptyStore,
-                                                            evalM', isValue, typecheck, typeof)
+import Control.Monad                                       ((<=<))
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Store, Term (..), Type (..),
+                                                            emptyStore, evalM', isValue, typecheck,
+                                                            typeof)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (traceM)
-import NotionalMachines.Utils                              (handleEr, mkHelpMsg, mkRepl, pShow,
-                                                            shortPrint)
+import NotionalMachines.Utils                              (mkHelpCmd, mkRepl, pShow, mkCmd, mkTraceCmd)
 
-
-eval :: String -> Either String (Term, Type)
-eval s = do term <- parse s
-            typ  <- typeof term
-            val  <- evalM' term
-            return (val, typ)
+--------------------
+-- REPL
+--------------------
 
 -- | Eval and format output to display in the REPL.
-replEval :: String -> Either String String
+replEval :: String -> Either Error String
 replEval = fmap formatTT . eval
+  where
+    eval :: String -> Either Error (Term, Type)
+    eval s = do term <- parse s
+                typ  <- typeof term
+                val  <- evalM' term
+                return (val, typ)
 
-replType :: String -> Either String String
+replType :: String -> Either Error String
 replType = fmap formatTT . typecheck <=< parse
 
 formatTT :: (Term, Type) -> String
 formatTT (term, typ) = pShow term ++ " : " ++ pShow typ
 
-replTrace :: String -> Either String [(String, String)]
+replTrace :: String -> Either Error [(String, String)]
 replTrace = format . runTrace . traceM . fst <=< typecheck <=< parse
   where runTrace = mapM (`runStateT` emptyStore)
         format = fmap (fmap (bimap pShow pShow))
 
 -- This instance is required for tracing because it needs to compare StateTs.
-instance Eq (StateT Store (Either String) Term) where
+instance Eq (StateT Store (Either Error) Term) where
   s1 == s2 = evalStateT s1 emptyStore == evalStateT s2 emptyStore
 
 
---------------------
--- REPL
---------------------
 repl :: IO ()
-repl = mkRepl "LambdaRef> " evalCmd opts
+repl = mkRepl "LambdaRef> " (mkCmd replEval) opts
   where
     opts :: [(String, String -> IO ())]
     opts =
-      [ ("help" , helpCmd),
-        ("type" , typeCmd),
-        ("trace", traceCmd)
+      [ ("help" , mkHelpCmd "13" (map fst opts)),
+        ("trace", mkTraceCmd replTrace),
+        ("type" , mkCmd replType)
       ]
-
-    evalCmd :: String -> IO ()
-    evalCmd = handleEr putStrLn . replEval
-
-    traceCmd :: String -> IO ()
-    traceCmd = handleEr shortPrint . replTrace
-
-    typeCmd :: String -> IO ()
-    typeCmd = handleEr putStrLn . replType
-
-    helpCmd :: String -> IO ()
-    helpCmd _ = putStrLn $ mkHelpMsg "13" (map fst opts)
-
