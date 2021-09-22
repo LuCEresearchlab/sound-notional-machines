@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE TupleSections #-}
 
 module NotionalMachines.Utils where
 
@@ -8,16 +9,15 @@ import           Hedgehog       hiding (eval)
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, (<=<))
 
-import Control.Monad.Trans             (liftIO)
-import Data.Bifunctor                  (second)
-import Data.Text.Prettyprint.Doc       (Pretty, pretty)
-import NotionalMachines.Meta.Steppable (Steppable, eval, trace)
-import System.Console.Repline          (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
-                                        ReplOpts (..), evalReplOpts)
-import Text.Pretty.Simple              (CheckColorTty (..), defaultOutputOptionsDarkBg,
-                                        outputOptionsCompact, pPrintOpt)
+import Control.Monad.Trans       (liftIO)
+import Data.Bifunctor            (second)
+import Data.Text.Prettyprint.Doc (Pretty, pretty)
+import System.Console.Repline    (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
+                                  ReplOpts (..), evalReplOpts)
+import Text.Pretty.Simple        (CheckColorTty (..), defaultOutputOptionsDarkBg,
+                                  outputOptionsCompact, pPrintOpt)
 
 
 maybeHead :: [a] -> Maybe a
@@ -52,6 +52,8 @@ genAndSolve gen solver =
                shortPrint e
                return $ solver e
 
+-------------------------
+
 -- REPL
 
 type Repl a = HaskelineT IO a
@@ -71,18 +73,59 @@ mkRepl replBanner evalCmd opts = evalReplOpts $ ReplOpts
                           return Exit
   }
 
-mkHelpCmd :: String -> [String] -> String -> IO ()
-mkHelpCmd bookCh opts = \_ -> putStrLn msg
+
+pShowTT :: (Pretty a1, Pretty a2) => (a1, a2) -> String
+pShowTT (term, typ) = pShow term ++ " : " ++ pShow typ
+
+taplBookMsg :: String -> String
+taplBookMsg bookCh = "The syntax of the language follows TAPL Ch." ++ bookCh
+
+
+mkReplEval :: (Monad m, Pretty t, Pretty ty) => (String -> m t)
+                                             -> (t -> m t)
+                                             -> Maybe (t -> m ty)
+                                             -> String
+                                             -> m String
+mkReplEval parse eval' mTypeof s =
+    case mTypeof of
+      Nothing -> (fmap pShow . (=<<) eval' . parse) s
+      Just typeof -> do term <- parse s
+                        typ  <- typeof term
+                        val  <- eval' term
+                        return $ pShowTT (val, typ)
+
+
+mkLangRepl :: (Pretty t, Show er, Pretty ty, Show a) => String
+                                                     -> (String -> Either er t)
+                                                     -> (t -> Either er t)
+                                                     -> (t -> Either er [a])
+                                                     -> Maybe (t -> Either er ty)
+                                                     -> String
+                                                     -> IO ()
+mkLangRepl replBanner parse eval' trace' mTypeof bookMsg =
+        mkRepl (replBanner ++ " ") (mkCmd $ mkReplEval parse eval' mTypeof) opts
   where
-    msg = unlines ["The syntax of the language follows TAPL Ch." ++ bookCh,
-                   "REPL commands: " ++ intercalate ", " opts]
+    opts :: [(String, String -> IO ())]
+    opts =
+      [ ("help" , mkHelpCmd bookMsg (map fst opts)),
+        ("trace", mkTraceCmd (trace' <=< parse))
+      ] ++ case mTypeof of Nothing     -> []
+                           Just typeof -> [("type", mkTypeCmd typeof parse)]
 
-mkCmd :: Show b => (a -> Either b String) -> a -> IO ()
-mkCmd f = either print putStrLn . f
+    mkHelpCmd :: String -> [String] -> String -> IO ()
+    mkHelpCmd header cmds = \_ -> putStrLn msg
+      where msg = unlines [header, "REPL commands: " ++ intercalate ", " cmds]
 
-mkTraceCmd :: (Show b, Show a) => (c -> Either b a) -> c -> IO ()
-mkTraceCmd replTrace = either print shortPrint . replTrace
+    mkCmd :: Show b => (a -> Either b String) -> a -> IO ()
+    mkCmd f = either print putStrLn . f
 
-handleEr :: (a -> IO ()) -> Either String a -> IO ()
-handleEr = either (\l -> putStrLn $ "Error: " ++ l)
+    mkTraceCmd :: (Show b, Show a) => (c -> Either b a) -> c -> IO ()
+    mkTraceCmd replTrace = either print shortPrint . replTrace
+
+    mkTypeCmd :: (Show er, Pretty term, Pretty ty) => (term -> Either er ty)
+                                                   -> (a -> Either er term)
+                                                   -> a
+                                                   -> IO ()
+    mkTypeCmd typeof parse' = mkCmd $ fmap pShowTT . typecheck <=< parse'
+      where typecheck t = (t, ) <$> typeof t
 

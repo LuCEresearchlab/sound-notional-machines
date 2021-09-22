@@ -34,14 +34,13 @@ module NotionalMachines.Lang.UntypedArith.Main (
   isValue,
   parse,
   unparse,
-  repl,
-  replEval) where
+  repl) where
 
 import Data.Text.Prettyprint.Doc (Pretty, hsep, pretty, (<+>))
 
 import           Data.Functor                    (($>))
 import           NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import           NotionalMachines.Utils          (mkHelpCmd, mkRepl, pShow, mkCmd, mkTraceCmd)
+import           NotionalMachines.Utils          (mkLangRepl, pShow, taplBookMsg)
 import qualified Text.Parsec                     as P
 import           Text.ParserCombinators.Parsec   (ParseError, Parser, between, char, eof, spaces,
                                                   string, try, (<|>))
@@ -117,17 +116,10 @@ unparse = pShow
 -- REPL
 --------------------
 
--- | Eval and format output to display in the REPL.
-replEval :: String -> Either ParseError String
-replEval = fmap (pShow . eval) . parse
-
-replTrace :: String -> Either ParseError [Term]
-replTrace = fmap trace . parse
-
 repl :: IO ()
-repl = mkRepl "Arith> " (mkCmd replEval) opts
-  where
-    opts :: [(String, String -> IO ())]
-    opts = [ ("help" , mkHelpCmd "3" (map fst opts)),
-             ("trace", mkTraceCmd replTrace)
-           ]
+repl = mkLangRepl "Arith>"
+                  parse
+                  (Right . eval)
+                  (Right . trace)
+                  (Nothing :: Maybe (Term -> Either ParseError Term)) -- not typed
+                  (taplBookMsg "3")

@@ -6,15 +6,11 @@ import           Hedgehog       (MonadGen)
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
-import NotionalMachines.Lang.UntypedLambda.Generators
-import NotionalMachines.Lang.UntypedLambda.Main
 
 import NotionalMachines.Machine.ExpressionTutor.Main
 
 import NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor ()
 
-import NotionalMachines.Meta.Injective
-import NotionalMachines.Meta.Steppable
 
 genExpTutorDiagram :: MonadGen m => m ExpTutorDiagram
 genExpTutorDiagram = do n <- Gen.set (Range.linear 0 5) genNode
@@ -49,35 +45,4 @@ genType = genString
 
 genString :: MonadGen m => m String
 genString = Gen.list (Range.linear 0 10) $ Gen.element ['a'..'z']
-
-------------------
--- Expression Tutor activities
-------------------
-
----- Parse activity ----
-
-genLambda :: IO String
-genLambda = unparse <$> Gen.sample genExp
-
-solveParseActivity :: String -> Maybe ExpTutorDiagram
-solveParseActivity = fmap toNM . parse
-
-
----- Unparse activity ----
-
-generateUnparseActivity :: IO ExpTutorDiagram
-generateUnparseActivity = toNM <$> Gen.sample genExp
-
-solveUnparseActivity :: ExpTutorDiagram -> Maybe String
-solveUnparseActivity = fmap unparse . fromNM
-
-
----- Eval activity ----
-
-generateEvalActivity :: IO String
-generateEvalActivity = unparse <$> Gen.sample genCombinator
-
-solveEvalActivity :: String -> Maybe ExpTutorDiagram
-solveEvalActivity = fmap (toNM . eval) . parse
-
 

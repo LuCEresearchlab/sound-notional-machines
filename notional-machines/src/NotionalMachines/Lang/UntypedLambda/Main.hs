@@ -10,11 +10,10 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
 import Data.Text.Prettyprint.Doc (Pretty, backslash, dot, parens, pretty, (<+>))
 
-import Data.List  ((\\))
-import Data.Maybe (fromJust)
+import Data.List ((\\))
 
-import NotionalMachines.Meta.Steppable (Steppable, SteppableM, step, stepM)
-import NotionalMachines.Utils          (pShow)
+import NotionalMachines.Meta.Steppable (Steppable, SteppableM, eval, step, stepM, trace)
+import NotionalMachines.Utils          (mkLangRepl, pShow, taplBookMsg)
 
 --------------------
 -- Bisimulation
@@ -98,10 +97,8 @@ instance SteppableM Exp Maybe where
 --------------------
 -- Parsing and unparsing
 --------------------
-parse :: String -> Maybe Exp
-parse s = case Parsec.parse pExp "(unknown)" s of
-            Left _  -> Nothing
-            Right e -> Just e
+parse :: String -> Either ParseError Exp
+parse = Parsec.parse pExp "(unknown)"
 
 pExp :: Parser Exp
 pExp = try pLambda <|> try pApp <|> pAtom <* eof
@@ -128,41 +125,52 @@ unparse = pShow
 -- Examples --
 --------------
 
-eId :: Exp
-eId = fromJust $ parse "\\x.x"
+eId :: Either ParseError Exp
+eId = parse "\\x.x"
 
 -- church booleans
 tru    :: String
 tru    = "(\\t.\\f.t)"
-eTrue  :: Exp
-eTrue  = fromJust $ parse tru
+eTrue :: Either ParseError Exp
+eTrue  = parse tru
 fls    :: String
 fls    = "(\\t.\\f.f)"
-eFalse :: Exp
-eFalse = fromJust $ parse fls
+eFalse :: Either ParseError Exp
+eFalse = parse fls
 sAnd   :: String
 sAnd   = "\\b.\\c.b c " ++ fls
-eAnd   :: Exp
-eAnd   = fromJust $ parse sAnd
-eOr    :: Exp
-eOr    = fromJust $ parse ("\\b.\\c.b " ++ tru ++ " c")
+eAnd :: Either ParseError Exp
+eAnd   = parse sAnd
+eOr :: Either ParseError Exp
+eOr    = parse ("\\b.\\c.b " ++ tru ++ " c")
 
 -- church numbers
-eZero  :: Exp
-eZero  = fromJust $ parse "\\s.\\z.z"
-eOne   :: Exp
-eOne   = fromJust $ parse "\\s.\\z.s z"
-eTwo   :: Exp
-eTwo   = fromJust $ parse "\\s.\\z.s(s z)"
-eThree :: Exp
-eThree = fromJust $ parse "\\s.\\z.s(s (s z)"
-eScc   :: Exp
-eScc   = fromJust $ parse "\\n.\\s.\\z.s(n s z)"
+eZero :: Either ParseError Exp
+eZero  = parse "\\s.\\z.z"
+eOne :: Either ParseError Exp
+eOne   = parse "\\s.\\z.s z"
+eTwo :: Either ParseError Exp
+eTwo   = parse "\\s.\\z.s(s z)"
+eThree :: Either ParseError Exp
+eThree = parse "\\s.\\z.s(s (s z)"
+eScc :: Either ParseError Exp
+eScc   = parse "\\n.\\s.\\z.s(n s z)"
 
-eOmega :: Exp
-eOmega = fromJust $ parse "(\\x.x x) (\\x.x x)"
-eY     :: Exp
-eY     = fromJust $ parse "\\f.(\\x.f (x x)) (\\x.f (x x))"
-eFix   :: Exp
-eFix   = fromJust $ parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
+eOmega :: Either ParseError Exp
+eOmega = parse "(\\x.x x) (\\x.x x)"
+eY :: Either ParseError Exp
+eY     = parse "\\f.(\\x.f (x x)) (\\x.f (x x))"
+eFix :: Either ParseError Exp
+eFix   = parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
 
+--------------------
+-- REPL
+--------------------
+
+repl :: IO ()
+repl = mkLangRepl "Lambda>"
+                  parse
+                  (Right . eval)
+                  (Right . trace)
+                  (Nothing :: Maybe (Exp -> Either ParseError Exp)) -- not typed
+                  (taplBookMsg "5")

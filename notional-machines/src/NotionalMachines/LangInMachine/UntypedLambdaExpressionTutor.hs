@@ -10,7 +10,13 @@ import Control.Monad.State.Lazy (State, StateT (..), lift)
 
 import Data.Set (Set)
 
-import NotionalMachines.Lang.UntypedLambda.Main      (Exp (..))
+import Text.ParserCombinators.Parsec (ParseError)
+
+import qualified Hedgehog.Gen as Gen
+
+import NotionalMachines.Lang.UntypedLambda.Generators (genCombinator, genExp)
+import NotionalMachines.Lang.UntypedLambda.Main       (Exp (..), parse, unparse)
+
 import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), NodeContentElem (..),
                                                       checkCycle, etToLang, holeP, langToET,
                                                       newDiaBranch, newDiaLeaf, pattern DiaBranch,
@@ -18,7 +24,7 @@ import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), Node
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
-import NotionalMachines.Meta.Steppable    (step)
+import NotionalMachines.Meta.Steppable    (eval, step)
 
 
 pattern NodeVar    name i <- MkNode i _       [NameUse name] where
@@ -59,4 +65,35 @@ bisim = mkInjBisim step
 --               , fNM    = stepM
 --               , alphaA = toNM
 --               , alphaB = return . toNM }
+
+------------------
+-- Expression Tutor activities
+------------------
+
+---- Parse activity ----
+
+genLambda :: IO String
+genLambda = unparse <$> Gen.sample genExp
+
+solveParseActivity :: String -> Either ParseError ExpTutorDiagram
+solveParseActivity = fmap toNM . parse
+
+
+---- Unparse activity ----
+
+generateUnparseActivity :: IO ExpTutorDiagram
+generateUnparseActivity = toNM <$> Gen.sample genExp
+
+solveUnparseActivity :: ExpTutorDiagram -> Maybe String
+solveUnparseActivity = fmap unparse . fromNM
+
+
+---- Eval activity ----
+
+generateEvalActivity :: IO String
+generateEvalActivity = unparse <$> Gen.sample genCombinator
+
+solveEvalActivity :: String -> Either ParseError ExpTutorDiagram
+solveEvalActivity = fmap (toNM . eval) . parse
+
 

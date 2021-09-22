@@ -197,10 +197,10 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
             (Right TypedLambda.TyNat) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if iszero 0 then 0 else pred 0")
         , testCase "if true then 0 else false : ??" $ assertEqual ""
-            (Left "type error") -- expected
+            (Left TypedLambda.TypeError) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then 0 else false")
         , testCase "if a then b else c : ??" $ assertEqual ""
-            (Left "type error") -- expected
+            (Left TypedLambda.TypeError) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if a then b else c")
         , testCase "(\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
@@ -344,7 +344,7 @@ alligatorTest = testGroup "Alligators" [
     , testProperty "In example, right guess <=> right colors"
         gamePlayExample
     , testGroup "de Bruijn Alligators" (
-      let f = fmap Lambda.unparse . A.nmToLang . deBruijnAlligators . Inj.toNM . fromJust . Lambda.parse
+      let f = fmap Lambda.unparse . (=<<) (A.nmToLang . deBruijnAlligators . Inj.toNM) . eitherToMaybe . Lambda.parse
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected

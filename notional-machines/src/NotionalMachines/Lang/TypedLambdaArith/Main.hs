@@ -23,11 +23,13 @@ for booleans and arithmetic expressions are presented in chapter 3.
 module NotionalMachines.Lang.TypedLambdaArith.Main (
   Term(..),
   Type(..),
+  Error(..),
   isValue,
   typeof,
   typeof',
   parse,
-  unparse
+  unparse,
+  repl
   ) where
 
 import qualified Text.Parsec.Expr              as Ex
@@ -40,12 +42,17 @@ import Data.Text.Prettyprint.Doc (Pretty, hsep, parens, pretty, (<+>))
 import Data.Bifunctor (first)
 import Data.List      ((\\))
 
-import NotionalMachines.Meta.Steppable (Steppable, step)
-import NotionalMachines.Utils          (maybeToEither, pShow)
+import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
+import NotionalMachines.Utils          (maybeToEither, mkLangRepl, pShow, taplBookMsg)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
 --------------------
+data Error = ParseError String
+           | TypeError
+           | RuntimeError String
+  deriving (Eq, Show)
+
 data Type = TyFun Type Type
           | TyBool
           | TyNat
@@ -70,8 +77,8 @@ data Term = -- lambdas
 
 type Name = String
 
-typeof :: Term -> Either String Type
-typeof = maybeToEither "type error" . typeof' []
+typeof :: Term -> Either Error Type
+typeof = maybeToEither TypeError . typeof' []
 
 typeof' :: TypCtx -> Term -> Maybe Type
 typeof' ctx = \case
@@ -228,8 +235,8 @@ pTyp :: Parser Type
 pTyp = Ex.buildExpressionParser table pTypAtom
   where table = [ [ Ex.Infix (TyFun <$ reservedOp "->") Ex.AssocRight ] ]
 
-parse :: String -> Either String Term
-parse = first show . Parsec.parse (contents pTerm) "(unknown)"
+parse :: String -> Either Error Term
+parse = first (ParseError . show) . Parsec.parse (contents pTerm) "(unknown)"
 
 -----
 
@@ -262,4 +269,14 @@ instance Pretty Type where
 unparse :: Term -> String
 unparse = pShow
 
+--------------------
+-- REPL
+--------------------
 
+repl :: IO ()
+repl = mkLangRepl "TypedLambda>"
+                  parse
+                  (Right . eval)
+                  (Right . trace)
+                  (Just typeof)
+                  (taplBookMsg "9")

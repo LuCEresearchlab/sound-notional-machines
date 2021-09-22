@@ -3,6 +3,7 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
 
 {-|
 Description : Typing relation for Untyped Arithmetic Expressions from TAPL Ch.8
@@ -17,7 +18,10 @@ module NotionalMachines.Lang.TypedArith.Main (
   typeof,
 
   Error(..),
-  parse) where
+  parse,
+
+  repl
+  ) where
 
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
@@ -26,7 +30,8 @@ import Text.ParserCombinators.Parsec (ParseError)
 import           Data.Bifunctor                          (first)
 import           NotionalMachines.Lang.UntypedArith.Main (Term (..))
 import qualified NotionalMachines.Lang.UntypedArith.Main as Untyped
-import           NotionalMachines.Meta.Steppable         (SteppableM, step, stepM)
+import           NotionalMachines.Meta.Steppable         (SteppableM, eval, step, stepM, trace)
+import           NotionalMachines.Utils                  (mkLangRepl, taplBookMsg)
 
 data Type = TyBool | TyNat deriving (Eq, Show)
 data Error = TypeError
@@ -55,3 +60,15 @@ instance Pretty Type where
 
 parse :: String -> Either Error Term
 parse = first ParseError . Untyped.parse
+
+--------------------
+-- REPL
+--------------------
+
+repl :: IO ()
+repl = mkLangRepl "TypedArith>"
+                  parse
+                  (Right . eval)
+                  (Right . trace)
+                  (Just typeof)
+                  (taplBookMsg "8")

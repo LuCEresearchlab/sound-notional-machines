@@ -22,7 +22,6 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   unparse,
 
   evalM',
-  replTrace,
 
   replEval,
   repl
@@ -39,30 +38,18 @@ import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Store, Term (
                                                             typeof)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (traceM)
-import NotionalMachines.Utils                              (mkHelpCmd, mkRepl, pShow, mkCmd, mkTraceCmd)
+import NotionalMachines.Utils                              (mkLangRepl, mkReplEval, pShow,
+                                                            taplBookMsg)
 
 --------------------
 -- REPL
 --------------------
 
--- | Eval and format output to display in the REPL.
 replEval :: String -> Either Error String
-replEval = fmap formatTT . eval
-  where
-    eval :: String -> Either Error (Term, Type)
-    eval s = do term <- parse s
-                typ  <- typeof term
-                val  <- evalM' term
-                return (val, typ)
+replEval = mkReplEval parse evalM' (Just typeof)
 
-replType :: String -> Either Error String
-replType = fmap formatTT . typecheck <=< parse
-
-formatTT :: (Term, Type) -> String
-formatTT (term, typ) = pShow term ++ " : " ++ pShow typ
-
-replTrace :: String -> Either Error [(String, String)]
-replTrace = format . runTrace . traceM . fst <=< typecheck <=< parse
+trace' :: Term -> Either Error [(String, String)]
+trace' = format . runTrace . traceM . fst <=< typecheck
   where runTrace = mapM (`runStateT` emptyStore)
         format = fmap (fmap (bimap pShow pShow))
 
@@ -70,13 +57,10 @@ replTrace = format . runTrace . traceM . fst <=< typecheck <=< parse
 instance Eq (StateT Store (Either Error) Term) where
   s1 == s2 = evalStateT s1 emptyStore == evalStateT s2 emptyStore
 
-
 repl :: IO ()
-repl = mkRepl "LambdaRef> " (mkCmd replEval) opts
-  where
-    opts :: [(String, String -> IO ())]
-    opts =
-      [ ("help" , mkHelpCmd "13" (map fst opts)),
-        ("trace", mkTraceCmd replTrace),
-        ("type" , mkCmd replType)
-      ]
+repl = mkLangRepl "LambdaRef>"
+                  parse
+                  evalM'
+                  trace'
+                  (Just typeof)
+                  (taplBookMsg "13")
