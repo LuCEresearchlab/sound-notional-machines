@@ -238,12 +238,28 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
             TypedLambdaRef.replEval
         , evalTo "(\\r:Ref Nat. if false then (r := 82; !r) else (!r)) (ref 13)" "13 : Nat"
             TypedLambdaRef.replEval
+        --- Incrementing a variable
         , evalTo "(\\r:Ref Nat. r:=succ(!r); r:=succ(!r); !r) (ref 0)" "2 : Nat"
             TypedLambdaRef.replEval
+
+        -- Set 'r' to 13 and read from it
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat.          !r) r) (ref 13)" "13 : Nat"
             TypedLambdaRef.replEval
+        -- Same program as before, the only difference is that here we're also
+        -- setting 's' to 82.  But wait... if we never changed the value of
+        -- 'r', how can it now be 82? How can changing another variable (a
+        -- variable we're not using to produce the result) affect the result of
+        -- the program? If wee're not using 's' to produce the result of the
+        -- program, how can changing it's value affect the result of the
+        -- program? what does 's' have anything to do with 'r'? (TAPL p.156)
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat. s := 82; !r) r) (ref 13)" "82 : Nat"
             TypedLambdaRef.replEval
+
+        -- Both 's' and 'r' are set to 2. If we then set 'r' to 0 and then set
+        -- 'r' to the value of 's' this is equivalento to not setting 'r' to 0
+        -- in the first place (as shown in the next two tests). One should be
+        -- able to always remove this first mutation, right? Well... not if 's'
+        -- and 'r' refer to the same cell (see the third test). (TAPL p.156)
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat. r := 0; r := !s; !r)) (ref 2) (ref 2)" "2 : Nat"
             TypedLambdaRef.replEval
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat.         r := !s; !r)) (ref 2) (ref 2)" "2 : Nat"
@@ -269,19 +285,19 @@ arithTest = testGroup "Arith" [
 
 expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
-    testGroup "Untyped Lambda" [
+    testGroup "ET with Untyped Lambda" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTutorDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes LambdaGen.genExp LambdaET.bisim
     ],
-    testGroup "Arith" [
+    testGroup "ET with Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTutorDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes ArithGen.genTerm ArithET.bisim
     ],
-    testGroup "Typed Arith" [
+    testGroup "ET with Typed Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> TypedArithET.TyExpTutorDiagram)
       , testProperty "commutation proof for evaluation bisimulation" $
@@ -291,7 +307,7 @@ expressionTutorTest = testGroup "Expressiontutor" [
       , testProperty "commutation proof for type annotated diagram" $
           bisimulationCommutes ArithGen.genTerm TypedArithET.annotateTypeBisim
     ],
-    testGroup "Malformed diagrams" [
+    testGroup "Malformed ETs" [
         testProperty "Random diagram doesn't crash" $ prop $
           do d <- forAll genExpTutorDiagram
              _ <- Hedgehog.eval (Inj.fromNM d :: Maybe Lambda.Exp)
@@ -370,7 +386,10 @@ alligatorTest = testGroup "Alligators" [
   ]
 
 tests :: TestTree
-tests = testGroup "Tests" [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest, expressionTutorTest, expTreeTest, reductTest, alligatorTest]
+tests = testGroup "Tests" [
+            testGroup "Languages"         [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest]
+          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest]
+        ]
 
 defaultNumberOfTests :: TestLimit
 defaultNumberOfTests = 300
