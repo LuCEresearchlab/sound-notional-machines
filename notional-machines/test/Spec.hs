@@ -178,6 +178,40 @@ evalTo input output f =
 ----- Tests -----
 -----------------
 
+arithTest :: TestTree
+arithTest = testGroup "Untyped and typed arith" [
+      testProperty "parse is left inverse of unparse" $
+        isLeftInverseOf ArithGen.genTerm Arith.parse Arith.unparse
+    , evalTo "if iszero succ 0 then false else true" "true"
+        (fmap (Arith.unparse . eval) . Arith.parse)
+    , testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
+        (Right TypedArith.TyNat) -- expected
+        (TypedArith.typeof =<< TypedArith.parse "if iszero 0 then 0 else pred 0")
+    , testCase "if true then 0 else false : ??" $ assertEqual ""
+        (Left TypedArith.TypeError) -- expected
+        (TypedArith.typeof =<< TypedArith.parse "if true then 0 else false")
+    , evalTo "if iszero 0 then succ 0 else false" "succ 0"
+        Arith.replEval
+    , evalTo "if iszero succ 0 then succ 0 else false" "false"
+        Arith.replEval
+    , evalTo "if (iszero (succ 0)) then succ 0 else false" "false"
+        Arith.replEval
+    , evalTo "if (iszero (succ 0)) then (succ 0) else false" "false"
+        Arith.replEval
+    , evalTo "if false then succ 0 else false" "false"
+        Arith.replEval
+    , evalTo "(0)" "0"
+        Arith.replEval
+    , evalTo "(false)" "false"
+        Arith.replEval
+    , evalTo "(succ 0)" "succ 0"
+        Arith.replEval
+    , evalTo "succ (succ 0)" "succ succ 0"
+        Arith.replEval
+    , evalTo "succ (succ (succ 0))" "succ succ succ 0"
+        Arith.replEval
+  ]
+
 lambdaTest :: TestTree
 lambdaTest = testGroup "Untyped Lambda Calculus" [
       testProperty "eval produces a value"
@@ -267,20 +301,6 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
         , evalTo "(\\x:Ref Nat.(\\r:Ref Nat.(\\s:Ref Nat.r := 0; r := !s; !r)) x x) (ref 2)" "0 : Nat"
             TypedLambdaRef.replEval
     ]
-  ]
-
-arithTest :: TestTree
-arithTest = testGroup "Arith" [
-      testProperty "parse is left inverse of unparse" $
-        isLeftInverseOf ArithGen.genTerm Arith.parse Arith.unparse
-    , evalTo "if iszero succ 0 then false else true" "true"
-        (fmap (Arith.unparse . eval) . Arith.parse)
-    , testCase "if iszero 0 then 0 else pred 0 : Nat" $ assertEqual ""
-        (Right TypedArith.TyNat) -- expected
-        (TypedArith.typeof =<< TypedArith.parse "if iszero 0 then 0 else pred 0")
-    , testCase "if true then 0 else false : ??" $ assertEqual ""
-        (Left TypedArith.TypeError) -- expected
-        (TypedArith.typeof =<< TypedArith.parse "if true then 0 else false")
   ]
 
 expressionTutorTest :: TestTree

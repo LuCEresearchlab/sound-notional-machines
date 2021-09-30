@@ -32,18 +32,20 @@ See all intermediate steps like so:
 module NotionalMachines.Lang.UntypedArith.Main (
   Term(..),
   isValue,
+
   parse,
   unparse,
+
+  replEval,
   repl) where
 
-import Data.Text.Prettyprint.Doc (Pretty, hsep, pretty, (<+>))
+import           Data.Text.Prettyprint.Doc     (Pretty, hsep, pretty, (<+>))
+import qualified Text.Parsec                   as P
+import           Text.ParserCombinators.Parsec (ParseError, Parser, between, char, eof, spaces,
+                                                string, try, (<|>))
 
-import           Data.Functor                    (($>))
-import           NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import           NotionalMachines.Utils          (mkLangRepl, pShow, taplBookMsg)
-import qualified Text.Parsec                     as P
-import           Text.ParserCombinators.Parsec   (ParseError, Parser, between, char, eof, spaces,
-                                                  string, try, (<|>))
+import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
+import NotionalMachines.Utils          (mkLangRepl, mkReplEval, pShow, taplBookMsg)
 
 data Term = -- Booleans
             Tru
@@ -80,6 +82,27 @@ instance Steppable Term where
     IsZero t                         -> IsZero (step t)    -- E-IsZero
     t                                -> t
 
+--------------------
+-- Parsing and unparsing
+--------------------
+parse :: String -> Either ParseError Term
+parse = P.parse (pTerm <* eof) "(unknown)"
+  where
+    pTerm :: Parser Term
+    pTerm = Succ <$> (reserved "succ" *> pTerm)
+        <|> Pred <$> (reserved "pred" *> pTerm)
+        <|> try (IsZero <$> (reserved "iszero" *> pTerm))
+        <|> Tru  <$ reserved "true"
+        <|> Fls  <$ reserved "false"
+        <|> Zero <$ reserved "0"
+        <|> If <$> (reserved "if"   *> pTerm)
+               <*> (reserved "then" *> pTerm)
+               <*> (reserved "else" *> pTerm)
+        <|> between (char '(') (char ')') pTerm <* spaces
+
+    reserved :: String -> Parser ()
+    reserved s = string s *> spaces
+
 instance Pretty Term where
   pretty = \case
     Tru         -> "true"
@@ -90,31 +113,17 @@ instance Pretty Term where
     Pred t      -> "pred"   <+> pretty t
     IsZero t    -> "iszero" <+> pretty t
 
---------------------
--- Parsing and unparsing
---------------------
-parse :: String -> Either ParseError Term
-parse = P.parse pTerm "(unknown)"
-
-pTerm :: Parser Term
-pTerm = string "true"  $> Tru
-    <|> string "false" $> Fls
-    <|> char '0'       $> Zero
-    <|> try (If <$> (string "if" *> spaces *> pTerm)
-                <*> (between spaces spaces (string "then") >> pTerm)
-                <*> (between spaces spaces (string "else") >> pTerm))
-    <|> Succ   <$> (string "succ"   *> spaces *> pTerm)
-    <|> Pred   <$> (string "pred"   *> spaces *> pTerm)
-    <|> IsZero <$> (string "iszero" *> spaces *> pTerm)
-    <|> between (char '(') (char ')') pTerm
-    <* eof
-
 unparse :: Term -> String
 unparse = pShow
 
 --------------------
 -- REPL
 --------------------
+
+replEval :: String -> Either ParseError String
+replEval = mkReplEval parse
+                      (Right . eval)
+                      (Nothing :: Maybe (Term -> Either ParseError ()))
 
 repl :: IO ()
 repl = mkLangRepl "Arith>"
