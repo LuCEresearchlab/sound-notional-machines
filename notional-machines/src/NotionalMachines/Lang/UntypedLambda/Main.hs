@@ -98,16 +98,19 @@ instance SteppableM Exp Maybe where
 -- Parsing and unparsing
 --------------------
 parse :: String -> Either ParseError Exp
-parse = Parsec.parse pExp "(unknown)"
+parse = Parsec.parse (pExp <* eof) "(unknown)"
 
 pExp :: Parser Exp
-pExp = try pLambda <|> try pApp <|> pAtom <* eof
+pExp = try pLambda
+   <|> try pApp
+   <|> pAtom
   where
-    pLambda = Lambda <$> between (char '\\') (char '.') pName <*> pExp
-    pName = many1 (letter <|> char '_')
-    pApp = foldl1 App <$> pAtom `sepBy1` spaces
+    pLambda =     Lambda <$> between (char '\\') (char '.') pName <*> pExp
+    pApp    = foldl1 App <$> pAtom `sepBy1` spaces
+    pVar    =        Var <$> pName
     pAtom = pVar <|> between (char '(') (char ')') pExp
-    pVar = Var <$> pName
+
+    pName = many1 (letter <|> char '_')
 
 -----
 
