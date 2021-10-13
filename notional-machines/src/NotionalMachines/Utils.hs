@@ -9,7 +9,7 @@ import           Hedgehog       hiding (eval)
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
-import Control.Monad (forM_, (<=<))
+import Control.Monad (forM, (<=<))
 
 import Control.Monad.Trans       (liftIO)
 import Data.Bifunctor            (second)
@@ -43,8 +43,8 @@ genName = Gen.list (Range.singleton 1) $ Gen.element ['a'..'z']
 sample :: Gen a -> IO a
 sample = Gen.sample
 
-printSample :: Show a => Int -> Gen a -> IO ()
-printSample n gen = forM_ [1..n] (\_ -> shortPrint =<< Gen.sample gen)
+sampleN :: Show a => Int -> Gen a -> IO [a]
+sampleN n gen = forM [1..n] (const $ Gen.sample gen)
 
 genAndSolve :: (Show a, Show b) => IO a -> (a -> b) -> IO b
 genAndSolve gen solver =
