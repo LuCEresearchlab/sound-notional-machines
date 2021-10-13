@@ -58,18 +58,18 @@ main = scotty 3000 $ do
     e <- param "e"
     (erHandlerText . fmap (Lambda.unparse . eval) . Lambda.parse) e
 
-  get "/et/lambda" $ do
-    e <- param "e"
-    (erHandlerJson . fmap (toNM :: Lambda.Exp -> ExpTutorDiagram) . Lambda.parse) e
-  post "/et/lambda/step" $ do
-    d :: ExpTutorDiagram <- jsonData
-    (json . stepMNM (step :: Lambda.Exp -> Lambda.Exp)) d
   get "/et/arith" $ do
     e <- param "e"
     (erHandlerJson . fmap (toNM :: Arith.Term -> ExpTutorDiagram) . Arith.parse) e
   post "/et/arith/step" $ do
     d :: ExpTutorDiagram <- jsonData
     (json . stepMNM (step :: Arith.Term -> Arith.Term)) d
+  get "/et/lambda" $ do
+    e <- param "e"
+    (erHandlerJson . fmap (toNM :: Lambda.Exp -> ExpTutorDiagram) . Lambda.parse) e
+  post "/et/lambda/step" $ do
+    d :: ExpTutorDiagram <- jsonData
+    (json . stepMNM (step :: Lambda.Exp -> Lambda.Exp)) d
 
 erHandlerText :: Show e => Either e String -> ActionM ()
 erHandlerText =  either (handle (g . show)) g
