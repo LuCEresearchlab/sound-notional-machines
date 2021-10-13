@@ -21,7 +21,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import Data.Text.Prettyprint.Doc (Doc, Pretty, hsep, parens, pretty, (<+>))
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..),
-                                                            isNumericVal, Error (ParseError))
+                                                            isNumericVal, Error (ParseError), Location)
 import NotionalMachines.Utils                              (pShow)
 
 
@@ -175,7 +175,7 @@ unparse = pShow
 
 ------
 
-instance Pretty Store where
+instance Pretty (Store Location) where
   pretty m = "Store:" <+> pretty (Map.toList m)
 
 ----

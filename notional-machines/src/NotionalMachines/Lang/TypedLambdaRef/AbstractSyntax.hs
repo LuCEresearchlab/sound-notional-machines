@@ -12,8 +12,15 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
 
   Error(..),
 
+  -- Expose store manipulation functions for the
+  -- memory related notional machines.
   Store,
+  Location,
   emptyStore,
+  alloc,
+  deref,
+  assign,
+  nextLocation,
 
   isValue,
   isNumericVal,
@@ -24,14 +31,14 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   typecheck
   ) where
 
-import Control.Monad.State.Lazy (StateT, evalStateT, get, lift, withStateT)
+import Control.Monad.State.Lazy (StateT, evalStateT, get, lift, withStateT, State)
 
 import           Data.List ((\\))
 import           Data.Map  (Map)
 import qualified Data.Map  as Map
 
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (maybeToEither)
+import NotionalMachines.Utils          (maybeToEither, stateToStateT)
 
 
 --------------------
@@ -79,21 +86,24 @@ type Name = String
 
 ------ Store Manipulation ------
 type Location = Int
-type Store = Map Location Term
+type Store l = Map l Term
 
-emptyStore :: Store
+emptyStore :: (Store Location)
 emptyStore = Map.empty
 
-alloc :: Term -> StateT Store (Either Error) Term
-alloc v = do newLoc <- fmap (succ . foldl max (-1) . Map.keys) get
-             withStateT (Map.insert newLoc v) (return $ Loc newLoc)
+alloc :: Term -> State (Store Location) Location
+alloc v = do newLoc <- fmap nextLocation get
+             withStateT (Map.insert newLoc v) (return newLoc)
 
-deref :: Location -> StateT Store (Either Error) Term
+nextLocation :: (Enum k, Ord k, Num k) => Map k v -> k
+nextLocation = succ . foldl max (-1) . Map.keys
+
+deref :: Location -> StateT (Store Location) (Either Error) Term
 deref l = (lift . maybeToEither er . Map.lookup l) =<< get
   where er = RuntimeError $ "address not found: " ++ show l
 
-assign :: Location -> Term -> StateT Store (Either Error) Term
-assign l v = withStateT (Map.insert l v) (return Unit)
+assign :: Location -> Term -> StateT (Store Location) (Either Error) Term
+assign l v = deref l *> withStateT (Map.adjust (const v) l) (return Unit) -- try to find first
 -------------------
 
 isValue :: Term -> Bool
@@ -144,20 +154,20 @@ typeof' ctx = \case
 typecheck :: Term -> Either Error (Term, Type)
 typecheck t = (t, ) <$> typeof t
 
-instance SteppableM Term (StateT Store (Either Error)) where
+instance SteppableM Term (StateT (Store Location) (Either Error)) where
   stepM = step'
 
 evalM' :: Term -> Either Error Term
 evalM' t = evalStateT (evalM t) emptyStore
 
-step' :: Term -> StateT Store (Either Error) Term
+step' :: Term -> StateT (Store Location) (Either Error) Term
 step' = \case
   -- Lambdas
   App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 ) <$> step' t1    -- E-App1
   App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2') <$> step' t2    -- E-App2
   App (Lambda name _ t1) t2        -> return $ subst name t2 t1             -- E-AppAbs
   -- References
-  Ref v | isValue v                -> alloc v                               -- E-RefV
+  Ref v | isValue v                -> stateToStateT $ Loc <$> alloc v       -- E-RefV
   Ref t | otherwise                -> Ref   <$> step' t                     -- E-Ref
   Deref (Loc l)                    -> deref l                               -- E-DerefLoc
   Deref t                          -> Deref <$> step' t                     -- E-Deref

@@ -2,12 +2,14 @@
 
 module NotionalMachines.Lang.TypedLambdaRef.Generators where
 
-import           Hedgehog     (MonadGen)
-import qualified Hedgehog.Gen as Gen
+import           Hedgehog       (MonadGen)
+import qualified Hedgehog.Gen   as Gen
+import qualified Hedgehog.Range as Range
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (Term (..), Type (..))
 
-import NotionalMachines.Utils (genName)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Location)
+import NotionalMachines.Utils                              (genName)
 
 
 genTerm :: MonadGen m => m Term
@@ -46,3 +48,19 @@ genType =
     , Gen.subterm  genType TyRef
     ]
 
+genLocation :: MonadGen m => m Location
+genLocation = Gen.int (Range.constant 0 10)
+
+genStore :: MonadGen m => m (Store Location)
+genStore = Gen.map (Range.constant 0 5) genEntry
+  where genEntry :: MonadGen m => m (Location, Term)
+        genEntry = (,) <$> genLocation <*> genTerm
+
+genTermStore :: MonadGen m => m (Term, Store Location)
+genTermStore = (,) <$> genTerm <*> genStore
+
+genLocationStore :: MonadGen m => m (Location, Store Location)
+genLocationStore = (,) <$> genLocation <*> genStore
+
+genLocationTermStore :: MonadGen m => m ((Location, Term), Store Location)
+genLocationTermStore = (,) <$> ((,) <$> genLocation <*> genTerm) <*> genStore

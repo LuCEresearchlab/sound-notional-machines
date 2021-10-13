@@ -11,6 +11,7 @@ import qualified Hedgehog.Range as Range
 
 import Control.Monad (forM_, (<=<))
 
+import Control.Monad.State.Lazy  (State, StateT (StateT), runState, runStateT, state)
 import Control.Monad.Trans       (liftIO)
 import Data.Bifunctor            (second)
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
@@ -28,6 +29,20 @@ eitherToMaybe = either (const Nothing) Just
 
 maybeToEither :: b -> Maybe a -> Either b a
 maybeToEither l = maybe (Left l) Right
+
+-- Turns a function that operatees on State into a function that operates on tuples.
+stateToTuple :: (a -> StateT s m b) -> (a, s) -> m (b, s)
+stateToTuple f (a, s) = runStateT (f a) s
+
+-- Turns a function that operatees on tuples into a function that operates on State.
+tupleToState :: ((a, s) -> m (b, s)) -> a -> StateT s m b
+tupleToState f a = StateT (curry f a)
+
+stateToStateT :: Monad m => State s a -> StateT s m a
+stateToStateT = state . runState
+
+stateToState :: State s1 a1 -> State s2 a2
+stateToState = error "todo"
 
 pShow :: Pretty a => a -> String
 pShow = show . pretty

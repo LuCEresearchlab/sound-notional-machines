@@ -35,7 +35,7 @@ import Data.Bifunctor (bimap)
 import Control.Monad                                       ((<=<))
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Store, Term (..), Type (..),
                                                             emptyStore, evalM', isValue, typecheck,
-                                                            typeof)
+                                                            typeof, Location)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (traceM)
 import NotionalMachines.Utils                              (mkLangRepl, mkReplEval, pShow,
@@ -54,7 +54,7 @@ trace' = format . runTrace . traceM . fst <=< typecheck
         format = fmap (fmap (bimap pShow pShow))
 
 -- This instance is required for tracing because it needs to compare StateTs.
-instance Eq (StateT Store (Either Error) Term) where
+instance Eq (StateT (Store Location) (Either Error) Term) where
   s1 == s2 = evalStateT s1 emptyStore == evalStateT s2 emptyStore
 
 repl :: IO ()

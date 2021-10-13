@@ -2,6 +2,7 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE TupleSections     #-}
 
 import           Hedgehog       hiding (Var, eval, evalM)
 import qualified Hedgehog       (eval)
@@ -18,6 +19,8 @@ import           Data.List     (intersect)
 import           Data.Maybe    (fromJust)
 import qualified Data.Set      as Set
 
+import Control.Monad ((<=<))
+import Control.Monad.State.Lazy (runStateT)
 
 import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
 import qualified NotionalMachines.Lang.TypedLambdaArith.Main              as TypedLambda
@@ -27,35 +30,43 @@ import           NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax ()
 import qualified NotionalMachines.Lang.UntypedLambda.Generators           as LambdaGen
 import qualified NotionalMachines.Lang.UntypedLambda.Main                 as Lambda
 -- import qualified NotionalMachines.Lang.TypedLambdaExpressionTutor as LambdaET
-import qualified NotionalMachines.Lang.TypedLambdaArith.Generators as TypedLambdaGen
-import qualified NotionalMachines.Lang.TypedLambdaRef.Main         as TypedLambdaRef
+import qualified NotionalMachines.Lang.TypedLambdaArith.Generators   as TypedLambdaGen
+import qualified NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax as LambdaRefAST
+import qualified NotionalMachines.Lang.TypedLambdaRef.Main           as LambdaRef
 -- import qualified NotionalMachines.Lang.TypedLambdaRefExpressionTutor as LambdaRefET
-import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as TypedLambdaRefGen
+import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as LambdaRefGen
 
-import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
-import NotionalMachines.Machine.AlligatorEggs.Main
-import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
-import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTutorDiagram (..),
-                                                            Node (..), NodeContentElem (..),
-                                                            Plug (..))
-import NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..), updateUids)
+import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
+import           NotionalMachines.Machine.AlligatorEggs.Main
+import           NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
+import           NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..),
+                                                                      ExpTutorDiagram (..),
+                                                                      Node (..),
+                                                                      NodeContentElem (..),
+                                                                      Plug (..))
+import           NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..),
+                                                                      updateUids)
+import qualified NotionalMachines.Machine.TAPLMemoryDiagram.Main     as TAPLMemDia
 
-import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor    as TypedArithET (TyExpTutorDiagram,
-                                                                                              annotateTypeBisim,
-                                                                                              evalBisim,
-                                                                                              typeOfBisim)
-import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor  as ArithET (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs   as A (bisim, nmToLang)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree  as ETree (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor as LambdaET (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct          as R (bisim)
+import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (TyExpTutorDiagram,
+                                                                                                 annotateTypeBisim,
+                                                                                                 evalBisim,
+                                                                                                 typeOfBisim)
+import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as LambdaRefTAPLDia
+import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (bisim,
+                                                                                      nmToLang)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
 
 import qualified NotionalMachines.Meta.Bijective    as Bij
 import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import qualified NotionalMachines.Meta.Injective    as Inj
 import           NotionalMachines.Meta.Steppable    (eval, evalM)
 
-import NotionalMachines.Utils (eitherToMaybe, genName)
+import NotionalMachines.Utils
+import qualified Data.Map as Map
 
 ----------------------
 ----- Generators -----
@@ -218,6 +229,11 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
         evalProducesValue
     , testProperty "parse is left inverse of unparse" $
         isLeftInverseOf LambdaGen.genExp Lambda.parse Lambda.unparse
+    , evalTo "(((x)))" "x"
+        Lambda.replEval
+    -- TAPL p. 59
+    , evalTo "(\\l.\\m.\\n.l m n) (\\t.\\f.t) v w" "v"
+        Lambda.replEval
   ]
 
 typLambdaTest :: TestTree
@@ -259,26 +275,26 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
 typLambdaRefTest :: TestTree
 typLambdaRefTest = testGroup "Typed Lambda Ref" [
       testProperty "parse is left inverse of unparse" $
-        isLeftInverseOf TypedLambdaRefGen.genTerm TypedLambdaRef.parse TypedLambdaRef.unparse
+        isLeftInverseOf LambdaRefGen.genTerm LambdaRef.parse LambdaRef.unparse
     , testProperty "language is type safe" $
-        typeSafety TypedLambdaRefGen.genTerm TypedLambdaRef.typeof TypedLambdaRef.evalM' TypedLambdaRef.isValue
+        typeSafety LambdaRefGen.genTerm LambdaRef.typeof LambdaRef.evalM' LambdaRef.isValue
     , testGroup "Parsing" [
           testCase "parse and unparse 'r:=succ(!r); r:=succ(!r); !r'" $ assertEqual ""
             (Right "r := succ (!r); r := succ (!r); !r") -- expected
-            (TypedLambdaRef.unparse <$> TypedLambdaRef.parse "r:=succ(!r); r:=succ(!r); !r")
+            (LambdaRef.unparse <$> LambdaRef.parse "r:=succ(!r); r:=succ(!r); !r")
     ]
     , testGroup "Evaluation" [
           evalTo "if iszero (pred 2) then 0 else (if iszero (pred 0) then succ 2 else 0)" "3 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
         , evalTo "(\\r:Ref Nat. if false then (r := 82; !r) else (!r)) (ref 13)" "13 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
         --- Incrementing a variable
         , evalTo "(\\r:Ref Nat. r:=succ(!r); r:=succ(!r); !r) (ref 0)" "2 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
 
         -- Set 'r' to 13 and read from it
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat.          !r) r) (ref 13)" "13 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
         -- Same program as before, the only difference is that here we're also
         -- setting 's' to 82.  But wait... if we never changed the value of
         -- 'r', how can it now be 82? How can changing another variable (a
@@ -287,7 +303,7 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
         -- program, how can changing it's value affect the result of the
         -- program? what does 's' have anything to do with 'r'? (TAPL p.156)
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat. s := 82; !r) r) (ref 13)" "82 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
 
         -- Both 's' and 'r' are set to 2. If we then set 'r' to 0 and then set
         -- 'r' to the value of 's' this is equivalento to not setting 'r' to 0
@@ -295,11 +311,23 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
         -- able to always remove this first mutation, right? Well... not if 's'
         -- and 'r' refer to the same cell (see the third test). (TAPL p.156)
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat. r := 0; r := !s; !r)) (ref 2) (ref 2)" "2 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat.         r := !s; !r)) (ref 2) (ref 2)" "2 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
         , evalTo "(\\x:Ref Nat.(\\r:Ref Nat.(\\s:Ref Nat.r := 0; r := !s; !r)) x x) (ref 2)" "0 : Nat"
-            TypedLambdaRef.replEval
+            LambdaRef.replEval
+    ]
+    , testGroup "Store" [
+          testCase "deref on empty store" $ assertEqual ""
+            (Left (LambdaRefAST.RuntimeError "address not found: 0")) -- expected
+            (runStateT (LambdaRefAST.deref 0) Map.empty)
+        , testCase "assign on empty store" $ assertEqual ""
+            (Left (LambdaRefAST.RuntimeError "address not found: 0")) -- expected
+            (runStateT (LambdaRefAST.assign 0 LambdaRef.Zero) Map.empty)
+        , testProperty "`(deref <=< alloc) t === t` (modulo glue code)" $
+            isEquivalentTo LambdaRefGen.genTermStore
+                           (return . fst)
+                           (fmap fst . stateToTuple (LambdaRefAST.deref <=< stateToStateT . LambdaRefAST.alloc))
     ]
   ]
 
@@ -349,7 +377,7 @@ expressionTutorTest = testGroup "Expressiontutor" [
                typ = Nothing,
                content = [C "lambda", NameDef "x", Hole (Plug (0,1))] }) } :: Maybe Lambda.Exp)
     ]
-  ]
+  1i]
 
 expTreeTest :: TestTree
 expTreeTest = testGroup "Expression Trees" [
@@ -405,10 +433,24 @@ alligatorTest = testGroup "Alligators" [
        isEquivalentTo LambdaGen.genExp (show . toAscii . (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)) (show . toAscii)
   ]
 
+taplMemeryDiagramTest :: TestTree
+taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
+      testProperty "`(deref . alloc) t === return t` (modulo glue code)" $
+        isEquivalentTo LambdaRefGen.genTerm
+                       (return)
+                       (TAPLMemDia.tDeref . TAPLMemDia.tAlloc LambdaRefAST.nextLocation . (, TAPLMemDia.emptyDiagram))
+    , testProperty "commutation proof for alloc" $
+        bisimulationCommutes LambdaRefGen.genTermStore LambdaRefTAPLDia.allocBisim
+    , testProperty "commutation proof for deref" $
+        bisimulationCommutes LambdaRefGen.genLocationStore LambdaRefTAPLDia.derefBisim
+    , testProperty "commutation proof for assign" $
+        bisimulationCommutes LambdaRefGen.genLocationTermStore LambdaRefTAPLDia.assignBisim
+  ]
+
 tests :: TestTree
 tests = testGroup "Tests" [
             testGroup "Languages"         [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest]
-          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest]
+          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest, taplMemeryDiagramTest]
         ]
 
 defaultNumberOfTests :: TestLimit
