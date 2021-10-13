@@ -42,31 +42,31 @@ main = scotty 3000 $ do
     e <- liftAndCatchIO (sample genTerm)
     (text . pack . Arith.unparse) e
   get "/arith/step" $ do
-    p <- param "p"
-    (erHandlerText . fmap (Arith.unparse . step) . Arith.parse) p
+    e <- param "e"
+    (erHandlerText . fmap (Arith.unparse . step) . Arith.parse) e
   get "/arith/eval" $ do
-    p <- param "p"
-    (erHandlerText . fmap (Arith.unparse . eval) . Arith.parse) p
+    e <- param "e"
+    (erHandlerText . fmap (Arith.unparse . eval) . Arith.parse) e
 
   get "/lambda/gen" $ do
     e <- liftAndCatchIO (sample genExp)
     (text . pack . Lambda.unparse) e
   get "/lambda/step" $ do
-    p <- param "p"
-    (erHandlerText . fmap (Lambda.unparse . step) . Lambda.parse) p
+    e <- param "e"
+    (erHandlerText . fmap (Lambda.unparse . step) . Lambda.parse) e
   get "/lambda/eval" $ do
-    p <- param "p"
-    (erHandlerText . fmap (Lambda.unparse . eval) . Lambda.parse) p
+    e <- param "e"
+    (erHandlerText . fmap (Lambda.unparse . eval) . Lambda.parse) e
 
   get "/et/lambda" $ do
-    p <- param "e"
-    (erHandlerJson . fmap (toNM :: Lambda.Exp -> ExpTutorDiagram) . Lambda.parse) p
+    e <- param "e"
+    (erHandlerJson . fmap (toNM :: Lambda.Exp -> ExpTutorDiagram) . Lambda.parse) e
   post "/et/lambda/step" $ do
     d :: ExpTutorDiagram <- jsonData
     (json . stepMNM (step :: Lambda.Exp -> Lambda.Exp)) d
   get "/et/arith" $ do
-    p <- param "e"
-    (erHandlerJson . fmap (toNM :: Arith.Term -> ExpTutorDiagram) . Arith.parse) p
+    e <- param "e"
+    (erHandlerJson . fmap (toNM :: Arith.Term -> ExpTutorDiagram) . Arith.parse) e
   post "/et/arith/step" $ do
     d :: ExpTutorDiagram <- jsonData
     (json . stepMNM (step :: Arith.Term -> Arith.Term)) d
