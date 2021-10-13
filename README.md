@@ -7,6 +7,13 @@ Foundations for correct-by-construction notional machines.
 We work on the POPL submission in Overleaf:
 https://www.overleaf.com/project/606d69ee5dd3039f53edf23e
 
+## What's here?
+
+* [notional-machines](): we're consolidating all the notional machine formalization into this project. That's probably where you want to go.
+* [expressiontutor-backend](): web backend exposing some of the functionality in `notional-machines` as micro services.
+* [references](): other code we've been looking at.
+* Other folders and files: each standalone haskell file was an attempt to write a bisimulation for a given notional machine. The other folders are stack projects trying to take specific cases. Now we want to move everything into `notional-machines` and try to make that a library to write bisimulations for language and notional machines.
+
 ## Run the code
 
 Run the bare bone haskell files in continuous compilation with
