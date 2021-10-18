@@ -37,8 +37,17 @@ TypedLambda> :trace (\x:Nat.succ x) 0
 
 **BUG?** Shouldn't this substitute `0` for `Var "x"`?
 
+Use the REPL to determine the type of a TypedLambdaArith term:
+
+```sh
+TypedLambda> :type (\x:Nat.succ x) 0
+(\x:Nat.succ (x)) 0 : Nat
+```
+
 The parser is specified in `Main.hs` (see `parse = ...`).
 
 The abstract syntax is specified in `Main.hs` (see `data Term = ...`).
 
 The evaluation rules are specified in `Main.hs` (see `step ... = ...`).
+
+The typing rules are specified in `Main.hs` (see `typeof = ...`).
