@@ -55,11 +55,11 @@ stack test --file-watch
 Run the REPL of a given language.
 We currently have a sequence of five languages inspired by TAPL:
 
-* UntypedArith
-* UntypedLambda
-* TypedArith
-* TypedLambda
-* TypedLambdaRef
+* [UntypedArith](notional-machines/src/NotionalMachines/Lang/UntypedArith/README.md)
+* [UntypedLambda](notional-machines/src/NotionalMachines/Lang/UntypedLambda/README.md)
+* [TypedArith](notional-machines/src/NotionalMachines/Lang/TypedArith/README.md)
+* [TypedLambda](notional-machines/src/NotionalMachines/Lang/TypedLambda/README.md)
+* [TypedLambdaRef](notional-machines/src/NotionalMachines/Lang/TypedLamdaRef/README.md)
 
 For example, run the *TypedLambdaRef* REPL,
 and then try some of its features:
@@ -135,7 +135,7 @@ LambdaRef> :trace (\r:Ref Nat.(\s:Ref Nat. s := 82; !r) r) (ref 13)
 
 We currently have four notional machines:
 
-* AlligatorEggs (on UntypedLambda)
+* [AlligatorEggs](notional-machines/src/NotionalMachines/Machine/AlligatorEggs/README.md) (on UntypedLambda)
 * ExpressionTree (on UntypedLambda)
 * ExpressionTutor (on UntypedArith, TypedArith and UntypedLambda)
 * Reduct (on UntypedLambda)
