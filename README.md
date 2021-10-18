@@ -136,7 +136,7 @@ LambdaRef> :trace (\r:Ref Nat.(\s:Ref Nat. s := 82; !r) r) (ref 13)
 We currently have four notional machines:
 
 * [AlligatorEggs](notional-machines/src/NotionalMachines/Machine/AlligatorEggs/README.md) (on UntypedLambda)
-* ExpressionTree (on UntypedLambda)
+* [ExpressionTree](notional-machines/src/NotionalMachines/Machine/ExpressionTree/README.md) (on UntypedLambda)
 * ExpressionTutor (on UntypedArith, TypedArith and UntypedLambda)
 * Reduct (on UntypedLambda)
 
