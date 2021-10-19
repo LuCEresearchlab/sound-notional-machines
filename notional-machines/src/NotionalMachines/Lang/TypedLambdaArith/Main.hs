@@ -277,6 +277,6 @@ repl :: IO ()
 repl = mkLangRepl "TypedLambda>"
                   parse
                   (Right . eval)
-                  (Right . trace)
                   (Just typeof)
+                  [("trace", Right . trace)]
                   (taplBookMsg "9")

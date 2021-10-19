@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8e015fbdff2ea25bc79052bb65d091780008028f1e5506fa5f9649c39e139745
+-- hash: 8cdb5f462fde746e3e4034218780b4cad36dc3d1d06aba9df6bd40f521b44d92
 
 name:           notional-machines
 version:        0.1.0.0
@@ -40,6 +40,7 @@ library
       NotionalMachines.Lang.UntypedLambda.Generators
       NotionalMachines.Lang.UntypedLambda.Main
       NotionalMachines.LangInMachine.TypedArithExpressionTutor
+      NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram
       NotionalMachines.LangInMachine.UntypedArithExpressionTutor
       NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs
       NotionalMachines.LangInMachine.UntypedLambdaExpressionTree
@@ -51,6 +52,7 @@ library
       NotionalMachines.Machine.ExpressionTutor.Generators
       NotionalMachines.Machine.ExpressionTutor.Main
       NotionalMachines.Machine.Reduct.Main
+      NotionalMachines.Machine.TAPLMemoryDiagram.Main
       NotionalMachines.Meta.Bijective
       NotionalMachines.Meta.Bisimulation
       NotionalMachines.Meta.Injective

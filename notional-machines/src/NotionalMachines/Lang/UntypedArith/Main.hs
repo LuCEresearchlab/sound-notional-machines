@@ -129,6 +129,6 @@ repl :: IO ()
 repl = mkLangRepl "Arith>"
                   parse
                   (Right . eval)
-                  (Right . trace)
                   (Nothing :: Maybe (Term -> Either ParseError Term)) -- not typed
+                  [("trace", Right . trace)]
                   (taplBookMsg "3")

@@ -11,6 +11,7 @@ import qualified Hedgehog.Range as Range
 
 import Control.Monad (forM, (<=<))
 
+import Control.Monad.State.Lazy  (State, StateT (StateT), runState, runStateT, state)
 import Control.Monad.Trans       (liftIO)
 import Data.Bifunctor            (second)
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
@@ -28,6 +29,20 @@ eitherToMaybe = either (const Nothing) Just
 
 maybeToEither :: b -> Maybe a -> Either b a
 maybeToEither l = maybe (Left l) Right
+
+-- Turns a function that operatees on State into a function that operates on tuples.
+stateToTuple :: (a -> StateT s m b) -> (a, s) -> m (b, s)
+stateToTuple f (a, s) = runStateT (f a) s
+
+-- Turns a function that operatees on tuples into a function that operates on State.
+tupleToState :: ((a, s) -> m (b, s)) -> a -> StateT s m b
+tupleToState f a = StateT (curry f a)
+
+stateToStateT :: Monad m => State s a -> StateT s m a
+stateToStateT = state . runState
+
+stateToState :: State s1 a1 -> State s2 a2
+stateToState = error "todo"
 
 pShow :: Pretty a => a -> String
 pShow = show . pretty
@@ -98,29 +113,29 @@ mkReplEval parse eval' mTypeof s =
 mkLangRepl :: (Pretty t, Show er, Pretty ty, Show a) => String
                                                      -> (String -> Either er t)
                                                      -> (t -> Either er t)
-                                                     -> (t -> Either er [a])
                                                      -> Maybe (t -> Either er ty)
+                                                     -> [(String, t -> Either er a)]
                                                      -> String
                                                      -> IO ()
-mkLangRepl replBanner parse eval' trace' mTypeof bookMsg =
+mkLangRepl replBanner parse eval' mTypeof otherCmds bookMsg =
         mkRepl (replBanner ++ " ") (mkCmd $ mkReplEval parse eval' mTypeof) opts
   where
     opts :: [(String, String -> IO ())]
     opts =
-      [ ("help" , mkHelpCmd bookMsg (map fst opts)),
-        ("trace", mkTraceCmd (trace' <=< parse))
-      ] ++ case mTypeof of Nothing     -> []
-                           Just typeof -> [("type", mkTypeCmd typeof parse)]
+      -- :help
+      [("help" , mkHelpCmd bookMsg (map fst opts))]
+      -- :type
+      ++ (case mTypeof of Nothing     -> []
+                          Just typeof -> [("type", mkTypeCmd typeof parse)])
+      -- others like :trace
+      ++ map (second (\f -> mkCmd (f <=< parse))) otherCmds
 
     mkHelpCmd :: String -> [String] -> String -> IO ()
     mkHelpCmd header cmds = \_ -> putStrLn msg
       where msg = unlines [header, "REPL commands: " ++ intercalate ", " cmds]
 
-    mkCmd :: Show b => (a -> Either b String) -> a -> IO ()
-    mkCmd f = either print putStrLn . f
-
-    mkTraceCmd :: (Show b, Show a) => (c -> Either b a) -> c -> IO ()
-    mkTraceCmd replTrace = either print shortPrint . replTrace
+    mkCmd   :: (Show e, Show b) => (a -> Either e b)      -> a -> IO ()
+    mkCmd   g = either print shortPrint . g
 
     mkTypeCmd :: (Show er, Pretty term, Pretty ty) => (term -> Either er ty)
                                                    -> (a -> Either er term)
