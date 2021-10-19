@@ -20,8 +20,9 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 
 import Data.Text.Prettyprint.Doc (Doc, Pretty, hsep, parens, pretty, (<+>))
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Term (..), Type (..),
-                                                            isNumericVal, Error (ParseError))
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error (ParseError), Location, NameEnv,
+                                                            Store, Term (..), Type (..),
+                                                            isNumericVal)
 import NotionalMachines.Utils                              (pShow)
 
 
@@ -130,6 +131,7 @@ instance Pretty Term where
     App (Lambda "$u" TyUnit t2) t1 -> mconcat [pretty t1, "; ", pretty t2]
     App e1 e2                      -> p e1 <+> p e2
     Lambda x t e                   -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
+    Closure env x t                -> parens (mconcat ["Closure ", pretty env, " \\", pretty x, ". ", pretty t])
     Var x                          -> pretty x
     Unit                           -> "unit"
     Ref t                          -> "ref" <+> p t
@@ -175,8 +177,11 @@ unparse = pShow
 
 ------
 
-instance Pretty Store where
+instance Pretty (Store Location) where
   pretty m = "Store:" <+> pretty (Map.toList m)
+
+instance Pretty NameEnv where
+  pretty m = "NameEnv:" <+> pretty (Map.toList m)
 
 ----
 

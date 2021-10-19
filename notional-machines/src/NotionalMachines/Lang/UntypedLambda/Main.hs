@@ -13,7 +13,7 @@ import Data.Text.Prettyprint.Doc (Pretty, backslash, dot, parens, pretty, (<+>))
 import Data.List ((\\))
 
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, eval, step, stepM, trace)
-import NotionalMachines.Utils          (mkLangRepl, pShow, taplBookMsg)
+import NotionalMachines.Utils          (mkLangRepl, mkReplEval, pShow, taplBookMsg)
 
 --------------------
 -- Bisimulation
@@ -170,10 +170,15 @@ eFix   = parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
 -- REPL
 --------------------
 
+replEval :: String -> Either ParseError String
+replEval = mkReplEval parse
+                      (Right . eval)
+                      (Nothing :: Maybe (Exp -> Either ParseError ()))
+
 repl :: IO ()
 repl = mkLangRepl "Lambda>"
                   parse
                   (Right . eval)
-                  (Right . trace)
                   (Nothing :: Maybe (Exp -> Either ParseError Exp)) -- not typed
+                  [("trace", Right . trace)]
                   (taplBookMsg "5")
