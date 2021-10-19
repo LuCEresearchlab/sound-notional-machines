@@ -179,6 +179,6 @@ repl :: IO ()
 repl = mkLangRepl "Lambda>"
                   parse
                   (Right . eval)
-                  (Right . trace)
                   (Nothing :: Maybe (Exp -> Either ParseError Exp)) -- not typed
+                  [("trace", Right . trace)]
                   (taplBookMsg "5")

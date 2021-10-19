@@ -3,7 +3,7 @@
 
 module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
 
-import           Control.Monad.Identity                              (runIdentity, Identity (Identity))
+import           Control.Monad.Identity                              (runIdentity)
 import           Data.Bifunctor                                      (bimap, second)
 import qualified Data.Map                                            as Map
 import           NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, Store,
@@ -13,8 +13,7 @@ import           NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemory
                                                                       tAlloc, tAssign, tDeref)
 import qualified NotionalMachines.Machine.TAPLMemoryDiagram.Main     as NM (Location (Loc))
 import           NotionalMachines.Meta.Bisimulation                  (Bisimulation (..))
-import           NotionalMachines.Utils                              (eitherToMaybe, stateToTuple, tupleToState)
-import Control.Monad.State.Lazy (State)
+import           NotionalMachines.Utils                              (eitherToMaybe, stateToTuple)
 
 -- convert from the language store to NM store.
 langStoreToNMStore :: Store Location -> TAPLMemoryDiagram Location Term
@@ -30,15 +29,19 @@ langToNMLoc  = bimap NM.Loc  langStoreToNMStore
 -- The challenge in building a bisimulation for the operation of memory
 -- allocation is the encoding of the monadic State nature of it.
 --
--- Memory in lang is represented using State but in the NM it's an product
+-- Memory in lang is represented using State but in the NM it's a product
 -- type. These ways to represent state are incompatible so either we adapt the
 -- State interface so that the lang functions operate on explicit tuples or we
 -- adapt the NM to work via a State monad.
 --
--- The fist case is shown below in the next 3 bisimulations. The later will
--- result in a bisimulation in which the vertices of the permutation squares
--- are State and the commutation proof happens via monadic composition (<=<)
--- instead of function composition!  Monadic bisimulation.
+-- The fist case is shown below in the next 3 bisimulations.
+--
+-- An interesting question when we try to go in the other direction: can we
+-- write a bisimulation only using State.  The result would be a bisimulation
+-- in which one or more vertices of the permutation squares are State and the
+-- commutation proof would happen via monadic composition (<=<) instead of
+-- function composition!  Monadic bisimulation.  But... No... Apparently that
+-- doesn't work or I don't know how to... :-(
 --
 --
 -- (Term,                             ------->  (NM.Location Location,
@@ -101,6 +104,11 @@ assignBisim = MkBisim { fLang  = fmap snd . stateToTuple (uncurry assign)
                       , alphaB = eitherToMaybe . fmap langStoreToNMStore }
 
 
+-- =====================
+------
+-- Monadic bisimulation - doesn't work :-( or it's not done right... I don't know
+------
+
 -- Here we write equivalent bisimulations but now using the State monad. The
 -- commutation proof happens via monadic composition (<=<) instead of function
 -- composition!  Monadic bisimulation.
@@ -115,11 +123,16 @@ assignBisim = MkBisim { fLang  = fmap snd . stateToTuple (uncurry assign)
 --
 --    Term               ------->  State (Store Location) Location
 --
-mAllocBisim :: Bisimulation Term
-                            (State (Store Location) Location)
-                            Term
-                            (State (TAPLMemoryDiagram Location Term) (NM.Location Location))
-mAllocBisim = MkBisim { fLang  = alloc
-                      , fNM    = tupleToState (return . tAlloc nextLocation)
-                      , alphaA = id
-                      , alphaB = langToNMLoc}
+-- mAllocBisim :: Bisimulation Term
+--                             (State (Store Location) Location)
+--                             Term
+--                             (State (TAPLMemoryDiagram Location Term) (NM.Location Location))
+-- mAllocBisim = MkBisim { fLang  = alloc
+--                       , fNM    = tupleToState (return . tAlloc nextLocation)
+--                       , alphaA = id
+--                       , alphaB = g}
+
+
+-- g :: State (Store Location) Location -> State (TAPLMemoryDiagram Location Term) (NM.Location Location)
+-- g = error "todo"
+-- =====================

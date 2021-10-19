@@ -22,6 +22,9 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   assign,
   nextLocation,
 
+  NameEnv,
+  emptyNameEnv,
+
   isValue,
   isNumericVal,
 
@@ -31,11 +34,14 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   typecheck
   ) where
 
-import Control.Monad.State.Lazy (StateT, evalStateT, get, lift, withStateT, State)
+import Control.Monad.State.Lazy (State, StateT (StateT), evalStateT, get, lift, runStateT,
+                                 withStateT)
 
-import           Data.List ((\\))
-import           Data.Map  (Map)
-import qualified Data.Map  as Map
+import           Data.Bifunctor (first, second)
+import           Data.List      ((\\))
+import           Data.Map       (Map)
+import qualified Data.Map       as Map
+import           Data.Maybe     (fromMaybe)
 
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
 import NotionalMachines.Utils          (maybeToEither, stateToStateT)
@@ -63,6 +69,7 @@ type TypCtx = [(Name, Type)]
 data Term = -- Lambdas
             Var Name
           | Lambda Name Type Term
+          | Closure NameEnv Name Term
           | App Term Term
             -- Unit
           | Unit
@@ -88,7 +95,7 @@ type Name = String
 type Location = Int
 type Store l = Map l Term
 
-emptyStore :: (Store Location)
+emptyStore :: Store Location
 emptyStore = Map.empty
 
 alloc :: Term -> State (Store Location) Location
@@ -154,6 +161,62 @@ typeof' ctx = \case
 typecheck :: Term -> Either Error (Term, Type)
 typecheck t = (t, ) <$> typeof t
 
+----------------------
+-- step with explicit name env
+----------------------
+type NameEnv = Store Name
+
+emptyNameEnv :: NameEnv
+emptyNameEnv = Map.empty
+
+instance SteppableM Term (StateT (NameEnv, Store Location) (Either Error)) where
+  stepM = stepNameEnv
+
+augmentState :: Monad m => StateT s1 m t -> StateT (s2, s1) m t
+augmentState st = StateT (\(s1, s2) -> second (s1, ) <$> runStateT st s2)
+
+isValue' :: Term -> Bool
+isValue' Closure {} = True
+isValue' Lambda {}  = False
+isValue' t          = isValue t
+
+stepNameEnv :: Term -> StateT (NameEnv, Store Location) (Either Error) Term
+stepNameEnv = \case
+  -- Lambdas
+  App t1 t2 | not (isValue' t1)    -> (\t1' -> App t1' t2 ) <$> stepNameEnv t1       -- E-App1
+  App v1 t2 | not (isValue' t2)    -> (\t2' -> App v1  t2') <$> stepNameEnv t2       -- E-App2
+  -- Here substitution was replaced by explicit naming environment management
+  -- Lambda are turned into Closures, which capture the environment.
+  Lambda name _ t                  -> (\(env, _) -> Closure env name t) <$> get
+  App (Closure env name t1) t2     -> withStateT (first (const (Map.insert name t2 env))) (return t1)
+  v @ (Var name)                   -> fromMaybe v . Map.lookup name . fst <$> get
+  -- References
+  Ref v | isValue' v               -> augmentState $ stateToStateT $ Loc <$> alloc v -- E-RefV
+  Ref t | otherwise                -> Ref   <$> stepNameEnv t                        -- E-Ref
+  Deref (Loc l)                    -> augmentState $ deref l                         -- E-DerefLoc
+  Deref t                          -> Deref <$> stepNameEnv t                        -- E-Deref
+  Assign (Loc l) v | isValue' v    -> augmentState $ assign l v                      -- E-Assign
+  Assign t1 t2 | not (isValue' t1) -> (\t1' -> Assign t1' t2 ) <$> stepNameEnv t1    -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> stepNameEnv t2    -- E-Assign2
+  -- Booleans + Arith
+  If Tru t2 _                      -> return t2                                      -- E-IfTrue
+  If Fls _  t3                     -> return t3                                      -- E-IfFalse
+  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> stepNameEnv t1    -- E-If
+  Succ t                           -> Succ   <$> stepNameEnv t                       -- E-Succ
+  Pred Zero                        -> return Zero                                    -- E-PredZero
+  Pred (Succ v) | isNumericVal v   -> return v                                       -- E-PredSucc
+  Pred t                           -> Pred   <$> stepNameEnv t                       -- E-Pred
+  IsZero Zero                      -> return Tru                                     -- E-IsZeroZero
+  IsZero (Succ v) | isNumericVal v -> return Fls                                     -- E-IsZeroSucc
+  IsZero t                         -> IsZero <$> stepNameEnv t                       -- E-IsZero
+  t                                -> return t
+
+----------------------
+----------------------
+
+----------------------
+-- step using substitution
+----------------------
 instance SteppableM Term (StateT (Store Location) (Either Error)) where
   stepM = step'
 
@@ -225,6 +288,4 @@ freeVs = \case
 -- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
 fresh a = "_" ++ a
-
----
 

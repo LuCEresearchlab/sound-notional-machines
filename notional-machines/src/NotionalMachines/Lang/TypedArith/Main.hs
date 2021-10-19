@@ -69,6 +69,6 @@ repl :: IO ()
 repl = mkLangRepl "TypedArith>"
                   parse
                   (Right . eval)
-                  (Right . trace)
                   (Just typeof)
+                  [("trace", Right . trace)]
                   (taplBookMsg "8")

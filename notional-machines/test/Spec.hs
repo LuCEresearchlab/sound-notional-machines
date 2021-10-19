@@ -286,6 +286,11 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
     , testGroup "Evaluation" [
           evalTo "if iszero (pred 2) then 0 else (if iszero (pred 0) then succ 2 else 0)" "3 : Nat"
             LambdaRef.replEval
+
+
+        -- (\x:Nat. ((\z:Nat. (\zz:Nat->Nat. zz)) x) ((\x:Bool. (\w:Bool. (\y:Nat. y)) x) true)      x) 1
+
+
         , evalTo "(\\r:Ref Nat. if false then (r := 82; !r) else (!r)) (ref 13)" "13 : Nat"
             LambdaRef.replEval
         --- Incrementing a variable
@@ -377,7 +382,7 @@ expressionTutorTest = testGroup "Expressiontutor" [
                typ = Nothing,
                content = [C "lambda", NameDef "x", Hole (Plug (0,1))] }) } :: Maybe Lambda.Exp)
     ]
-  1i]
+  ]
 
 expTreeTest :: TestTree
 expTreeTest = testGroup "Expression Trees" [
