@@ -13,7 +13,8 @@ import Data.Text.Prettyprint.Doc (Pretty, backslash, dot, parens, pretty, (<+>))
 import Data.List ((\\))
 
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, eval, step, stepM, trace)
-import NotionalMachines.Utils          (mkLangRepl, mkReplEval, pShow, taplBookMsg)
+import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
+                                        taplBookMsg, prettyToString)
 
 --------------------
 -- Bisimulation
@@ -98,14 +99,14 @@ instance SteppableM Exp Maybe where
 -- Parsing and unparsing
 --------------------
 parse :: String -> Either ParseError Exp
-parse = Parsec.parse (pExp <* eof) "(unknown)"
+parse = Parsec.parse (pExp <* eof) ""
 
 pExp :: Parser Exp
 pExp = try pLambda
    <|> try pApp
    <|> pAtom
   where
-    pLambda =     Lambda <$> between (char '\\') (char '.') pName <*> pExp
+    pLambda =     Lambda <$> between (char '\\') (char '.' <* spaces) pName <*> pExp
     pApp    = foldl1 App <$> pAtom `sepBy1` spaces
     pVar    =        Var <$> pName
     pAtom = pVar <|> between (char '(') (char ')') pExp
@@ -122,7 +123,7 @@ instance Pretty Exp where
     Var name           -> pretty name
 
 unparse :: Exp -> String
-unparse = pShow
+unparse = prettyToString
 
 --------------
 -- Examples --
@@ -170,15 +171,11 @@ eFix   = parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
 -- REPL
 --------------------
 
+langPipeline :: LangPipeline Exp () ParseError [Exp]
+langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
+
 replEval :: String -> Either ParseError String
-replEval = mkReplEval parse
-                      (Right . eval)
-                      (Nothing :: Maybe (Exp -> Either ParseError ()))
+replEval = mkReplEval langPipeline
 
 repl :: IO ()
-repl = mkLangRepl "Lambda>"
-                  parse
-                  (Right . eval)
-                  (Nothing :: Maybe (Exp -> Either ParseError Exp)) -- not typed
-                  [("trace", Right . trace)]
-                  (taplBookMsg "5")
+repl = mkLangRepl "Lambda>" (taplBookMsg "5") langPipeline

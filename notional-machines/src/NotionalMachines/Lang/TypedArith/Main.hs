@@ -23,20 +23,17 @@ module NotionalMachines.Lang.TypedArith.Main (
   repl
   ) where
 
+import Data.Bifunctor (first)
+
 import Data.Text.Prettyprint.Doc (Pretty, pretty)
 
-import Text.ParserCombinators.Parsec (ParseError)
-
-import           Data.Bifunctor                          (first)
 import           NotionalMachines.Lang.UntypedArith.Main (Term (..))
 import qualified NotionalMachines.Lang.UntypedArith.Main as Untyped
 import           NotionalMachines.Meta.Steppable         (SteppableM, eval, step, stepM, trace)
-import           NotionalMachines.Utils                  (mkLangRepl, taplBookMsg)
+import           NotionalMachines.Utils                  (Error (..), LangPipeline (LangPipeline),
+                                                          mkLangRepl, taplBookMsg)
 
 data Type = TyBool | TyNat deriving (Eq, Show)
-data Error = TypeError
-           | ParseError ParseError
-  deriving (Eq, Show)
 
 typeof :: Term -> Either Error Type
 typeof = \case
@@ -65,10 +62,8 @@ parse = first ParseError . Untyped.parse
 -- REPL
 --------------------
 
+langPipeline :: LangPipeline Term Type Error [Term]
+langPipeline = LangPipeline parse (Right . eval) (Just typeof) (Right . trace)
+
 repl :: IO ()
-repl = mkLangRepl "TypedArith>"
-                  parse
-                  (Right . eval)
-                  (Just typeof)
-                  [("trace", Right . trace)]
-                  (taplBookMsg "8")
+repl = mkLangRepl "TypedArith>" (taplBookMsg "8") langPipeline

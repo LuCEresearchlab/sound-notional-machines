@@ -16,8 +16,9 @@ module NotionalMachines.Machine.TAPLMemoryDiagram.Main ( TAPLMemoryDiagram(..)
 
 import           Data.Map (Map)
 import qualified Data.Map as Map
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Term)
 
-data TAPLMemoryDiagram l t = TAPLMemoryDiagram { nameEnv :: Map Name (Location l)
+data TAPLMemoryDiagram l t = TAPLMemoryDiagram { nameEnv :: Map Name Term
                                                , store   :: Map (Location l) t
                                                }
   deriving (Eq, Show)

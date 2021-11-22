@@ -234,6 +234,8 @@ lambdaTest = testGroup "Untyped Lambda Calculus" [
     -- TAPL p. 59
     , evalTo "(\\l.\\m.\\n.l m n) (\\t.\\f.t) v w" "v"
         Lambda.replEval
+    , evalTo "(\\x. ((\\z. (\\zz. zz)) x) ((\\x. (\\w. (\\y. y)) x) t)      x) a" "a"
+        Lambda.replEval
   ]
 
 typLambdaTest :: TestTree
@@ -269,6 +271,8 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
         , testCase "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x)")
+        , evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true)      x) (succ 0)" "succ (0) : Nat"
+            TypedLambda.replEval
       ]
   ]
 
@@ -288,7 +292,12 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
             LambdaRef.replEval
 
 
-        -- (\x:Nat. ((\z:Nat. (\zz:Nat->Nat. zz)) x) ((\x:Bool. (\w:Bool. (\y:Nat. y)) x) true)      x) 1
+        -- Example that uses variable shadowing and variable captured by closure:
+        , evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true) x) 1" "1 : Nat"
+            LambdaRef.replEval
+        -- Example where environment contains closure that contains an environment with another closure (that contains an environment):
+        , evalTo "(\\zz:Nat->Nat. (\\xx:Nat->Nat->Nat. xx 1 2) (\\y:Nat. zz)) (\\z:Nat. z)" "2 : Nat"
+            LambdaRef.replEval
 
 
         , evalTo "(\\r:Ref Nat. if false then (r := 82; !r) else (!r)) (ref 13)" "13 : Nat"

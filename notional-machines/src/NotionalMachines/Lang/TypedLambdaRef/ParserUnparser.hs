@@ -3,27 +3,27 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
   parse,
   unparse
   ) where
 
-import Data.Bifunctor (first)
+import           Data.Bifunctor (first)
+import qualified Data.Map       as Map
 
-import qualified Data.Map as Map
+import           Text.ParserCombinators.Parsec       hiding (parse)
+import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
+import qualified Text.ParserCombinators.Parsec.Expr  as Ex
+import qualified Text.ParserCombinators.Parsec.Token as Tok
 
-import qualified Text.Parsec.Expr              as Ex
-import qualified Text.Parsec.Token             as Tok
-import           Text.ParserCombinators.Parsec hiding (parse)
-import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+import Data.Text.Prettyprint.Doc (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
+                                  (<+>))
 
-import Data.Text.Prettyprint.Doc (Doc, Pretty, hsep, parens, pretty, (<+>))
-
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error (ParseError), Location, NameEnv,
-                                                            Store, Term (..), Type (..),
-                                                            isNumericVal)
-import NotionalMachines.Utils                              (pShow)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Location, NameEnv, Store, Term (..),
+                                                            Type (..), isNumericVal)
+import NotionalMachines.Utils                              (Error (..), prettyToString)
 
 
 --------------------
@@ -114,7 +114,7 @@ pTyp = Ex.buildExpressionParser table pTypAtom
                   , Ex.Prefix (TyRef <$ reservedOp "Ref") ] ]
 
 parse :: String -> Either Error Term
-parse = first (ParseError . show) . Parsec.parse (contents pTerm) "(unknown)"
+parse = first ParseError . Parsec.parse (contents pTerm) ""
 
 decToPeano :: Integer -> Term
 decToPeano 0 = Zero
@@ -172,7 +172,7 @@ parenIf :: Pretty a => (a -> Bool) -> a -> Doc b
 parenIf f t = (if f t then parens else id) (pretty t)
 
 unparse :: Term -> String
-unparse = pShow
+unparse = prettyToString
 
 
 ------
@@ -181,7 +181,8 @@ instance Pretty (Store Location) where
   pretty m = "Store:" <+> pretty (Map.toList m)
 
 instance Pretty NameEnv where
-  pretty m = "NameEnv:" <+> pretty (Map.toList m)
+  pretty m = "NameEnv:" <+> align (hvsep (fmap pretty (Map.toList m)))
+    where hvsep = concatWith (\x y -> x <> hardline <> y)
 
 ----
 

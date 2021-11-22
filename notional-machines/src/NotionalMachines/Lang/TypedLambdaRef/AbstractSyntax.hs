@@ -43,18 +43,14 @@ import           Data.Map       (Map)
 import qualified Data.Map       as Map
 import           Data.Maybe     (fromMaybe)
 
+
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (maybeToEither, stateToStateT)
+import NotionalMachines.Utils          (maybeToEither, stateToStateT, Error(..))
 
 
 --------------------
 -- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
 --------------------
-data Error = ParseError String
-           | TypeError
-           | RuntimeError String
-  deriving (Eq, Show)
-
 data Type = TyFun Type Type
           | TyUnit
           | TyRef Type

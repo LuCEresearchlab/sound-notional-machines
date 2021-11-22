@@ -39,13 +39,15 @@ module NotionalMachines.Lang.UntypedArith.Main (
   replEval,
   repl) where
 
-import           Data.Text.Prettyprint.Doc     (Pretty, hsep, pretty, (<+>))
 import qualified Text.Parsec                   as P
 import           Text.ParserCombinators.Parsec (ParseError, Parser, between, char, eof, spaces,
                                                 string, try, (<|>))
 
+import Data.Text.Prettyprint.Doc (Pretty, hsep, pretty, (<+>))
+
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import NotionalMachines.Utils          (mkLangRepl, mkReplEval, pShow, taplBookMsg)
+import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval, prettyToString,
+                                        taplBookMsg)
 
 data Term = -- Booleans
             Tru
@@ -86,7 +88,7 @@ instance Steppable Term where
 -- Parsing and unparsing
 --------------------
 parse :: String -> Either ParseError Term
-parse = P.parse (pTerm <* eof) "(unknown)"
+parse = P.parse (pTerm <* eof) ""
   where
     pTerm :: Parser Term
     pTerm = Succ <$> (reserved "succ" *> pTerm)
@@ -114,21 +116,17 @@ instance Pretty Term where
     IsZero t    -> "iszero" <+> pretty t
 
 unparse :: Term -> String
-unparse = pShow
+unparse = prettyToString
 
 --------------------
 -- REPL
 --------------------
 
+langPipeline :: LangPipeline Term () ParseError [Term]
+langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
+
 replEval :: String -> Either ParseError String
-replEval = mkReplEval parse
-                      (Right . eval)
-                      (Nothing :: Maybe (Term -> Either ParseError ()))
+replEval = mkReplEval langPipeline
 
 repl :: IO ()
-repl = mkLangRepl "Arith>"
-                  parse
-                  (Right . eval)
-                  (Nothing :: Maybe (Term -> Either ParseError Term)) -- not typed
-                  [("trace", Right . trace)]
-                  (taplBookMsg "3")
+repl = mkLangRepl "Arith>" (taplBookMsg "3") langPipeline

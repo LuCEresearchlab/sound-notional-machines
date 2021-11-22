@@ -29,13 +29,13 @@ module NotionalMachines.Lang.TypedLambdaArith.Main (
   typeof',
   parse,
   unparse,
-  repl
-  ) where
+  repl,
+  replEval) where
 
-import qualified Text.Parsec.Expr              as Ex
-import qualified Text.Parsec.Token             as Tok
-import           Text.ParserCombinators.Parsec hiding (parse)
-import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+import           Text.ParserCombinators.Parsec       hiding (parse)
+import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
+import qualified Text.ParserCombinators.Parsec.Expr  as Ex
+import qualified Text.ParserCombinators.Parsec.Token as Tok
 
 import Data.Text.Prettyprint.Doc (Pretty, hsep, parens, pretty, (<+>))
 
@@ -43,16 +43,12 @@ import Data.Bifunctor (first)
 import Data.List      ((\\))
 
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import NotionalMachines.Utils          (maybeToEither, mkLangRepl, pShow, taplBookMsg)
+import NotionalMachines.Utils          (Error (..), LangPipeline (LangPipeline), maybeToEither,
+                                        mkLangRepl, prettyToString, taplBookMsg, mkReplEval)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
 --------------------
-data Error = ParseError String
-           | TypeError
-           | RuntimeError String
-  deriving (Eq, Show)
-
 data Type = TyFun Type Type
           | TyBool
           | TyNat
@@ -202,8 +198,8 @@ pTerm :: Parser Term
 pTerm = Ex.buildExpressionParser table factor
   where table = [ [ prefixOp "succ" Succ
                   , prefixOp "pred" Pred
-                  , prefixOp "iszero" IsZero
-                  , Ex.Infix (App <$ reservedOp "") Ex.AssocLeft ] ]
+                  , prefixOp "iszero" IsZero ]
+                , [ Ex.Infix (App <$ reservedOp "") Ex.AssocLeft ] ]
         prefixOp s f = Ex.Prefix (f <$ reservedOp s)
 
 factor :: Parser Term
@@ -212,7 +208,6 @@ factor = Tru  <$ reserved   "true"
      <|> Zero <$ reservedOp "0"
      <|> pIf
      <|> pLambda
-     -- <|> pApp
      <|> pVar
      <|> pParens pTerm
   where
@@ -236,7 +231,7 @@ pTyp = Ex.buildExpressionParser table pTypAtom
   where table = [ [ Ex.Infix (TyFun <$ reservedOp "->") Ex.AssocRight ] ]
 
 parse :: String -> Either Error Term
-parse = first (ParseError . show) . Parsec.parse (contents pTerm) "(unknown)"
+parse = first ParseError . Parsec.parse (contents pTerm) ""
 
 -----
 
@@ -267,16 +262,17 @@ instance Pretty Type where
     TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
 
 unparse :: Term -> String
-unparse = pShow
+unparse = prettyToString
 
 --------------------
 -- REPL
 --------------------
 
+langPipeline :: LangPipeline Term Type Error [Term]
+langPipeline = LangPipeline parse (Right . eval) (Just typeof) (Right . trace)
+
+replEval :: String -> Either Error String
+replEval = mkReplEval langPipeline
+
 repl :: IO ()
-repl = mkLangRepl "TypedLambda>"
-                  parse
-                  (Right . eval)
-                  (Just typeof)
-                  [("trace", Right . trace)]
-                  (taplBookMsg "9")
+repl = mkLangRepl "TypedLambda>" (taplBookMsg "9") langPipeline
