@@ -23,7 +23,7 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   nextLocation,
 
   NameEnv,
-  emptyNameEnv,
+  StateRacket(..),
 
   isValue,
   isNumericVal,
@@ -31,11 +31,16 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   evalM',
 
   typeof,
-  typecheck
-  ) where
+  typecheck,
 
-import Control.Monad.State.Lazy (State, StateT (StateT), evalStateT, get, lift, runStateT,
-                                 withStateT)
+  emptyStateAlaWadler,
+  emptyStateAlaRacket,
+
+  evalMAlaRacket,
+  evalMAlaWadler) where
+
+import Control.Monad.State.Lazy (MonadState (put), State, StateT (StateT), evalStateT, get, lift,
+                                 runStateT, withStateT)
 
 import           Data.Bifunctor (first, second)
 import           Data.List      ((\\))
@@ -45,7 +50,7 @@ import           Data.Maybe     (fromMaybe)
 
 
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (maybeToEither, stateToStateT, Error(..))
+import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT)
 
 
 --------------------
@@ -162,11 +167,14 @@ typecheck t = (t, ) <$> typeof t
 ----------------------
 type NameEnv = Store Name
 
-emptyNameEnv :: NameEnv
-emptyNameEnv = Map.empty
+emptyStateAlaWadler :: (NameEnv, Store Location)
+emptyStateAlaWadler = (Map.empty, Map.empty)
+
+evalMAlaWadler :: Term -> Either Error Term
+evalMAlaWadler t = evalStateT (evalM t) emptyStateAlaWadler
 
 instance SteppableM Term (StateT (NameEnv, Store Location) (Either Error)) where
-  stepM = stepNameEnv
+  stepM = stepAlaWadler
 
 augmentState :: Monad m => StateT s1 m t -> StateT (s2, s1) m t
 augmentState st = StateT (\(s1, s2) -> second (s1, ) <$> runStateT st s2)
@@ -176,11 +184,11 @@ isValue' Closure {} = True
 isValue' Lambda {}  = False
 isValue' t          = isValue t
 
-stepNameEnv :: Term -> StateT (NameEnv, Store Location) (Either Error) Term
-stepNameEnv = \case
+stepAlaWadler :: Term -> StateT (NameEnv, Store Location) (Either Error) Term
+stepAlaWadler = \case
   -- Lambdas
-  App t1 t2 | not (isValue' t1)    -> (\t1' -> App t1' t2 ) <$> stepNameEnv t1       -- E-App1
-  App v1 t2 | not (isValue' t2)    -> (\t2' -> App v1  t2') <$> stepNameEnv t2       -- E-App2
+  App t1 t2 | not (isValue' t1)    -> (\t1' -> App t1' t2 ) <$> stepAlaWadler t1       -- E-App1
+  App v1 t2 | not (isValue' t2)    -> (\t2' -> App v1  t2') <$> stepAlaWadler t2       -- E-App2
   -- Here substitution was replaced by explicit naming environment management
   -- Lambda are turned into Closures, which capture the environment.
   Lambda name _ t                  -> (\(env, _) -> Closure env name t) <$> get
@@ -188,23 +196,74 @@ stepNameEnv = \case
   v @ (Var name)                   -> fromMaybe v . Map.lookup name . fst <$> get
   -- References
   Ref v | isValue' v               -> augmentState $ stateToStateT $ Loc <$> alloc v -- E-RefV
-  Ref t | otherwise                -> Ref   <$> stepNameEnv t                        -- E-Ref
+  Ref t | otherwise                -> Ref   <$> stepAlaWadler t                        -- E-Ref
   Deref (Loc l)                    -> augmentState $ deref l                         -- E-DerefLoc
-  Deref t                          -> Deref <$> stepNameEnv t                        -- E-Deref
+  Deref t                          -> Deref <$> stepAlaWadler t                        -- E-Deref
   Assign (Loc l) v | isValue' v    -> augmentState $ assign l v                      -- E-Assign
-  Assign t1 t2 | not (isValue' t1) -> (\t1' -> Assign t1' t2 ) <$> stepNameEnv t1    -- E-Assign1
-  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> stepNameEnv t2    -- E-Assign2
+  Assign t1 t2 | not (isValue' t1) -> (\t1' -> Assign t1' t2 ) <$> stepAlaWadler t1    -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> stepAlaWadler t2    -- E-Assign2
   -- Booleans + Arith
   If Tru t2 _                      -> return t2                                      -- E-IfTrue
   If Fls _  t3                     -> return t3                                      -- E-IfFalse
-  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> stepNameEnv t1    -- E-If
-  Succ t                           -> Succ   <$> stepNameEnv t                       -- E-Succ
+  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> stepAlaWadler t1    -- E-If
+  Succ t                           -> Succ   <$> stepAlaWadler t                       -- E-Succ
   Pred Zero                        -> return Zero                                    -- E-PredZero
   Pred (Succ v) | isNumericVal v   -> return v                                       -- E-PredSucc
-  Pred t                           -> Pred   <$> stepNameEnv t                       -- E-Pred
+  Pred t                           -> Pred   <$> stepAlaWadler t                       -- E-Pred
   IsZero Zero                      -> return Tru                                     -- E-IsZeroZero
   IsZero (Succ v) | isNumericVal v -> return Fls                                     -- E-IsZeroSucc
-  IsZero t                         -> IsZero <$> stepNameEnv t                       -- E-IsZero
+  IsZero t                         -> IsZero <$> stepAlaWadler t                       -- E-IsZero
+  t                                -> return t
+
+----------------------
+----------------------
+
+----------------------
+-- step ala racket
+----------------------
+data StateRacket = StateRacket NameEnv (Store Location)
+
+emptyStateAlaRacket :: StateRacket
+emptyStateAlaRacket = StateRacket Map.empty Map.empty
+
+evalMAlaRacket :: Term -> Either Error Term
+evalMAlaRacket t = evalStateT (evalM t) emptyStateAlaRacket
+
+instance SteppableM Term (StateT StateRacket (Either Error)) where
+  stepM = stepAlaRacket
+
+storeToStateRacket :: Monad m => StateT (Store Location) m t -> StateT StateRacket m t
+storeToStateRacket st = StateT (\(StateRacket env store) -> second (StateRacket env) <$> runStateT st store)
+
+stepAlaRacket :: Term -> StateT StateRacket (Either Error) Term
+stepAlaRacket = \case
+  -- Lambdas
+  App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 ) <$> stepAlaRacket t1           -- E-App1
+  App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2') <$> stepAlaRacket t2           -- E-App2
+  App (Lambda name _ t1) t2        -> do StateRacket env s <- get
+                                         let newName = until (`Map.notMember` env) fresh name
+                                         put $ StateRacket (Map.insert newName t2 env) s
+                                         return (subst name (Var newName) t1)
+  v @ (Var name)                   -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
+                                                                                           -- References
+  Ref v | isValue v                -> storeToStateRacket $ stateToStateT $ Loc <$> alloc v -- E-RefV
+  Ref t | otherwise                -> Ref   <$> stepAlaRacket t                            -- E-Ref
+  Deref (Loc l)                    -> storeToStateRacket $ deref l                         -- E-DerefLoc
+  Deref t                          -> Deref <$> stepAlaRacket t                            -- E-Deref
+  Assign (Loc l) v | isValue v     -> storeToStateRacket $ assign l v                      -- E-Assign
+  Assign t1 t2 | not (isValue t1)  -> (\t1' -> Assign t1' t2 ) <$> stepAlaRacket t1        -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> stepAlaRacket t2        -- E-Assign2
+                                                                                           -- Booleans + Arith
+  If Tru t2 _                      -> return t2                                            -- E-IfTrue
+  If Fls _  t3                     -> return t3                                            -- E-IfFalse
+  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> stepAlaRacket t1        -- E-If
+  Succ t                           -> Succ   <$> stepAlaRacket t                           -- E-Succ
+  Pred Zero                        -> return Zero                                          -- E-PredZero
+  Pred (Succ v) | isNumericVal v   -> return v                                             -- E-PredSucc
+  Pred t                           -> Pred   <$> stepAlaRacket t                           -- E-Pred
+  IsZero Zero                      -> return Tru                                           -- E-IsZeroZero
+  IsZero (Succ v) | isNumericVal v -> return Fls                                           -- E-IsZeroSucc
+  IsZero t                         -> IsZero <$> stepAlaRacket t                           -- E-IsZero
   t                                -> return t
 
 ----------------------
@@ -246,25 +305,25 @@ step' = \case
   IsZero t                         -> IsZero <$> step' t                    -- E-IsZero
   t                                -> return t
 
--- Substitute a name by a term in a second term returning the second term with
--- all occurences of the name replaced by the first term. Renaming of variables
--- is performed as need to avoid variable capture.
+-- | Return @e@ with all free occurences of @x@ substituted by @v@a.
+-- Renaming of variables is performed as need to avoid variable capture.
 subst :: Name -> Term -> Term -> Term
 subst x v e = case e of
-  App e1 e2                            -> App (rec e1) (rec e2)
-  Var y | x == y                       -> v
-        | otherwise                    -> e
-  Lambda y t e2 | x == y               -> e
-                | y `notElem` freeVs v -> Lambda y t (rec e2)
-                | otherwise            -> Lambda (fresh y) t (rec (subst y (Var (fresh y)) e2))
-  If t1 t2 t3                          -> If (rec t1) (rec t2) (rec t3)
-  Succ t                               -> Succ (rec t)
-  Pred t                               -> Pred (rec t)
-  IsZero t                             -> IsZero (rec t)
-  Ref t                                -> Ref (rec t)
-  Deref t                              -> Deref (rec t)
-  Assign t1 t2                         -> Assign (rec t1) (rec t2)
-  t                                    -> t
+  App e1 e2                             -> App (rec e1) (rec e2)
+  Var y | x == y                        -> v
+        | otherwise                     -> e
+  Lambda y ty e2 | x == y               -> e
+                 | y `notElem` freeVs v -> Lambda y ty (rec e2)
+                 | otherwise            -> let newY = until (`notElem` freeVs v) fresh y
+                                            in Lambda newY ty (rec (subst y (Var newY) e2))
+  If t1 t2 t3                           -> If (rec t1) (rec t2) (rec t3)
+  Succ t                                -> Succ (rec t)
+  Pred t                                -> Pred (rec t)
+  IsZero t                              -> IsZero (rec t)
+  Ref t                                 -> Ref (rec t)
+  Deref t                               -> Deref (rec t)
+  Assign t1 t2                          -> Assign (rec t1) (rec t2)
+  t                                     -> t
   where rec = subst x v
 
 freeVs :: Term -> [Name]
@@ -279,9 +338,13 @@ freeVs = \case
   Ref t           -> freeVs t
   Deref t         -> freeVs t
   Assign t1 t2    -> freeVs t1 ++ freeVs t2
-  _               -> []
+  Loc _           -> []
+  Unit            -> []
+  Tru             -> []
+  Fls             -> []
+  Zero            -> []
+  Closure {}      -> []
 
--- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
 fresh a = "_" ++ a
 

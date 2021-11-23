@@ -330,6 +330,23 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
             LambdaRef.replEval
         , evalTo "(\\x:Ref Nat.(\\r:Ref Nat.(\\s:Ref Nat.r := 0; r := !s; !r)) x x) (ref 2)" "0 : Nat"
             LambdaRef.replEval
+
+    ]
+    , testGroup "LambdaRef ala Wadler" [
+        -- Example that uses variable shadowing and variable captured by closure:
+          evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true) x) 1" "1 : Nat"
+            LambdaRef.replEvalAlaWadler
+        -- Example where environment contains closure that contains an environment with another closure (that contains an environment):
+        , evalTo "(\\zz:Nat->Nat. (\\xx:Nat->Nat->Nat. xx 1 2) (\\y:Nat. zz)) (\\z:Nat. z)" "2 : Nat"
+            LambdaRef.replEvalAlaWadler
+    ]
+    , testGroup "LambdaRef ala Racket" [
+        -- Example that uses variable shadowing and variable captured by closure:
+          evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true) x) 1" "1 : Nat"
+            LambdaRef.replEvalAlaRacket
+        -- Example where environment contains closure that contains an environment with another closure (that contains an environment):
+        , evalTo "(\\zz:Nat->Nat. (\\xx:Nat->Nat->Nat. xx 1 2) (\\y:Nat. zz)) (\\z:Nat. z)" "2 : Nat"
+            LambdaRef.replEvalAlaRacket
     ]
     , testGroup "Store" [
           testCase "deref on empty store" $ assertEqual ""

@@ -126,20 +126,23 @@ step' = \case
   IsZero t                         -> IsZero (step' t)    -- E-IsZero
   t                                -> t
 
--- Substitute a name by a term in a second term returning the second term with
--- all occurences of the name replaced by the first term. Renaming of variables
--- is performed as need to avoid variable capture.
+-- | Return @e@ with all free occurences of @x@ substituted by @v@a.
+-- Renaming of variables is performed as need to avoid variable capture.
 subst :: Name -> Term -> Term -> Term
-subst x v (App e1 e2)    = App (subst x v e1) (subst x v e2)
-subst x v e  @ (Var y)
-  | x == y               = v
-  | otherwise            = e
-subst x v e1 @ (Lambda y t e2)
-  | x == y               = e1
-  | y `notElem` freeVs v = Lambda y    t (subst x v e2)
-  | otherwise            = Lambda newy t (subst x v (subst y (Var newy) e2))
-  where newy = fresh y
-subst _ _ t              = t
+subst x v e = case e of
+  App t1 t2                             -> App (rec t1) (rec t2)
+  Var y | x == y                        -> v
+        | otherwise                     -> e
+  Lambda y ty t2 | x == y               -> e
+                 | y `notElem` freeVs v -> Lambda y ty (rec t2)
+                 | otherwise            -> let newY = until (`notElem` freeVs v) fresh y
+                                            in Lambda newY ty (rec (subst y (Var newY) t2))
+  If t1 t2 t3                           -> If (rec t1) (rec t2) (rec t3)
+  Succ t                                -> Succ (rec t)
+  Pred t                                -> Pred (rec t)
+  IsZero t                              -> IsZero (rec t)
+  _                                     -> e
+  where rec = subst x v
 
 freeVs :: Term -> [Name]
 freeVs = \case
@@ -152,7 +155,6 @@ freeVs = \case
   IsZero t        -> freeVs t
   _               -> []
 
--- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
 fresh a = "_" ++ a
 

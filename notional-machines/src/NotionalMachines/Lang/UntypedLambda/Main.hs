@@ -49,6 +49,10 @@ data Exp = App Exp Exp
   deriving (Eq, Ord, Read, Show)
 type Name = String
 
+isValue :: Exp -> Bool
+isValue Lambda {} = True
+isValue _         = False
+
 --------------------
 -- Interpreter for Untyped Lambda Calculus
 --------------------
@@ -67,21 +71,16 @@ subst x v e  @ (Var y)
 subst x v e1 @ (Lambda y e2)
   | x == y               = e1
   | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
-  | otherwise            = Lambda newy (subst x v (subst y (Var newy) e2))
-  where newy = fresh y
+  | otherwise            = let newY = until (`notElem` freeVs v) fresh y
+                            in Lambda newY (subst x v (subst y (Var newY) e2))
 
 freeVs :: Exp -> [Name]
 freeVs (Var name)      = [name]
 freeVs (Lambda name e) = freeVs e \\ [name]
 freeVs (App e1 e2)     = freeVs e1 ++ freeVs e2
 
--- TODO: i think this is incorrect. it doesn't guarantee a global fresh name.
 fresh :: Name -> Name
 fresh a = "_" ++ a
-
-isValue :: Exp -> Bool
-isValue Lambda {} = True
-isValue _         = False
 
 
 ----- Evaluation with error handling ----------
