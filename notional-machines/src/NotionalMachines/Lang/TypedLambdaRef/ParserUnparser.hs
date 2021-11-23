@@ -22,7 +22,7 @@ import Data.Text.Prettyprint.Doc (Doc, Pretty, align, concatWith, hardline, hsep
                                   (<+>))
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Location, NameEnv, Store, Term (..),
-                                                            Type (..), isNumericVal)
+                                                            Type (..), isNumVal)
 import NotionalMachines.Utils                              (Error (..), prettyToString)
 
 
@@ -142,20 +142,20 @@ instance Pretty Term where
     Fls                            -> "false"
     If t1 t2 t3                    -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
     Zero                           -> "0"
-    Succ t | isNumericVal t        -> pretty (peanoToDec (Succ t))
+    Succ t | isNumVal t            -> pretty (peanoToDec (Succ t))
     Succ t | otherwise             -> "succ"   <+> p t
     Pred t                         -> "pred"   <+> p t
     IsZero t                       -> "iszero" <+> p t
-    where p = parenIf $ \case App    {}                     -> True
-                              If     {}                     -> True
-                              Succ t | not (isNumericVal t) -> True
-                              Pred   {}                     -> True
-                              IsZero {}                     -> True
-                              Ref    {}                     -> True
-                              Deref  {}                     -> True
-                              Assign {}                     -> True
-                              Loc    {}                     -> True
-                              _                             -> False
+    where p = parenIf $ \case App    {}                 -> True
+                              If     {}                 -> True
+                              Succ t | not (isNumVal t) -> True
+                              Pred   {}                 -> True
+                              IsZero {}                 -> True
+                              Ref    {}                 -> True
+                              Deref  {}                 -> True
+                              Assign {}                 -> True
+                              Loc    {}                 -> True
+                              _                         -> False
 
 instance Pretty Type where
   pretty = \case
