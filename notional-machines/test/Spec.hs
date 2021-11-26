@@ -199,7 +199,7 @@ arithTest = testGroup "Untyped and typed arith" [
         (Right TypedArith.TyNat) -- expected
         (TypedArith.typeof =<< TypedArith.parse "if iszero 0 then 0 else pred 0")
     , testCase "if true then 0 else false : ??" $ assertEqual ""
-        (Left TypedArith.TypeError) -- expected
+        (Left (TypedArith.TypeError "expected 'Nat' but 'false' has type 'Bool' in expression 'if true then 0 else false'.")) -- expected
         (TypedArith.typeof =<< TypedArith.parse "if true then 0 else false")
     , evalTo "if iszero 0 then succ 0 else false" "succ 0"
         Arith.replEval
@@ -249,10 +249,10 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
             (Right TypedLambda.TyNat) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if iszero 0 then 0 else pred 0")
         , testCase "if true then 0 else false : ??" $ assertEqual ""
-            (Left TypedLambda.TypeError) -- expected
+            (Left (TypedLambda.TypeError "expected 'Nat' but 'false' has type 'Bool' in expression 'if true then 0 else false'.")) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then 0 else false")
         , testCase "if a then b else c : ??" $ assertEqual ""
-            (Left TypedLambda.TypeError) -- expected
+            (Left (TypedLambda.TypeError "variable 'a' not in scope.")) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if a then b else c")
         , testCase "(\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
@@ -261,13 +261,13 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool.x)")
         , testCase "f:Bool->Bool ⊢ f (if false then true else false) : Bool" $ assertEqual ""
-            (Just TypedLambda.TyBool) -- expected
+            (Right TypedLambda.TyBool) -- expected
             (TypedLambda.typeof' [("f", TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool)]
-              =<< eitherToMaybe (TypedLambda.parse "f (if false then true else false)"))
+              =<< TypedLambda.parse "f (if false then true else false)")
         , testCase "f:Bool->Bool ⊢ \\x:Bool. f (if x then false else x) : Bool->Bool" $ assertEqual ""
-            (Just $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
+            (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
             (TypedLambda.typeof' [("f", TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool)]
-              =<< eitherToMaybe (TypedLambda.parse "\\x:Bool. f (if x then false else x)"))
+              =<< TypedLambda.parse "\\x:Bool. f (if x then false else x)")
         , testCase "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x)")
@@ -346,6 +346,9 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
             LambdaRef.replEvalAlaRacket
         -- Example where environment contains closure that contains an environment with another closure (that contains an environment):
         , evalTo "(\\zz:Nat->Nat. (\\xx:Nat->Nat->Nat. xx 1 2) (\\y:Nat. zz)) (\\z:Nat. z)" "2 : Nat"
+            LambdaRef.replEvalAlaRacket
+        -- Example with fresh name inside lambda inside name env
+        , evalTo "(\\x:Nat->Nat. (\\x:Nat->Nat->Nat. (\\z:Nat->Nat->Nat->Nat. z 9) (\\w:Nat. x) 0 1) (\\y:Nat. x)) (\\x:Nat. x)" "1 : Nat"
             LambdaRef.replEvalAlaRacket
     ]
     , testGroup "Store" [

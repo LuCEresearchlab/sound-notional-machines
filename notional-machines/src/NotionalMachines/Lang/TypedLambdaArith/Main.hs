@@ -44,7 +44,7 @@ import Data.List      ((\\))
 
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
 import NotionalMachines.Utils          (Error (..), LangPipeline (LangPipeline), maybeToEither,
-                                        mkLangRepl, prettyToString, taplBookMsg, mkReplEval)
+                                        mkLangRepl, prettyToString, taplBookMsg, mkReplEval, typeOfEq, mismatch)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
@@ -74,24 +74,33 @@ data Term = -- lambdas
 type Name = String
 
 typeof :: Term -> Either Error Type
-typeof = maybeToEither TypeError . typeof' []
+typeof = typeof' []
 
-typeof' :: TypCtx -> Term -> Maybe Type
-typeof' ctx = \case
-  Var name                                        -> lookup name ctx     -- T-Var
-  Lambda x typ1 (typeof' ((x, typ1):ctx) -> typ2) -> TyFun typ1 <$> typ2 -- T-Abs
-  App (typeof' ctx -> Just (TyFun typ11 typ12))
-      (typeof' ctx -> Just typ2) | typ11 == typ2  -> return typ12        -- T-App
-  Tru                                             -> return TyBool       -- T-True
-  Fls                                             -> return TyBool       -- T-False
-  If t1 t2 t3 | typeOfEq t1 TyBool
-             && typeof' ctx t2 == typeof' ctx t3  -> typeof' ctx t2
-  Zero                                            -> return TyNat        -- T-Zero
-  Succ t   | typeOfEq t TyNat                     -> return TyNat        -- T-Pred
-  Pred t   | typeOfEq t TyNat                     -> return TyNat        -- T-Succ
-  IsZero t | typeOfEq t TyNat                     -> return TyBool       -- T-IsZero
-  _                                               -> Nothing
-  where typeOfEq t1 t2 = typeof' ctx t1 == Just t2
+typeof' :: TypCtx -> Term -> Either Error Type
+typeof' ctx e = case e of
+  Var name        -> maybeToEither
+                     (TypeError $ "variable '" ++ name ++ "' not in scope.")
+                     (lookup name ctx)                                  -- T-Var
+  Lambda x typ1 t -> TyFun typ1 <$> typeof' ((x, typ1):ctx) t           -- T-Abs
+  App t1 t2       -> do typ1 <- rec t1
+                        case typ1 of
+                          TyFun typ11 typ12 -> typeOfEq' t2 typ11 typ12 -- T-App
+                          _ -> Left . TypeError $
+                               "expected function type but found " ++ prettyToString typ1
+  Tru                                             -> return TyBool      -- T-True
+  Fls                                             -> return TyBool      -- T-False
+  If t1 t2 t3     -> do typ1 <- rec t1
+                        typ2 <- rec t2
+                        case typ1 of
+                          TyBool -> typeOfEq' t3 typ2 typ2              -- T-If
+                          _      -> mismatch' TyBool typ1 t1
+  Zero            -> return TyNat                                       -- T-Zero
+  Succ t          -> typeOfEq' t TyNat TyNat                            -- T-Succ
+  Pred t          -> typeOfEq' t TyNat TyNat                            -- T-Pred
+  IsZero t        -> typeOfEq' t TyNat TyBool                           -- T-IsZero
+  where rec = typeof' ctx
+        typeOfEq' = typeOfEq rec e
+        mismatch' = mismatch e
 
 isValue :: Term -> Bool
 isValue = \case

@@ -1,28 +1,24 @@
-{-# OPTIONS_GHC -Wall -Wno-orphans #-}
+{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
   parse,
   unparse
   ) where
 
-import           Data.Bifunctor (first)
-import qualified Data.Map       as Map
+import Data.Bifunctor (first)
 
 import           Text.ParserCombinators.Parsec       hiding (parse)
 import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
 import qualified Text.ParserCombinators.Parsec.Expr  as Ex
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
-import Data.Text.Prettyprint.Doc (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
-                                  (<+>))
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Location, NameEnv, Store, Term (..),
-                                                            Type (..), isNumVal)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Term (..), Type (..))
 import NotionalMachines.Utils                              (Error (..), prettyToString)
 
 
@@ -120,69 +116,9 @@ decToPeano :: Integer -> Term
 decToPeano 0 = Zero
 decToPeano n = Succ (decToPeano (n - 1))
 
-peanoToDec :: Term -> Integer
-peanoToDec Zero     = 0
-peanoToDec (Succ n) = succ (peanoToDec n)
-peanoToDec t        = error $ "internal error: can't show term as number: " ++ show t
------
-
-instance Pretty Term where
-  pretty = \case
-    App (Lambda "$u" TyUnit t2) t1 -> mconcat [pretty t1, "; ", pretty t2]
-    App e1 e2                      -> p e1 <+> p e2
-    Lambda x t e                   -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
-    Closure env x t                -> parens (mconcat ["Closure ", pretty env, " \\", pretty x, ". ", pretty t])
-    Var x                          -> pretty x
-    Unit                           -> "unit"
-    Ref t                          -> "ref" <+> p t
-    Deref t                        -> "!"   <>  p t
-    Assign t1 t2                   -> hsep [p t1, ":=", pretty t2]
-    Loc l                          -> "Loc" <+> pretty l
-    Tru                            -> "true"
-    Fls                            -> "false"
-    If t1 t2 t3                    -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
-    Zero                           -> "0"
-    Succ t | isNumVal t            -> pretty (peanoToDec (Succ t))
-    Succ t | otherwise             -> "succ"   <+> p t
-    Pred t                         -> "pred"   <+> p t
-    IsZero t                       -> "iszero" <+> p t
-    where p = parenIf $ \case App    {}                 -> True
-                              If     {}                 -> True
-                              Succ t | not (isNumVal t) -> True
-                              Pred   {}                 -> True
-                              IsZero {}                 -> True
-                              Ref    {}                 -> True
-                              Deref  {}                 -> True
-                              Assign {}                 -> True
-                              Loc    {}                 -> True
-                              _                         -> False
-
-instance Pretty Type where
-  pretty = \case
-    TyBool      -> "Bool"
-    TyNat       -> "Nat"
-    TyUnit      -> "Unit"
-    TyRef t     -> "Ref" <+> p t
-    TyFun t1 t2 -> mconcat [p t1, "->", pretty t2]
-    where p = parenIf $ \case TyFun {} -> True
-                              TyRef {} -> True
-                              _        -> False
-
-parenIf :: Pretty a => (a -> Bool) -> a -> Doc b
-parenIf f t = (if f t then parens else id) (pretty t)
-
 unparse :: Term -> String
 unparse = prettyToString
 
-
-------
-
-instance Pretty (Store Location) where
-  pretty m = "Store:" <+> pretty (Map.toList m)
-
-instance Pretty NameEnv where
-  pretty m = "NameEnv:" <+> align (hvsep (fmap pretty (Map.toList m)))
-    where hvsep = concatWith (\x y -> x <> hardline <> y)
 
 ----
 

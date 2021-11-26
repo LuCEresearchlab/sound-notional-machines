@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE ViewPatterns          #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   Term(..),
@@ -50,7 +51,10 @@ import           Data.Maybe     (fromMaybe)
 
 
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT)
+import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT, typeOfEq, mismatch)
+
+import Data.Text.Prettyprint.Doc (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
+                                  (<+>))
 
 
 --------------------
@@ -61,6 +65,7 @@ data Type = TyFun Type Type
           | TyRef Type
           | TyBool
           | TyNat
+          | TyVar Name
   deriving (Eq, Show)
 
 type TypCtx = [(Name, Type)]
@@ -130,34 +135,49 @@ isNumVal = \case
   _      -> False
 
 typeof :: Term -> Either Error Type
-typeof = maybeToEither TypeError . typeof' []
+typeof = typeof' []
 
-typeof' :: TypCtx -> Term -> Maybe Type
-typeof' ctx = \case
+typeof' :: TypCtx -> Term -> Either Error Type
+typeof' ctx e = case e of
   -- Lambdas
-  Var name                                        -> lookup name ctx     -- T-Var
-  Lambda x typ1 (typeof' ((x, typ1):ctx) -> typ2) -> TyFun typ1 <$> typ2 -- T-Abs
-  App (rec -> Just (TyFun typ11 typ12))
-      (rec -> Just typ2) | typ11 == typ2          -> return typ12        -- T-App
+  Var name        -> maybeToEither
+                     (TypeError $ "variable '" ++ name ++ "' not in scope.")
+                     (lookup name ctx)                                  -- T-Var
+  Lambda x typ1 t -> TyFun typ1 <$> typeof' ((x, typ1):ctx) t           -- T-Abs
+  App t1 t2       -> do typ1 <- rec t1
+                        typ2 <- rec t2
+                        case typ1 of
+                          TyFun typ11 typ12 -> typeOfEq' t2 typ11 typ12 -- T-App
+                          _                 -> mismatch' (TyFun typ2 (TyVar "t")) typ1 t1
   -- Unit
-  Unit                                            -> return TyUnit       -- T-Unit
+  Unit            -> return TyUnit                                      -- T-Unit
   -- References
-  Ref t                                           -> TyRef <$> rec t     -- T-Ref
-  Deref  (rec -> Just (TyRef typ1))               -> return typ1         -- T-Deref
-  Assign (rec -> Just (TyRef typ1))
-         (rec -> Just typ2) | typ1 == typ2        -> return TyUnit       -- T-Assign
+  Ref t           -> TyRef <$> rec t                                    -- T-Ref
+  Deref t         -> do typ1 <- rec t
+                        case typ1 of
+                          TyRef typ2 -> return typ2                     -- T-Deref
+                          _          -> mismatch' (TyRef (TyVar "t")) typ1 t
+  Assign t1 t2    -> do typ1 <- rec t1
+                        case typ1 of
+                          TyRef typ11 -> typeOfEq' t2 typ11 TyUnit      -- T-Assign
+                          _           -> mismatch' (TyRef (TyVar "t")) typ1 t1
   -- Booleans + Arith
-  Tru                                             -> return TyBool       -- T-True
-  Fls                                             -> return TyBool       -- T-False
-  If t1 t2 t3 | typeOfEq t1 TyBool
-             && rec t2 == rec t3                  -> rec t2
-  Zero                                            -> return TyNat        -- T-Zero
-  Succ t   | typeOfEq t TyNat                     -> return TyNat        -- T-Pred
-  Pred t   | typeOfEq t TyNat                     -> return TyNat        -- T-Succ
-  IsZero t | typeOfEq t TyNat                     -> return TyBool       -- T-IsZero
-  _                                               -> Nothing
-  where typeOfEq t1 t2 = rec t1 == Just t2
-        rec = typeof' ctx
+  Tru             -> return TyBool                                      -- T-True
+  Fls             -> return TyBool                                      -- T-False
+  If t1 t2 t3     -> do typ1 <- rec t1
+                        typ2 <- rec t2
+                        case typ1 of
+                          TyBool -> typeOfEq' t3 typ2 typ2              -- T-If
+                          _      -> mismatch' TyBool typ1 t1
+  Zero            -> return TyNat                                       -- T-Zero
+  Succ t          -> typeOfEq' t TyNat TyNat                            -- T-Succ
+  Pred t          -> typeOfEq' t TyNat TyNat                            -- T-Pred
+  IsZero t        -> typeOfEq' t TyNat TyBool                           -- T-IsZero
+  Closure {}      -> Left (TypeError "Closures can't constructed from source code")
+  Loc {}          -> Left (TypeError "Locations can't constructed from source code")
+  where rec = typeof' ctx
+        typeOfEq' = typeOfEq rec e
+        mismatch' = mismatch e
 
 typecheck :: Term -> Either Error (Term, Type)
 typecheck t = (t, ) <$> typeof t
@@ -347,4 +367,64 @@ freeVs = \case
 
 fresh :: Name -> Name
 fresh a = "_" ++ a
+
+-----
+peanoToDec :: Term -> Integer
+peanoToDec Zero     = 0
+peanoToDec (Succ n) = succ (peanoToDec n)
+peanoToDec t        = error $ "internal error: can't show term as number: " ++ show t
+
+instance Pretty Term where
+  pretty = \case
+    App (Lambda "$u" TyUnit t2) t1 -> mconcat [pretty t1, "; ", pretty t2]
+    App e1 e2                      -> p e1 <+> p e2
+    Lambda x t e                   -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
+    Closure env x t                -> parens (mconcat ["Closure ", pretty env, " \\", pretty x, ". ", pretty t])
+    Var x                          -> pretty x
+    Unit                           -> "unit"
+    Ref t                          -> "ref" <+> p t
+    Deref t                        -> "!"   <>  p t
+    Assign t1 t2                   -> hsep [p t1, ":=", pretty t2]
+    Loc l                          -> "Loc" <+> pretty l
+    Tru                            -> "true"
+    Fls                            -> "false"
+    If t1 t2 t3                    -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
+    Zero                           -> "0"
+    Succ t | isNumVal t            -> pretty (peanoToDec (Succ t))
+    Succ t | otherwise             -> "succ"   <+> p t
+    Pred t                         -> "pred"   <+> p t
+    IsZero t                       -> "iszero" <+> p t
+    where p = parenIf $ \case App    {}                 -> True
+                              If     {}                 -> True
+                              Succ t | not (isNumVal t) -> True
+                              Pred   {}                 -> True
+                              IsZero {}                 -> True
+                              Ref    {}                 -> True
+                              Deref  {}                 -> True
+                              Assign {}                 -> True
+                              Loc    {}                 -> True
+                              _                         -> False
+
+instance Pretty Type where
+  pretty = \case
+    TyBool      -> "Bool"
+    TyNat       -> "Nat"
+    TyUnit      -> "Unit"
+    TyRef t     -> "Ref" <+> p t
+    TyFun t1 t2 -> hsep [p t1, "->", pretty t2]
+    TyVar name  -> pretty name
+    where p = parenIf $ \case TyFun {} -> True
+                              TyRef {} -> True
+                              _        -> False
+
+parenIf :: Pretty a => (a -> Bool) -> a -> Doc b
+parenIf f t = (if f t then parens else id) (pretty t)
+
+
+instance Pretty (Store Location) where
+  pretty m = "Store:" <+> pretty (Map.toList m)
+
+instance Pretty NameEnv where
+  pretty m = "NameEnv:" <+> align (hvsep (fmap pretty (Map.toList m)))
+    where hvsep = concatWith (\x y -> x <> hardline <> y)
 

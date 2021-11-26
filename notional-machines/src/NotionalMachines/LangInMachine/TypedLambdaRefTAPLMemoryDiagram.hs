@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
 
@@ -8,12 +10,14 @@ import           Data.Bifunctor                                      (bimap, sec
 import qualified Data.Map                                            as Map
 import           NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, Store,
                                                                       Term (..), alloc, assign,
-                                                                      deref, nextLocation)
+                                                                      deref, nextLocation, StateRacket (StateRacket))
 import           NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..),
                                                                       tAlloc, tAssign, tDeref)
 import qualified NotionalMachines.Machine.TAPLMemoryDiagram.Main     as NM (Location (Loc))
 import           NotionalMachines.Meta.Bisimulation                  (Bisimulation (..))
 import           NotionalMachines.Utils                              (eitherToMaybe, stateToTuple)
+import NotionalMachines.Meta.Bijective (Bijective (toNM, fromNM))
+import NotionalMachines.Meta.Steppable (stepM)
 
 -- convert from the language store to NM store.
 langStoreToNMStore :: Store Location -> TAPLMemoryDiagram Location Term
@@ -136,3 +140,23 @@ assignBisim = MkBisim { fLang  = fmap snd . stateToTuple (uncurry assign)
 -- g :: State (Store Location) Location -> State (TAPLMemoryDiagram Location Term) (NM.Location Location)
 -- g = error "todo"
 -- =====================
+
+langToNM :: (Term, StateRacket) -> (Term, TAPLMemoryDiagram Location Term)
+langToNM (term, StateRacket env store) = (term, TAPLMemoryDiagram env (Map.mapKeys NM.Loc store))
+
+nmToLang :: (Term, TAPLMemoryDiagram Location Term) -> (Term, StateRacket)
+nmToLang (term, TAPLMemoryDiagram env store) = (term, StateRacket env (Map.mapKeys (\(NM.Loc l) -> l) store))
+
+instance Bijective (Term, StateRacket) (Term, TAPLMemoryDiagram Location Term) where
+  toNM   = langToNM
+  fromNM = nmToLang
+
+
+bisim :: Bisimulation (Term, StateRacket)
+                      (Either Error (Term, StateRacket))
+                      (Term, TAPLMemoryDiagram Location Term)
+                      (Either Error (Term, TAPLMemoryDiagram Location Term))
+bisim = MkBisim { fLang  = stateToTuple stepM
+                , fNM    = fmap toNM . stateToTuple stepM . fromNM
+                , alphaA = toNM
+                , alphaB = fmap toNM }

@@ -29,18 +29,30 @@ import Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg, outpu
 ---- Error types ----
 
 data Error = ParseError ParseError
-           | TypeError
-           | RuntimeError String
+               | TypeError String
+               | RuntimeError String
   deriving (Eq, Show)
 
 instance Pretty Error where
     pretty (ParseError parsecError) = "Parse error" <+> pretty (show parsecError)
-    pretty TypeError                = "Type error"
-    pretty (RuntimeError s)         = "Runtime error:" <+> pretty s
+    pretty (TypeError m)            = "Type error:" <+> pretty m
+    pretty (RuntimeError m)         = "Runtime error:" <+> pretty m
 
 instance Pretty ParseError where
     pretty = pretty . show
 
+typeOfEq :: (Pretty term, Pretty typ1, Pretty typ2, Eq typ1) =>
+            (term -> Either Error typ1) -> term -> term -> typ1 -> typ2 -> Either Error typ2
+typeOfEq rec ctx t typ typ3 = do typ1 <- rec t
+                                 if typ1 == typ then return typ3
+                                                else mismatch ctx typ typ1 t
+
+mismatch :: (Pretty term, Pretty typ1, Pretty typ2) => term -> typ1 -> typ2 -> term -> Either Error ty
+mismatch ctxTerm expected found term = Left . TypeError . show $
+     "expected '" <> pretty expected
+  <> "' but '" <> pretty term
+  <> "' has type '" <> pretty found
+  <> "' in expression '" <> pretty ctxTerm <> "'."
 ----
 
 maybeHead :: [a] -> Maybe a
@@ -113,10 +125,10 @@ taplBookMsg :: String -> String
 taplBookMsg bookCh = "The syntax of the language follows TAPL Ch." ++ bookCh
 
 
-data LangPipeline term typ err trace = LangPipeline { _parse   ::      String -> Either err term
-                                                    , _eval    ::        term -> Either err term
+data LangPipeline term typ err trace = LangPipeline { _parse   :: String -> Either err term
+                                                    , _eval    :: term -> Either err term
                                                     , _mTypeof :: Maybe (term -> Either err typ)
-                                                    , _trace   ::        term -> Either err trace
+                                                    , _trace   :: term -> Either err trace
                                                     }
 
 data TypedTerm t ty = TypedTerm t ty
