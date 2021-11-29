@@ -58,7 +58,11 @@ import Data.Text.Prettyprint.Doc (Doc, Pretty, align, concatWith, hardline, hsep
 
 
 --------------------
--- Simply Typed Lambda Calculus + Unit + References + Booleans and Arithmetic Expressions
+-- Simply Typed Lambda Calculus
+-- + Unit
+-- + Sequence
+-- + References
+-- + Booleans and Arithmetic Expressions
 --------------------
 data Type = TyFun Type Type
           | TyUnit
@@ -79,6 +83,8 @@ data Term = -- Lambdas
           | App Term Term
             -- Unit
           | Unit
+            -- Sequence
+          | Seq Term Term
             -- References
           | Ref Term
           | Deref Term
@@ -151,6 +157,8 @@ typeof' ctx e = case e of
                           _                 -> mismatch' (TyFun typ2 (TyVar "t")) typ1 t1
   -- Unit
   Unit            -> return TyUnit                                      -- T-Unit
+  -- Sequence
+  Seq t1 t2       -> rec t1 >> rec t2                                   -- T-Seq
   -- References
   Ref t           -> TyRef <$> rec t                                    -- T-Ref
   Deref t         -> do typ1 <- rec t
@@ -214,6 +222,9 @@ stepAlaWadler = \case
   Lambda name _ t                  -> (\(env, _) -> Closure env name t) <$> get
   App (Closure env name t1) t2     -> withStateT (first (const (Map.insert name t2 env))) (return t1)
   v @ (Var name)                   -> fromMaybe v . Map.lookup name . fst <$> get
+  -- Sequence
+  Seq Unit t2                      -> return t2                                      -- E-NextSeq
+  Seq t1   t2                      -> (\t1' -> Seq t1' t2) <$> stepAlaWadler t1      -- E-Seq
   -- References
   Ref v | isValue' v               -> augmentState $ stateToStateT $ Loc <$> alloc v -- E-RefV
   Ref t | otherwise                -> Ref   <$> stepAlaWadler t                      -- E-Ref
@@ -265,6 +276,9 @@ stepAlaRacket = \case
                                         put $ StateRacket (Map.insert newName t2 env) s
                                         return (subst name (Var newName) t1)
   v @ (Var name)                  -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
+  -- Sequence
+  Seq Unit t2                     -> return t2                                            -- E-NextSeq
+  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> stepAlaRacket t1            -- E-Seq
   -- References
   Ref v | isValue v               -> storeToStateRacket $ stateToStateT $ Loc <$> alloc v -- E-RefV
   Ref t | otherwise               -> Ref   <$> stepAlaRacket t                            -- E-Ref
@@ -304,6 +318,9 @@ step' = \case
   App t1 t2 | not (isValue t1)    -> (\t1' -> App t1' t2 ) <$> step' t1    -- E-App1
   App v1 t2 | not (isValue t2)    -> (\t2' -> App v1  t2') <$> step' t2    -- E-App2
   App (Lambda name _ t1) t2       -> return $ subst name t2 t1             -- E-AppAbs
+  -- Sequence
+  Seq Unit t2                     -> return t2                             -- E-NextSeq
+  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> step' t1     -- E-Seq
   -- References
   Ref v | isValue v               -> stateToStateT $ Loc <$> alloc v       -- E-RefV
   Ref t | otherwise               -> Ref   <$> step' t                     -- E-Ref
@@ -336,6 +353,7 @@ subst x v e = case e of
                  | y `notElem` freeVs v -> Lambda y ty (rec e2)
                  | otherwise            -> let newY = until (`notElem` freeVs v) fresh y
                                             in Lambda newY ty (rec (subst y (Var newY) e2))
+  Seq t1 t2                             -> Seq (rec t1) (rec t2)
   If t1 t2 t3                           -> If (rec t1) (rec t2) (rec t3)
   Succ t                                -> Succ (rec t)
   Pred t                                -> Pred (rec t)
@@ -358,6 +376,7 @@ freeVs = \case
   Ref t           -> freeVs t
   Deref t         -> freeVs t
   Assign t1 t2    -> freeVs t1 ++ freeVs t2
+  Seq t1 t2       -> freeVs t1 ++ freeVs t2
   Loc _           -> []
   Unit            -> []
   Tru             -> []
@@ -376,12 +395,12 @@ peanoToDec t        = error $ "internal error: can't show term as number: " ++ s
 
 instance Pretty Term where
   pretty = \case
-    App (Lambda "$u" TyUnit t2) t1 -> mconcat [pretty t1, "; ", pretty t2]
     App e1 e2                      -> p e1 <+> p e2
     Lambda x t e                   -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
     Closure env x t                -> parens (mconcat ["Closure ", pretty env, " \\", pretty x, ". ", pretty t])
     Var x                          -> pretty x
     Unit                           -> "unit"
+    Seq t1 t2                      -> pretty t1 <> ";" <+> pretty t2
     Ref t                          -> "ref" <+> p t
     Deref t                        -> "!"   <>  p t
     Assign t1 t2                   -> hsep [p t1, ":=", pretty t2]

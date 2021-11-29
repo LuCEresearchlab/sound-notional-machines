@@ -72,11 +72,7 @@ pTerm = Ex.buildExpressionParser table factor
                   , Ex.Prefix (Ref    <$ reserved   "ref") ]
                 , [ Ex.Infix  (App    <$ reservedOp "")       Ex.AssocLeft  ]
                 , [ Ex.Infix  (Assign <$ reservedOp ":=")     Ex.AssocRight ]
-                , [ Ex.Infix  (mkSeq  <$ reservedOp ";")      Ex.AssocRight ] ]
-        -- Sequencing is a derived form (i.e. syntactic sugar). "$u" is always
-        -- fresh (different from all the free vars in t2 because user-defined
-        -- vars can't start with "$".
-        mkSeq t1 t2 = App (Lambda "$u" TyUnit t2) t1
+                , [ Ex.Infix  (Seq    <$ reservedOp ";")      Ex.AssocRight ] ]
 
 factor :: Parser Term
 factor = Tru  <$ reserved "true"
