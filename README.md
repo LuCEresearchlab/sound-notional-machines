@@ -194,6 +194,11 @@ $ ghcid --command="ghci variable-as-parking-space.hs"
 
 ## Related Work / Resources
 
+The two theoretical foundations we are building on are
+* A formalization of programming language semantics. We're using operational semantics as described in the TAPL book. Moreover, we're using the sequences of basic language there described as basic examples of languages for which notional machines can be built and analysed.
+* A formalization of program/process equivalence/correspondence. That's important because the goal is to be able to say that a notional machine (including of course its behavior) corresponds/it's equivalento to a subset of the semantics of a language. For that there are actually several approaches and we have been using a well known and established theory to here: bisimulation. On that regard, I have been reading the book "Introduction to Bisimulation and Coinduction" (by Davide Sangiorgi). It seems a good foundation to describe the relationship between some of the languages and NMs. In particular, I found useful the introductory Ch. 0 and Ch. 1, section 6.6 (The equivalence spectrum) that has a diagram showing various kinds of equivalences, Ch. 6 that talks about Simulations and it may be in some cases the appropriate terminology, Ch 4. that talks about the Weak LTS (which is the basis to define Weak Bisimulation and Simulation) that refers to systems with internal/hidden states.
+
+Other relevant papers include:
 * [Bisimulation: Relating reduction systems](https://plfa.inf.ed.ac.uk/Bisimulation/)
   in the "Programming Language Foundations in Agda" online book
   by Wadler, Kokke, and Siek.
