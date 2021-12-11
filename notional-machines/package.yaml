@@ -28,6 +28,7 @@ dependencies:
 - prettyprinter
 - pretty-simple
 - repline
+- colour
 
 library:
   source-dirs: src

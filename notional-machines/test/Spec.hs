@@ -55,7 +55,7 @@ import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       
 import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as LambdaRefTAPLDia
 import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (bisim,
-                                                                                      nmToLang)
+                                                                                      nmToLang')
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
@@ -89,7 +89,7 @@ genReductExp =
 -------- Alligators ----------
 
 genColor :: MonadGen m => m Color
-genColor = Color <$> Gen.list (Range.singleton 1) (Gen.element ['a'..'z'])
+genColor = nameToColor <$> Gen.list (Range.singleton 1) (Gen.element ['a'..'z'])
 
 
 ---------------------------
@@ -171,7 +171,7 @@ gamePlayExample = prop $ do
   c1 <- forAll genColor
   c2 <- forAll genColor
   let rightGuess = guess [anot] [([atru], [afls]), ([afls], [atru])] [c1, c2]
-  let rightColors = [c1, c2] == [Color "c", Color "b"]
+  let rightColors = [c1, c2] == [nameToColor "c", nameToColor "b"]
   (rightColors && rightGuess || not rightColors && not rightGuess) === True
 
 ---------------------------
@@ -442,11 +442,11 @@ alligatorTest = testGroup "Alligators" [
     , testProperty "In example, right guess <=> right colors"
         gamePlayExample
     , testGroup "de Bruijn Alligators" (
-      let f = fmap Lambda.unparse . (=<<) (A.nmToLang . deBruijnAlligators . Inj.toNM) . eitherToMaybe . Lambda.parse
+      let f = fmap Lambda.unparse . (=<<) (A.nmToLang' show . deBruijnAlligators . Inj.toNM) . eitherToMaybe . Lambda.parse
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected
-            (deBruijnAlligators [HungryAlligator (Color "a") [Egg (Color "a")]])
+            (deBruijnAlligators [HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]])
         , testCase "c0" $ assertEqual ""
             (Just "(\\0.(\\0.0))") -- expected
             (f "\\s.\\z.z")

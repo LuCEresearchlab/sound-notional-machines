@@ -11,8 +11,8 @@ import Data.Function ((&))
 
 import NotionalMachines.Lang.UntypedLambda.Main    (Exp (..))
 import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilies, AlligatorFamily,
-                                                    AlligatorFamilyF (..), Color,
-                                                    deBruijnAlligators, toColor)
+                                                    AlligatorFamilyF (..), Color, colorToName,
+                                                    deBruijnAlligators, nameToColor)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
@@ -21,19 +21,22 @@ import NotionalMachines.Meta.Steppable    (eval)
 -------------------------
 -- Lang to NM and back --
 -------------------------
-nmToLang :: Show a => [AlligatorFamilyF a] -> Maybe Exp
-nmToLang families =
+nmToLang' :: (a -> String) -> [AlligatorFamilyF a] -> Maybe Exp
+nmToLang' toName families =
   -- TODO: improve this by resolving the typing weirdness of [Als]
   fmap f2e families & \case []           -> Nothing
                             [me]         -> me
                             me1:me2:rest -> foldl (liftM2 App) (liftM2 App me1 me2) rest
-  where f2e (HungryAlligator c proteges) = Lambda (show c) <$> nmToLang proteges
-        f2e (OldAlligator proteges)      = nmToLang proteges
-        f2e (Egg c)                      = Just (Var (show c))
+  where f2e (HungryAlligator c proteges) = Lambda (toName c) <$> nmToLang' toName proteges
+        f2e (OldAlligator proteges)      = nmToLang' toName proteges
+        f2e (Egg c)                      = Just (Var (toName c))
+
+nmToLang :: [AlligatorFamily] -> Maybe Exp
+nmToLang = nmToLang' colorToName
 
 langToNm :: Exp -> [AlligatorFamily]
-langToNm (Var name)              = [Egg (toColor name)]
-langToNm (Lambda name e)         = [HungryAlligator (toColor name) (langToNm e)]
+langToNm (Var name)              = [Egg (nameToColor name)]
+langToNm (Lambda name e)         = [HungryAlligator (nameToColor name) (langToNm e)]
 langToNm (App e1 e2 @ (App _ _)) = langToNm e1 ++ [OldAlligator (langToNm e2)]
 langToNm (App e1 e2)             = langToNm e1 ++ langToNm e2
 
@@ -55,9 +58,9 @@ instance Injective Exp AlligatorFamilies where
 
 bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] [AlligatorFamilyF Int]
 bisim = MkBisim { fLang  = eval
-              , fNM    = deBruijnAlligators . eval
-              , alphaA = toNM
-              , alphaB = deBruijnAlligators . toNM }
+                , fNM    = deBruijnAlligators . eval
+                , alphaA = toNM
+                , alphaB = deBruijnAlligators . toNM }
 
 -- Commutation proof:
 -- alpha_B . f' == f . alpha_A

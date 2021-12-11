@@ -6,6 +6,9 @@
 
 module NotionalMachines.Utils where
 
+import Data.Colour.SRGB (sRGB24show, sRGB, RGB)
+import Data.Colour.RGBSpace (uncurryRGB)
+
 import           Hedgehog       hiding (eval)
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
@@ -80,6 +83,9 @@ prettyToString = show . pretty
 
 shortPrint :: Show a => a -> IO ()
 shortPrint = pPrintOpt CheckColorTty defaultOutputOptionsDarkBg {outputOptionsCompact = False}
+
+showRGB :: RGB Double -> String
+showRGB = sRGB24show . uncurryRGB sRGB
 
 ------- Generators utils ----------
 
