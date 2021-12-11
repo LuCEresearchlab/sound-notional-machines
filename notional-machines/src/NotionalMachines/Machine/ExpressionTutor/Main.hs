@@ -44,9 +44,9 @@ import NotionalMachines.Utils (maybeHead)
 -- Expression Tutor
 --------------------
 data ExpTutorDiagram = ExpTutorDiagram { nodes :: Set Node
-                                     , edges :: Set Edge
-                                     , root  :: Maybe Node
-                                     }
+                                       , edges :: Set Edge
+                                       , root  :: Maybe Node
+                                       }
   deriving (Eq, Show)
 
 data Node = Node { nodePlug :: Plug

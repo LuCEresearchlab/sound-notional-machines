@@ -40,15 +40,15 @@ data Bisimulation a' b' a b = MkBisim { fLang  :: a' -> b'
 
 mkBijBisim :: (Bijective l n, Steppable l) => Bisimulation l l n n
 mkBijBisim = MkBisim { fLang  = step
-                   , fNM    = stepNM step
-                   , alphaA = Bij.toNM
-                   , alphaB = Bij.toNM }
+                     , fNM    = stepNM step
+                     , alphaA = Bij.toNM
+                     , alphaB = Bij.toNM }
 
 mkInjBisim :: (Injective l n) => (l -> l) -> Bisimulation l l n (Maybe n)
 mkInjBisim f = MkBisim { fLang  = f
-                     , fNM    = stepMNM f
-                     , alphaA = Inj.toNM
-                     , alphaB = return . Inj.toNM }
+                       , fNM    = stepMNM f
+                       , alphaA = Inj.toNM
+                       , alphaB = pure . Inj.toNM }
 
 stepNM :: Bijective l n => (l -> l) -> n -> n
 stepNM f = Bij.toNM . f . Bij.fromNM

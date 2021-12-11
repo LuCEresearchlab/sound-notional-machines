@@ -68,8 +68,8 @@ instance Pretty MachineStateAlaRacket where
 
 
 trace' :: (SteppableM Term (StateT s (Either Error)), Eq (StateT s (Either Error) Term))
-       => s -> ((Term, s) -> b) -> Term -> Either Error [b]
-trace' initState format = fmap (fmap format) . runTrace . traceM . fst <=< typecheck
+       => s -> ((Term, s) -> b) -> Term -> Either Error (Trace b)
+trace' initState format = fmap (Trace . fmap format) . runTrace . traceM . fst <=< typecheck
   where runTrace = mapM (`runStateT` initState)
 
 
@@ -88,7 +88,7 @@ instance Eq (StateT StateRacket (Either Error) Term) where
 
 
 langPipeline :: LangPipeline Term Type Error (Trace MachineState)
-langPipeline = LangPipeline parse evalM' (Just typeof) (fmap Trace . trace' emptyStore MachineState)
+langPipeline = LangPipeline parse evalM' (Just typeof) (trace' emptyStore MachineState)
 
 replEval :: String -> Either Error String
 replEval = mkReplEval langPipeline
@@ -104,6 +104,6 @@ repl = mkLangReplOpts [ ("traceAlaWadler", mkCmd . traceAlaWadler)
                       , ("traceAlaRacket", mkCmd . traceAlaRacket) ]
                       "LambdaRef>" (taplBookMsg "13") langPipeline
   where traceAlaWadler :: String -> Either Error (Trace MachineStateAlaWadler)
-        traceAlaWadler = fmap Trace . trace' emptyStateAlaWadler MachineStateAlaWadler <=< parse
+        traceAlaWadler = trace' emptyStateAlaWadler MachineStateAlaWadler <=< parse
         traceAlaRacket :: String -> Either Error (Trace MachineStateAlaRacket)
-        traceAlaRacket = fmap Trace . trace' emptyStateAlaRacket MachineStateAlaRacket <=< parse
+        traceAlaRacket = trace' emptyStateAlaRacket MachineStateAlaRacket <=< parse

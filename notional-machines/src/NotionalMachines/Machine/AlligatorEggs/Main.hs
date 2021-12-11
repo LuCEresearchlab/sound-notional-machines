@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveFoldable      #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE DeriveTraversable   #-}
 {-# LANGUAGE FlexibleInstances   #-}

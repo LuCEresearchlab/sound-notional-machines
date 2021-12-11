@@ -350,6 +350,9 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
         -- Example with fresh name inside lambda inside name env
         , evalTo "(\\x:Nat->Nat. (\\x:Nat->Nat->Nat. (\\z:Nat->Nat->Nat->Nat. z 9) (\\w:Nat. x) 0 1) (\\y:Nat. x)) (\\x:Nat. x)" "1 : Nat"
             LambdaRef.replEvalAlaRacket
+        -- Example with store cell that refers to store cell
+        , evalTo "ref (ref 1)" "Loc 1 : Ref (Ref Nat)"
+            LambdaRef.replEvalAlaRacket
     ]
     , testGroup "Store" [
           testCase "deref on empty store" $ assertEqual ""

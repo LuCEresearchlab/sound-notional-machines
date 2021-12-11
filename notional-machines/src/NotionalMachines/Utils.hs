@@ -1,13 +1,13 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# OPTIONS_GHC -Wno-orphans #-}
 
+{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections     #-}
 
 module NotionalMachines.Utils where
 
-import Data.Colour.SRGB (sRGB24show, sRGB, RGB)
 import Data.Colour.RGBSpace (uncurryRGB)
+import Data.Colour.SRGB     (RGB, sRGB, sRGB24show)
 
 import           Hedgehog       hiding (eval)
 import qualified Hedgehog.Gen   as Gen
@@ -23,25 +23,25 @@ import Data.List      (intercalate, uncons)
 import System.Console.Repline (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
                                ReplOpts (..), evalReplOpts)
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty, (<+>))
+import Data.Text.Prettyprint.Doc (Doc, Pretty, colon, dot, pretty, squotes, (<+>))
 
-import Text.Parsec        (ParseError)
-import Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg, outputOptionsCompact,
-                           pPrintOpt)
+import qualified Text.Parsec        as Parsec (ParseError)
+import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg,
+                                     outputOptionsCompact, pPrintOpt)
 
 ---- Error types ----
 
-data Error = ParseError ParseError
-               | TypeError String
-               | RuntimeError String
+data Error = ParseError Parsec.ParseError
+           | TypeError String
+           | RuntimeError String
   deriving (Eq, Show)
 
 instance Pretty Error where
-    pretty (ParseError parsecError) = "Parse error" <+> pretty (show parsecError)
-    pretty (TypeError m)            = "Type error:" <+> pretty m
+    pretty (ParseError parsecError) =    "Parse error" <+> pretty (show parsecError)
+    pretty (TypeError m)            =    "Type error:" <+> pretty m
     pretty (RuntimeError m)         = "Runtime error:" <+> pretty m
 
-instance Pretty ParseError where
+instance Pretty Parsec.ParseError where
     pretty = pretty . show
 
 typeOfEq :: (Pretty term, Pretty typ1, Pretty typ2, Eq typ1) =>
@@ -50,12 +50,15 @@ typeOfEq rec ctx t typ typ3 = do typ1 <- rec t
                                  if typ1 == typ then return typ3
                                                 else mismatch ctx typ typ1 t
 
-mismatch :: (Pretty term, Pretty typ1, Pretty typ2) => term -> typ1 -> typ2 -> term -> Either Error ty
+mismatch :: (Pretty term, Pretty typ1, Pretty typ2) =>
+            term -> typ1 -> typ2 -> term -> Either Error ty
 mismatch ctxTerm expected found term = Left . TypeError . show $
-     "expected '" <> pretty expected
-  <> "' but '" <> pretty term
-  <> "' has type '" <> pretty found
-  <> "' in expression '" <> pretty ctxTerm <> "'."
+       "expected" <+> q expected <+>
+            "but" <+> q term     <+>
+       "has type" <+> q found    <+>
+  "in expression" <+> q ctxTerm   <> dot
+      where q :: Pretty p => p -> Doc c
+            q = squotes . pretty
 ----
 
 maybeHead :: [a] -> Maybe a
@@ -137,24 +140,22 @@ data LangPipeline term typ err trace = LangPipeline { _parse   :: String -> Eith
                                                     , _trace   :: term -> Either err trace
                                                     }
 
-data TypedTerm t ty = TypedTerm t ty
-instance (Pretty t, Pretty ty) => Pretty (TypedTerm t ty) where
-    pretty (TypedTerm t ty) = pretty t <+> ":" <+> pretty ty
+data TypedTerm ty t = TypedTerm ty t
+  deriving (Foldable, Functor, Traversable)
+instance (Pretty t, Pretty ty) => Pretty (TypedTerm ty t) where
+    pretty (TypedTerm ty t) = pretty t <+> colon <+> pretty ty
 
+typedTerm :: Monad f => (a -> f ty) -> a -> f (TypedTerm ty a)
+typedTerm typeof' term = TypedTerm <$> typeof' term <*> return term
 
-mkReplEval :: (Pretty term, Pretty ty) => LangPipeline term ty er trace
-                                    -> String
-                                    -> Either er String
-mkReplEval (LangPipeline parse' eval' mTypeof _)        = case mTypeof of
-  Nothing      -> fmap format . (=<<) eval' . parse'
-  Just typeof' -> \s -> do term <- parse' s
-                           typ  <- typeof' term
-                           val  <- eval' term
-                           (return . format . TypedTerm val) typ
-  where format :: Pretty a => a -> String
-        format = prettyToString
+mkReplEval :: (Pretty term, Pretty ty) =>
+              LangPipeline term ty er trace -> String -> Either er String
+mkReplEval (LangPipeline parse' eval' mTypeOf _) = case mTypeOf of
+  Just typeof' -> format <=< mapM eval' <=< typedTerm typeof' <=< parse'
+  Nothing      -> format <=<      eval'                       <=< parse'
 
-
+format :: Pretty a => a -> Either er String
+format = return . prettyToString
 
 mkLangRepl :: (Pretty term, Pretty err, Pretty ty, Pretty trace) =>
               String -- ^ REPL banner
@@ -187,13 +188,9 @@ mkLangReplOpts otherCmds replBanner bookMsg pipe @ (LangPipeline parse _ mTypeof
     mkHelpCmd header cmds _ = putStrLn msg
       where msg = unlines [header, "REPL commands: " ++ intercalate ", " cmds]
 
-    mkTypeCmd :: (Pretty er, Pretty term, Pretty ty) => (term -> Either er ty)
-                                                     -> (a -> Either er term)
-                                                     -> a
-                                                     -> IO ()
-    mkTypeCmd typeof parse' = mkCmd . (\s -> do term <- parse' s
-                                                typ  <- typeof term
-                                                return $ TypedTerm term typ)
+    mkTypeCmd :: (Pretty er, Pretty term, Pretty ty) =>
+                 (term -> Either er ty) -> (a -> Either er term) -> a -> IO ()
+    mkTypeCmd typeof parse' = mkCmd . (typedTerm typeof <=< parse')
 
 mkCmd :: (Pretty e, Pretty b) => Either e b -> IO ()
 mkCmd = either (print . pretty) (print . pretty)

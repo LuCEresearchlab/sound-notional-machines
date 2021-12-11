@@ -1,9 +1,4 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# OPTIONS_GHC -Wno-deferred-out-of-scope-variables #-}
-
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE OverloadedStrings #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
   parse,

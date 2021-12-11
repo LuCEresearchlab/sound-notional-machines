@@ -5,8 +5,10 @@
 
 module NotionalMachines.Lang.UntypedLambda.Main where
 
-import           Text.ParserCombinators.Parsec hiding (parse)
-import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+import           Text.ParserCombinators.Parsec       (Parser, between, char, eof, letter, many1,
+                                                      sepBy1, spaces, try, (<|>))
+import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
+import           Text.ParserCombinators.Parsec.Error (ParseError)
 
 import Data.Text.Prettyprint.Doc (Pretty, backslash, dot, parens, pretty, (<+>))
 
@@ -14,7 +16,7 @@ import Data.List ((\\))
 
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, eval, step, stepM, trace)
 import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
-                                        taplBookMsg, prettyToString)
+                                        prettyToString, taplBookMsg)
 
 --------------------
 -- Bisimulation
