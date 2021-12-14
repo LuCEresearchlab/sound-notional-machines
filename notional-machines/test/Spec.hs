@@ -18,8 +18,9 @@ import           Data.Foldable (toList)
 import           Data.List     (intersect)
 import           Data.Maybe    (fromJust)
 import qualified Data.Set      as Set
+import Data.Function ((&))
 
-import Control.Monad ((<=<))
+import Control.Monad ((<=<), liftM2)
 import Control.Monad.State.Lazy (runStateT)
 
 import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
@@ -55,7 +56,7 @@ import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       
 import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as LambdaRefTAPLDia
 import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (bisim,
-                                                                                      nmToLang')
+                                                                                      langToNm)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
@@ -436,16 +437,16 @@ reductTest = testGroup "Reduct" [
 
 alligatorTest :: TestTree
 alligatorTest = testGroup "Alligators" [
-      testProperty "nmToLang is left inverse of langToNm" $
-        isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
-    , testProperty "commutation proof" $
+      -- testProperty "nmToLang is left inverse of langToNm" $
+      --   isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
+      testProperty "commutation proof" $
         bisimulationCommutes LambdaGen.genExp A.bisim
     , testProperty "color rule"
         colorRuleProp
     , testProperty "In example, right guess <=> right colors"
         gamePlayExample
     , testGroup "de Bruijn Alligators" (
-      let f = fmap Lambda.unparse . (=<<) (A.nmToLang' show . deBruijnAlligators . Inj.toNM) . eitherToMaybe . Lambda.parse
+      let f = fmap Lambda.unparse . (=<<) (nmToLang' show . deBruijnAlligators . A.langToNm) . eitherToMaybe . Lambda.parse
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected
@@ -467,8 +468,18 @@ alligatorTest = testGroup "Alligators" [
             (f "(\\x.(\\x.x)) (\\x.x)")
       ])
     , testProperty "asciiAlligator nm == asciiAlligators lambda" $
-       isEquivalentTo LambdaGen.genExp (show . toAscii . (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)) (show . toAscii)
+       isEquivalentTo LambdaGen.genExp (show . toAscii . A.langToNm) (show . toAscii)
   ]
+    where
+      nmToLang' :: (a -> String) -> [AlligatorFamilyF a] -> Maybe Lambda.Exp
+      nmToLang' toName families = fmap f2e families & \e -> case e of
+          []           -> Nothing
+          [me]         -> me
+          me1:me2:rest -> foldl (liftM2 Lambda.App) (liftM2 Lambda.App me1 me2) rest
+        where f2e (HungryAlligator c proteges) = Lambda.Lambda (toName c) <$> nmToLang' toName proteges
+              f2e (OldAlligator proteges)      = nmToLang' toName proteges
+              f2e (Egg c)                      = Just (Lambda.Var (toName c))
+
 
 taplMemeryDiagramTest :: TestTree
 taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
