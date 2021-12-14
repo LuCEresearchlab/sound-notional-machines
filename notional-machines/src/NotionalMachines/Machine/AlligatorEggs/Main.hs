@@ -28,16 +28,16 @@ import           NotionalMachines.Meta.Steppable                    (Steppable, 
 -- that limitation) so we want to find a mapping of names to colours that is
 -- useful.
 --
--- ================ This would be easy with automatic backward function generation =====================
+-- ===== Invertible functions: This would be easy with automatic backward function generation =====
 nameToRGB :: String -> RGB Double
-nameToRGB = hueToColor . nameToHue
+nameToRGB = hueToRGB . nameToHue
 rgbToName :: RGB Double -> String
-rgbToName = hueToName . colorToHue
+rgbToName = hueToName . rgbToHue
 
-hueToColor :: Double -> RGB Double
-hueToColor h = hsv h 1 1
-colorToHue :: RGB Double -> Double
-colorToHue = hue
+hueToRGB :: Double -> RGB Double
+hueToRGB h = hsv h 1 1
+rgbToHue :: RGB Double -> Double
+rgbToHue = hue
 
 nameToHue :: String -> Double
 nameToHue = intToHue defaultSpacing . nameToInt
@@ -61,11 +61,11 @@ changeBaseInv base = (\l -> if null l then [0] else l) . f
     where f = unfoldr (\b -> if b == 0 then Nothing else Just (b `mod` base, b `div` base))
 
 intToHue :: Int -> Int -> Double
-intToHue clrSpc x = fromIntegral (x `mod` clrSpc) / fromIntegral clrSpc * 360 + fromIntegral (x `div` clrSpc)
+intToHue spc x = fromIntegral (x `mod` spc) / fromIntegral spc * 360 + fromIntegral (x `div` spc)
 hueToInt :: Int -> Double -> Int
-hueToInt clrSpc x = h x + defaultSpacing * (round x - round (360 / fromIntegral clrSpc) * h x)
+hueToInt spc x = h x + defaultSpacing * (round x - round (360 / fromIntegral spc) * h x)
   where h y = round (fromIntegral defaultSpacing * (y / 360))
--- =====================================================================================================
+-- ================================================================================================
 
 defaultSpacing :: Int
 defaultSpacing = 6 -- space between one colour and the next
@@ -74,34 +74,21 @@ letterBase :: Int
 letterBase = 26 -- letters are numbers in base 26
 
 
-newtype Color = Color (RGB Double)
+newtype Color = MkColor { colorContent :: RGB Double }
   deriving (Eq, Read, Show)
 
 instance Enum Color where
-  toEnum = Color . hueToColor . fromIntegral
-  fromEnum (Color c) = round (colorToHue c)
+  toEnum = MkColor . hueToRGB . fromIntegral
+  fromEnum = round . rgbToHue . colorContent
 
 instance Ord Color where
-  compare (Color c1) (Color c2) = compare (colorToHue c1) (colorToHue c2)
-
-color0 :: Color
-color0 = toEnum 0
+  compare (MkColor c1) (MkColor c2) = compare (rgbToHue c1) (rgbToHue c2)
 
 nameToColor :: String -> Color
-nameToColor = Color . nameToRGB
+nameToColor = MkColor . nameToRGB
 
 colorToName :: Color -> String
-colorToName (Color c) = rgbToName c
-
-nextColor :: Color -> Color
-nextColor = succ
-
--- Represents a color to be guessed.
--- Using `toColor`, this color would not be part of the generated colours.
-emptyColor :: Color
-emptyColor = Color (hsv 0 0 0)
-
-
+colorToName = rgbToName . colorContent
 
 
 data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
@@ -111,6 +98,13 @@ data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
 
 type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
+
+
+-- TODO:
+-- * Eggs only use the colors of the alligators guarding them.
+--   You can't have a blue egg without there being a blue alligator around to guard it.
+--   To enforce this we need a "smart constructor" or change the types?
+
 
 instance (Eq a, Enum a) => Steppable [AlligatorFamilyF a] where
   step = eatingRule . colorRule . oldAgeRule
@@ -146,15 +140,16 @@ recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)
              | otherwise = do (subs, next) <- get
                               case lookup c subs of
                                 Just newC -> return newC
-                                Nothing -> let newC = nextNotIn a1 a2 next
+                                Nothing -> let newC = nextNotIn [a1, a2] next
                                            in do put ((c, newC):subs, succ newC)
                                                  return newC
           where
-            nextNotIn :: (Enum a, Eq a) => AlligatorFamilyF a -> AlligatorFamilyF a -> a -> a
-            nextNotIn xs ys = until (\x -> all (notElem x) [xs, ys]) succ
+            nextNotIn :: (Enum a, Eq a) => [AlligatorFamilyF a] -> a -> a
+            nextNotIn as = until (\x -> all (notElem x) as) succ
 
 -- When an old alligator is just guarding a single thing, it dies.
 oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
+oldAgeRule (OldAlligator        [] : rest) = rest
 oldAgeRule (OldAlligator [protege] : rest) = protege : rest
 oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (step proteges) : rest
 oldAgeRule families                        = families
@@ -165,18 +160,22 @@ oldAgeRule families                        = families
 -- "The game would consist of a series of puzzles, challenging the player to
 -- devise a family that, when fed X, produces Y."
 
+-- | Represents a color to be guessed. This color is not generatable with the Enum instance.
+jokerColor :: Color
+jokerColor = MkColor (hsv 0 0 0)
+
 -- | Check a guess made by the player.
 guess :: AlligatorFamilies
       -- ^ A base family `a` with colors the user has to guess
-      -- (represented by the `emptyColor`).
+      -- (represented by the `jokerColor`).
       -> [(AlligatorFamilies, AlligatorFamilies)]
       -- ^ A list of "test cases" that should be satisfied if the guess is
       -- correct.  Each test case is a pair of input and expected output. The
-      -- expected output should be obtained by substituting the `emptyColor`s
+      -- expected output should be obtained by substituting the `jokerColor`s
       -- by the guessed `colors` in the base family `a`, putting each input in
       -- front of this family and running the game.
       -> [Color]
-      -- ^ The `colors` that are being guessed (one for each `emptyColor`).
+      -- ^ The `colors` that are being guessed (one for each `jokerColor`).
       -> Bool
 guess a testCases colors = all check testCases
   where
@@ -184,14 +183,14 @@ guess a testCases colors = all check testCases
                 == deBruijnAlligators o
     fillAll :: [Color] -> AlligatorFamilies -> AlligatorFamilies
     fillAll cs xs = evalState (mapM (mapM fill) xs) cs
-    -- Replace an emptyColor by the color in the head of the list in the state
-    -- and update the state with the tails of the list.
+    -- Replace a jokerColor by the color in the head of the list in the state
+    -- and update the state with the tail of the list.
     fill :: Color -> State [Color] Color
-    fill c | c /= emptyColor = return c
+    fill c | c /= jokerColor = return c
            | otherwise = do cs <- get
                             case cs of
-                              -- if there are no more colors to replace the emptyColor
-                              -- then keep the emptyColor (nothing else we can do).
+                              -- if there are no more colors to replace the jokerColor
+                              -- then keep the jokerColor (nothing else we can do).
                               []   -> return c
                               -- replace empty color with next color in the list and
                               -- put the rest back in the state to be used next.
@@ -202,9 +201,8 @@ deBruijnAlligators = fmap (go (-1) 0 Map.empty)
   where
     go :: Int -> Int -> Map Color Int -> AlligatorFamilyF Color -> AlligatorFamilyF Int
     go freeVarIx depth env a = case a of
-      HungryAlligator c as ->
-        let d = succ depth
-        in HungryAlligator 0 (go freeVarIx d (Map.insert c d env) <$> as)
+      HungryAlligator c as -> let d = succ depth
+                              in HungryAlligator 0 (go freeVarIx d (Map.insert c d env) <$> as)
       OldAlligator as -> OldAlligator (go freeVarIx depth env <$> as)
       Egg c -> Egg (maybe freeVarIx (depth -) (Map.lookup c env)) -- update freeVarIx
 
@@ -225,10 +223,6 @@ instance AsAsciiAlligators [AlligatorFamilyF Color] where
 --
 -- * Differences with lambda:
 --   - Alligators (lambdas) don't have to have an egg (variable use)
---
--- * Eggs only use the colors of the alligators guarding them.
---   You can't have a blue egg without there being a blue alligator around to guard it.
---   To enforce this we need a "smart constructor"
 --
 -- * "But that yellow alligator sure is hungry, and there's a tasty red egg in
 --   front of her. Here we go again..."
@@ -320,6 +314,6 @@ ay = HungryAlligator (nameToColor "g") [
 
 -- term with unknowns
 aq :: AlligatorFamily
-aq = HungryAlligator (nameToColor "b") [HungryAlligator (nameToColor "c") [Egg emptyColor]]
+aq = HungryAlligator (nameToColor "b") [HungryAlligator (nameToColor "c") [Egg jokerColor]]
 anot :: AlligatorFamily
 anot = HungryAlligator (nameToColor "a") [Egg (nameToColor "a"), aq, aq]
