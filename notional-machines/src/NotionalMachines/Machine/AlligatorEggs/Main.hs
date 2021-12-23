@@ -1,24 +1,27 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveFunctor       #-}
-{-# LANGUAGE DeriveTraversable   #-}
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveFunctor         #-}
+{-# LANGUAGE DeriveTraversable     #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 module NotionalMachines.Machine.AlligatorEggs.Main where
 
 import Data.Colour.RGBSpace.HSV (RGB, hsv, hue)
 
-import           Control.Monad.State.Lazy (State, evalState, get, put)
-import           Data.List                (unfoldr)
-import           Data.Map                 (Map)
-import qualified Data.Map                 as Map
+import Control.Monad            ((<=<))
+import Control.Monad.State.Lazy (State, evalState, get, put)
+
+import           Data.List (unfoldr)
+import           Data.Map  (Map)
+import qualified Data.Map  as Map
 
 import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
 import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator,
                                                                               oldAlligator)
-import           NotionalMachines.Meta.Steppable                    (Steppable, eval, step)
+import           NotionalMachines.Meta.Steppable                    (SteppableM, evalM, stepM)
 
 
 
@@ -100,26 +103,25 @@ type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
 
 
--- TODO:
--- * Eggs only use the colors of the alligators guarding them.
---   You can't have a blue egg without there being a blue alligator around to guard it.
---   To enforce this we need a "smart constructor" or change the types?
+instance (Eq a, Enum a) => SteppableM [AlligatorFamilyF a] Maybe where
+  stepM = stepAlli
 
-
-instance (Eq a, Enum a) => Steppable [AlligatorFamilyF a] where
-  step = eatingRule . colorRule . oldAgeRule
+-- | Taking a step consists of applying each rule in sequence: oldAgeRule, colorRule, eatingRule.
+-- The values are Maybes because a family may be malformed if it is not colored properly.
+stepAlli :: (Enum a, Eq a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
+stepAlli = eatingRule <=< return . colorRule <=< oldAgeRule <=< checkThat eggColoredCorrectly
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
-eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-eatingRule (a @ (HungryAlligator _ _):as @ (OldAlligator _:_)) = a : oldAgeRule as
-eatingRule ((HungryAlligator c p):family:rest) = fmap hatch p ++ rest
+eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
+eatingRule (a @ (HungryAlligator _ _):as @ (OldAlligator _:_)) = (a :) <$> oldAgeRule as
+eatingRule ((HungryAlligator c p):family:rest) = return $ fmap hatch p ++ rest
   where hatch a @ (HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (fmap hatch as)
                                           | otherwise = a
         hatch (Egg c1) | c == c1   = family
                        | otherwise = Egg c1
         hatch (OldAlligator as) = OldAlligator (fmap hatch as)
-eatingRule families = families
+eatingRule families = return families
 
 -- "If an alligator is about to eat a family, and there's a color that appears
 -- in both families, we need to change that color in one family to something
@@ -148,11 +150,22 @@ recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)
             nextNotIn as = until (\x -> all (notElem x) as) succ
 
 -- When an old alligator is just guarding a single thing, it dies.
-oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-oldAgeRule (OldAlligator        [] : rest) = rest
-oldAgeRule (OldAlligator [protege] : rest) = protege : rest
-oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (step proteges) : rest
-oldAgeRule families                        = families
+oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
+oldAgeRule (OldAlligator        [] : rest) = return rest
+oldAgeRule (OldAlligator [protege] : rest) = return (protege : rest)
+oldAgeRule (OldAlligator proteges  : rest) = (\a -> OldAlligator a : rest) <$> stepM proteges
+oldAgeRule families                        = return families
+
+-- Check that all eggs are guarded by a hungry alligator with the same color.
+eggColoredCorrectly :: forall a. (Eq a) => [AlligatorFamilyF a] -> Bool
+eggColoredCorrectly = go []
+    where go :: [a] -> [AlligatorFamilyF a] -> Bool
+          go cs = all $ \case HungryAlligator c as -> go (c:cs) as
+                              OldAlligator as      -> go cs as
+                              Egg c                -> c `elem` cs
+
+checkThat :: (p -> Bool) -> p -> Maybe p
+checkThat f x = if f x then Just x else Nothing
 
 ----------------------
 -- Gameplay --
@@ -179,28 +192,29 @@ guess :: AlligatorFamilies
       -> Bool
 guess a testCases colors = all check testCases
   where
-    check (i, o) = deBruijnAlligators (eval (fillAll colors a ++ i))
-                == deBruijnAlligators o
+    check (i, expected) = case evalM (fillAll colors a ++ i) of
+                            Nothing -> False
+                            Just toCheck -> eggColoredCorrectly toCheck
+                                         && deBruijnAlligators toCheck == deBruijnAlligators expected
     fillAll :: [Color] -> AlligatorFamilies -> AlligatorFamilies
     fillAll cs xs = evalState (mapM (mapM fill) xs) cs
     -- Replace a jokerColor by the color in the head of the list in the state
     -- and update the state with the tail of the list.
     fill :: Color -> State [Color] Color
     fill c | c /= jokerColor = return c
-           | otherwise = do cs <- get
-                            case cs of
-                              -- if there are no more colors to replace the jokerColor
-                              -- then keep the jokerColor (nothing else we can do).
-                              []   -> return c
-                              -- replace empty color with next color in the list and
-                              -- put the rest back in the state to be used next.
-                              x:xs -> put xs >> return x
+           | otherwise = get >>= \case
+                                    -- if there are no more colors to replace the jokerColor
+                                    -- then keep the jokerColor (nothing else we can do).
+                                    []   -> return c
+                                    -- replace empty color with next color in the list and
+                                    -- put the rest back in the state to be used next.
+                                    x:xs -> put xs >> return x
 
 deBruijnAlligators :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
 deBruijnAlligators = fmap (go (-1) 0 Map.empty)
   where
     go :: Int -> Int -> Map Color Int -> AlligatorFamilyF Color -> AlligatorFamilyF Int
-    go freeVarIx depth env a = case a of
+    go freeVarIx depth env = \case
       HungryAlligator c as -> let d = succ depth
                               in HungryAlligator 0 (go freeVarIx d (Map.insert c d env) <$> as)
       OldAlligator as -> OldAlligator (go freeVarIx depth env <$> as)

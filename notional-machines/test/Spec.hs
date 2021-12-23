@@ -440,7 +440,7 @@ alligatorTest = testGroup "Alligators" [
       -- testProperty "nmToLang is left inverse of langToNm" $
       --   isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
       testProperty "commutation proof" $
-        bisimulationCommutes LambdaGen.genExp A.bisim
+        bisimulationCommutes LambdaGen.genCombinator A.bisim
     , testProperty "color rule"
         colorRuleProp
     , testProperty "In example, right guess <=> right colors"
