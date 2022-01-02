@@ -25,7 +25,7 @@ module NotionalMachines.Lang.TypedArith.Main (
 
 import Data.Bifunctor (first)
 
-import Data.Text.Prettyprint.Doc (Pretty, pretty)
+import Prettyprinter (Pretty, pretty)
 
 import           NotionalMachines.Lang.UntypedArith.Main (Term (..))
 import qualified NotionalMachines.Lang.UntypedArith.Main as Untyped

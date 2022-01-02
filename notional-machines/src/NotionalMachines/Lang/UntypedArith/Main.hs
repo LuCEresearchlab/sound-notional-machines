@@ -43,7 +43,7 @@ import qualified Text.Parsec                   as P
 import           Text.ParserCombinators.Parsec (ParseError, Parser, between, char, eof, spaces,
                                                 string, try, (<|>))
 
-import Data.Text.Prettyprint.Doc (Pretty, hsep, pretty, (<+>))
+import Prettyprinter (Pretty, hsep, pretty, (<+>))
 
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
 import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval, prettyToString,

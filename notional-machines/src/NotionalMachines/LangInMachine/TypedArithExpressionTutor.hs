@@ -10,7 +10,7 @@ import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (State, StateT (..), lift, liftM3)
 
 import Data.Set                  (Set)
-import Data.Text.Prettyprint.Doc
+import Prettyprinter (pretty)
 
 import           NotionalMachines.Lang.TypedArith.Main         (typeof)
 import qualified NotionalMachines.Lang.TypedArith.Main         as TypedArith (Type)

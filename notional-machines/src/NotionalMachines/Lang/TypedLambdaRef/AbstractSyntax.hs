@@ -53,7 +53,7 @@ import           Data.Maybe     (fromMaybe)
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
 import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT, typeOfEq, mismatch)
 
-import Data.Text.Prettyprint.Doc (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
+import Prettyprinter (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
                                   (<+>))
 
 

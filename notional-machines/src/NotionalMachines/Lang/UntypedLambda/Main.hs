@@ -10,7 +10,7 @@ import           Text.ParserCombinators.Parsec       (Parser, between, char, eof
 import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
 import           Text.ParserCombinators.Parsec.Error (ParseError)
 
-import Data.Text.Prettyprint.Doc (Pretty, backslash, dot, parens, pretty, (<+>))
+import Prettyprinter (Pretty, backslash, dot, parens, pretty, (<+>))
 
 import Data.List ((\\))
 

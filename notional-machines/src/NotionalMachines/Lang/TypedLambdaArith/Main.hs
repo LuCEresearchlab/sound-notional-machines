@@ -37,7 +37,7 @@ import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
 import qualified Text.ParserCombinators.Parsec.Expr  as Ex
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
-import Data.Text.Prettyprint.Doc (Pretty, hsep, parens, pretty, (<+>))
+import Prettyprinter (Pretty, hsep, parens, pretty, (<+>))
 
 import Data.Bifunctor (first)
 import Data.List      ((\\))

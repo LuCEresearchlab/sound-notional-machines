@@ -23,7 +23,7 @@ import Data.List      (intercalate, uncons)
 import System.Console.Repline (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
                                ReplOpts (..), evalReplOpts)
 
-import Data.Text.Prettyprint.Doc (Doc, Pretty, colon, dot, pretty, squotes, (<+>))
+import Prettyprinter (Doc, Pretty, colon, dot, pretty, squotes, (<+>))
 
 import qualified Text.Parsec        as Parsec (ParseError)
 import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg,
