@@ -170,7 +170,7 @@ mkLangReplOpts :: (Pretty term, Pretty err, Pretty ty, Pretty trace) =>
                -> String -- ^ Help command message
                -> LangPipeline term ty err trace -- ^ lang pipeline functions
                -> IO ()
-mkLangReplOpts otherCmds replBanner bookMsg pipe @ (LangPipeline parse _ mTypeof trace) =
+mkLangReplOpts otherCmds replBanner bookMsg pipe@(LangPipeline parse _ mTypeof trace) =
         mkRepl (replBanner ++ " ") (mkCmd . mkReplEval pipe) opts
   where
     opts :: [(String, String -> IO ())]

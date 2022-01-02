@@ -15,7 +15,7 @@ instance AsAsciiAlligators Exp where
   toAscii = \case
     Var name           -> egg name
     Lambda name e      -> hungryAlligator name (toAscii e)
-    App e1 e2 @ App {} -> toAscii e1 <> oldAlligator (toAscii e2)
+    App e1 e2@(App {}) -> toAscii e1 <> oldAlligator (toAscii e2)
     App e1 e2          -> toAscii e1 <> toAscii e2
 
 

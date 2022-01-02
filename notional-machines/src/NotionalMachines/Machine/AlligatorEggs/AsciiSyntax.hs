@@ -12,7 +12,7 @@ For example, let's implement the following instance for the untyped lambda calcu
 >   toAscii = \case
 >     Var name           -> egg name
 >     Lambda name e      -> hungryAlligator name (toAscii e)
->     App e1 e2 @ App {} -> toAscii e1 <> oldAlligator (toAscii e2)
+>     App e1 e2@(App {}) -> toAscii e1 <> oldAlligator (toAscii e2)
 >     App e1 e2          -> toAscii e1 <> toAscii e2
 
 Now we can pretty-print the /Y-combinator/ like this:
@@ -58,11 +58,11 @@ instance Monoid AsciiAlligators where
 
 -- | 'oldAlligator' @a@ returns an old alligator protecting @a@.
 oldAlligator :: AsciiAlligators -> AsciiAlligators
-oldAlligator a @ (AsciiAl ss) = AsciiAl (alligatorBody a : ss)
+oldAlligator a@(AsciiAl ss) = AsciiAl (alligatorBody a : ss)
 
 -- | 'hungryAlligator' @var a@ returns a hungry alligator identified by @var@ protecting @a@.
 hungryAlligator :: String -> AsciiAlligators -> AsciiAlligators
-hungryAlligator var a @ (AsciiAl ss) = AsciiAl (hungryAlligatorBody : indent ss)
+hungryAlligator var a@(AsciiAl ss) = AsciiAl (hungryAlligatorBody : indent ss)
   where indent = map (' ':)
         hungryAlligatorBody = var ++ alligatorBody a ++ "<"
 

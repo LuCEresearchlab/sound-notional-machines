@@ -248,17 +248,17 @@ parse = first ParseError . Parsec.parse (contents pTerm) ""
 
 instance Pretty Term where
   pretty = \case
-    App e1 @ If {} e2 @ App {} -> parens (pretty e1) <+> parens (pretty e2)
-    App e1 @ If {} e2 @ If {}  -> parens (pretty e1) <+> parens (pretty e2)
-    App e1 @ If {} e2          -> parens (pretty e1) <+>         pretty e2
-    App e1         e2 @ If {}  ->         pretty e1  <+> parens (pretty e2)
-    App e1         e2 @ App {} ->         pretty e1  <+> parens (pretty e2)
+    App e1@(If {}) e2@(App {}) -> parens (pretty e1) <+> parens (pretty e2)
+    App e1@(If {}) e2@(If {})  -> parens (pretty e1) <+> parens (pretty e2)
+    App e1@(If {}) e2          -> parens (pretty e1) <+>         pretty e2
+    App e1         e2@(If {})  ->         pretty e1  <+> parens (pretty e2)
+    App e1         e2@(App {}) ->         pretty e1  <+> parens (pretty e2)
     App e1         e2          ->         pretty e1  <+>         pretty e2
     Lambda name typ e          -> parens (mconcat ["\\", pretty name, ":", pretty typ, ".", pretty e])
     Var name                   -> pretty name
     Tru                        -> "true"
     Fls                        -> "false"
-    If t1 t2 t3 @ App {}       -> hsep ["if", pretty t1, "then", pretty t2, "else", parens (pretty t3)]
+    If t1 t2 t3@(App {})       -> hsep ["if", pretty t1, "then", pretty t2, "else", parens (pretty t3)]
     If t1 t2 t3                -> hsep ["if", pretty t1, "then", pretty t2, "else", pretty t3]
     Zero                       -> "0"
     Succ t                     -> "succ"   <+> parens (pretty t)
@@ -269,7 +269,7 @@ instance Pretty Type where
   pretty = \case
     TyBool                 -> "Bool"
     TyNat                  -> "Nat"
-    TyFun t1 @ TyFun {} t2 -> mconcat [parens (pretty t1), "->", pretty t2]
+    TyFun t1@(TyFun {}) t2 -> mconcat [parens (pretty t1), "->", pretty t2]
     TyFun t1 t2            -> mconcat [        pretty t1,  "->", pretty t2]
 
 unparse :: Term -> String

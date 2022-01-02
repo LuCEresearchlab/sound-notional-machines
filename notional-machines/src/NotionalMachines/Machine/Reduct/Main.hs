@@ -170,4 +170,4 @@ rDisconnect n l = if all (notElem (rUid n)) (nodeStage l) then l
     mapME :: (Maybe ReductExp -> Maybe ReductExp) -> ReductExp -> ReductExp
     mapME g (HolePlug mt1 mt2 uid)  = HolePlug (g mt1) (g mt2) uid
     mapME g (HolePipe name mt1 uid) = HolePipe name (g mt1) uid
-    mapME _ e @ Pipe {}             = e
+    mapME _ e@(Pipe {})             = e

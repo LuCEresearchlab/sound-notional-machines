@@ -115,7 +115,7 @@ checkPlugs n = if validPlugs n then Just n else Nothing
 -- giving back that node. Notice that the existence of other nodes and edges is
 -- not taken into account when matching the pattern.
 pattern DiaLeaf :: Node -> ExpTutorDiagram
-pattern DiaLeaf n <- ExpTutorDiagram _ _ (Just n @ (holes -> [])) where
+pattern DiaLeaf n <- ExpTutorDiagram _ _ (Just n@(holes -> [])) where
   DiaLeaf n = ExpTutorDiagram (Set.singleton n) Set.empty (Just n)
 
 -- | View a diagram as a Tree branch. The constructor creates a diagram rooted
@@ -125,7 +125,7 @@ pattern DiaBranch r ns <- (diaBranch -> Just (r, ns)) where
   DiaBranch n = foldl merge (DiaLeaf n)
     where
       merge :: ExpTutorDiagram -> ExpTutorDiagram -> ExpTutorDiagram
-      merge d1 @ (ExpTutorDiagram ns1 es1 r1) (ExpTutorDiagram ns2 es2 r2) =
+      merge d1@(ExpTutorDiagram ns1 es1 r1) (ExpTutorDiagram ns2 es2 r2) =
         ExpTutorDiagram (Set.union ns1 ns2) (Set.unions [es1, es2, newEdge]) (mplus r1 r2)
         where -- create a singleton set with an edge connecting both roots if possible
               newEdge = maybe Set.empty Set.singleton (join $ mkEdge d1 <$> r1 <*> r2)

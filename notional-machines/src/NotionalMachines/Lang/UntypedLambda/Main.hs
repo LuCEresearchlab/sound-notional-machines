@@ -59,7 +59,7 @@ isValue _         = False
 -- Interpreter for Untyped Lambda Calculus
 --------------------
 instance Steppable Exp where
-  step (App e1 @ Lambda {} e2 @ App {}) = App e1 (step e2)
+  step (App e1@(Lambda {}) e2@(App {})) = App e1 (step e2)
   step (App (Lambda name e1) e2)        = subst name e2 e1
   step (App e1 e2)                      = App (step e1) e2
   step p                                = p
@@ -67,10 +67,10 @@ instance Steppable Exp where
 -- substitution
 subst :: Name -> Exp -> Exp -> Exp
 subst x v (App e1 e2)    = App (subst x v e1) (subst x v e2)
-subst x v e  @ (Var y)
+subst x v e@(Var y)
   | x == y               = v
   | otherwise            = e
-subst x v e1 @ (Lambda y e2)
+subst x v e1@(Lambda y e2)
   | x == y               = e1
   | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
   | otherwise            = let newY = until (`notElem` freeVs v) fresh y
@@ -88,12 +88,12 @@ fresh a = "_" ++ a
 ----- Evaluation with error handling ----------
 
 instance SteppableM Exp Maybe where
-  stepM (App      (Lambda name e1) e2 @ Lambda {}) = Just (subst name e2 e1)
-  stepM (App e1 @ (Lambda _    _ ) e2) = do newe <- stepM e2
-                                            return (App e1 newe)
-  stepM (App e1                    e2) = do newe <- stepM e1
-                                            return (App newe e2)
-  stepM p @ Lambda {} = Just p
+  stepM (App    (Lambda name e1) e2@(Lambda {})) = Just (subst name e2 e1)
+  stepM (App e1@(Lambda _    _ ) e2) = do newe <- stepM e2
+                                          return (App e1 newe)
+  stepM (App e1                  e2) = do newe <- stepM e1
+                                          return (App newe e2)
+  stepM p@(Lambda {}) = Just p
   stepM Var {} = Nothing
 
 --------------------
@@ -118,7 +118,7 @@ pExp = try pLambda
 
 instance Pretty Exp where
   pretty = \case
-    App e1 e2 @ App {} -> pretty e1 <+> parens (pretty e2)
+    App e1 e2@(App {}) -> pretty e1 <+> parens (pretty e2)
     App e1 e2          -> pretty e1 <+>         pretty e2
     Lambda name e      -> parens (mconcat [backslash, pretty name, dot, pretty e])
     Var name           -> pretty name

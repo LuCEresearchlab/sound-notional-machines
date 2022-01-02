@@ -114,10 +114,11 @@ stepAlli = eatingRule <=< return . colorRule <=< oldAgeRule <=< checkThat eggCol
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
 eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
-eatingRule (a @ (HungryAlligator _ _):as @ (OldAlligator _:_)) = (a :) <$> oldAgeRule as
+eatingRule (a@(HungryAlligator _ _) : as@(OldAlligator _:_)) = (a :) <$> oldAgeRule as
 eatingRule ((HungryAlligator c p):family:rest) = return $ fmap hatch p ++ rest
-  where hatch a @ (HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (fmap hatch as)
-                                          | otherwise = a
+  -- where hatch (HungryAlligator c1 as) = HungryAlligator c1 (fmap hatch as)
+  where hatch a@(HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (fmap hatch as)
+                                        | otherwise = a
         hatch (Egg c1) | c == c1   = family
                        | otherwise = Egg c1
         hatch (OldAlligator as) = OldAlligator (fmap hatch as)
@@ -129,8 +130,8 @@ eatingRule families = return families
 -- Change the colors of `family` that also appear in `a` to colors that don't
 -- appear in neither family.
 colorRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-colorRule (a @ (HungryAlligator _ _):family:rest) = a:recolor a family:rest
-colorRule families                                = families
+colorRule (a@(HungryAlligator _ _):family:rest) = a:recolor a family:rest
+colorRule families                              = families
 
 recolor :: forall a. (Enum a, Eq a) => AlligatorFamilyF a -> AlligatorFamilyF a -> AlligatorFamilyF a
 recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)

@@ -221,7 +221,7 @@ stepAlaWadler = \case
   -- Lambda are turned into Closures, which capture the environment.
   Lambda name _ t                  -> (\(env, _) -> Closure env name t) <$> get
   App (Closure env name t1) t2     -> withStateT (first (const (Map.insert name t2 env))) (return t1)
-  v @ (Var name)                   -> fromMaybe v . Map.lookup name . fst <$> get
+  v@(Var name)                     -> fromMaybe v . Map.lookup name . fst <$> get
   -- Sequence
   Seq Unit t2                      -> return t2                                      -- E-NextSeq
   Seq t1   t2                      -> (\t1' -> Seq t1' t2) <$> stepAlaWadler t1      -- E-Seq
@@ -275,7 +275,7 @@ stepAlaRacket = \case
                                         let newName = until (`Map.notMember` env) fresh name
                                         put $ StateRacket (Map.insert newName t2 env) s
                                         return (subst name (Var newName) t1)
-  v @ (Var name)                  -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
+  v@(Var name)                    -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
   -- Sequence
   Seq Unit t2                     -> return t2                                            -- E-NextSeq
   Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> stepAlaRacket t1            -- E-Seq

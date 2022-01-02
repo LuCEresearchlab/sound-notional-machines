@@ -15,10 +15,10 @@ import NotionalMachines.Meta.Steppable    (eval, evalM)
 -- Lang to NM and back --
 -------------------------
 langToNm :: Exp -> [AlligatorFamily]
-langToNm (Var name)              = [Egg (nameToColor name)]
-langToNm (Lambda name e)         = [HungryAlligator (nameToColor name) (langToNm e)]
-langToNm (App e1 e2 @ (App _ _)) = langToNm e1 ++ [OldAlligator (langToNm e2)]
-langToNm (App e1 e2)             = langToNm e1 ++ langToNm e2
+langToNm (Var name)            = [Egg (nameToColor name)]
+langToNm (Lambda name e)       = [HungryAlligator (nameToColor name) (langToNm e)]
+langToNm (App e1 e2@(App _ _)) = langToNm e1 ++ [OldAlligator (langToNm e2)]
+langToNm (App e1 e2)           = langToNm e1 ++ langToNm e2
 
 bisim :: Bisimulation Exp Exp [AlligatorFamilyF Color] (Maybe [AlligatorFamilyF Int])
 bisim = MkBisim { fLang  = eval
