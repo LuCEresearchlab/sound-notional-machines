@@ -29,6 +29,15 @@ dependencies:
 - pretty-simple
 - repline
 - colour
+- diagrams-lib
+- diagrams-svg
+- diagrams-rasterific
+- diagrams-contrib
+- diagrams-input
+- palette
+- bytestring
+- raw-strings-qq
+- split
 
 library:
   source-dirs: src

@@ -3,6 +3,8 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeFamilies      #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module NotionalMachines.Utils where
 
@@ -18,7 +20,8 @@ import Control.Monad.State.Lazy (State, StateT (StateT), runState, runStateT, st
 import Control.Monad.Trans      (liftIO)
 
 import Data.Bifunctor (second)
-import Data.List      (intercalate, uncons)
+import Data.List      (intercalate, uncons, intersperse)
+import Data.List.Split (splitOn, chunksOf)
 
 import System.Console.Repline (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
                                ReplOpts (..), evalReplOpts)
@@ -28,6 +31,11 @@ import Prettyprinter (Doc, Pretty, colon, dot, pretty, squotes, (<+>))
 import qualified Text.Parsec        as Parsec (ParseError)
 import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg,
                                      outputOptionsCompact, pPrintOpt)
+
+import Diagrams.Prelude hiding (uncons, dot)
+import Diagrams.TwoD.Text (Text)
+import Diagrams.Backend.SVG (renderSVG, SVG)
+import Data.Data (Typeable)
 
 ---- Error types ----
 
@@ -70,6 +78,9 @@ eitherToMaybe = either (const Nothing) Just
 maybeToEither :: b -> Maybe a -> Either b a
 maybeToEither l = maybe (Left l) Right
 
+replace :: Eq a => [a] -> [a] -> [a] -> [a]
+replace xs ys = intercalate ys . splitOn xs
+
 -- Turns a function that operatees on State into a function that operates on tuples.
 stateToTuple :: (a -> StateT s m b) -> (a, s) -> m (b, s)
 stateToTuple f (a, s) = runStateT (f a) s
@@ -89,6 +100,27 @@ shortPrint = pPrintOpt CheckColorTty defaultOutputOptionsDarkBg {outputOptionsCo
 
 showRGB :: RGB Double -> String
 showRGB = sRGB24show . uncurryRGB sRGB
+
+------- Diagrams utils ----------
+
+framed :: (Enveloped d, Transformable d, TrailLike d, Monoid d, V d ~ V2) => d -> d
+framed d = d <> boundingRect d
+
+diaSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
+          Int -> Double -> Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any
+diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds)) ds)
+             . map (vcat .              (\ds -> intersperse (hrule (width  ds)) ds))
+             . chunksOf n
+             . zipWith (addIndex 0.9) [0..]
+             . map withSpacing
+  where withSpacing = withEnvelope (rect w h :: D V2 Double) . centerXY
+        rectPerc p d = rect (p * width d) (p * height d) # lw 0
+        addIndex perc i d = d <> (rectPerc perc d # alignBR <> idx i) # centerXY
+          where idx j = rectPerc (1-perc) d <> text (show j) # fontSizeL ((1-perc) * height d)
+
+renderDiagram :: (Show n, Typeable n, RealFloat n) =>
+                 FilePath -> n -> QDiagram SVG V2 n Any -> IO ()
+renderDiagram fileName w = renderSVG fileName (mkWidth w)
 
 ------- Generators utils ----------
 
@@ -134,11 +166,12 @@ taplBookMsg :: String -> String
 taplBookMsg bookCh = "The syntax of the language follows TAPL Ch." ++ bookCh
 
 
-data LangPipeline term typ err trace = LangPipeline { _parse   :: String -> Either err term
-                                                    , _eval    :: term -> Either err term
-                                                    , _mTypeof :: Maybe (term -> Either err typ)
-                                                    , _trace   :: term -> Either err trace
-                                                    }
+data LangPipeline term typ err trace =
+  LangPipeline { _parse   :: String -> Either err term
+               , _eval    :: term -> Either err term
+               , _mTypeof :: Maybe (term -> Either err typ)
+               , _trace   :: term -> Either err trace
+               }
 
 data TypedTerm ty t = TypedTerm ty t
   deriving (Foldable, Functor, Traversable)

@@ -40,6 +40,8 @@ module NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (
   inFrontOf
   ) where
 
+import Prettyprinter (Pretty, pretty)
+
 -- | A representation of Alligator Eggs that can be shown as ascii art.
 newtype AsciiAlligators = AsciiAl [String]
 
@@ -47,14 +49,17 @@ newtype AsciiAlligators = AsciiAl [String]
 class AsAsciiAlligators a where
   toAscii :: a -> AsciiAlligators
 
-instance Show AsciiAlligators where
-  show (AsciiAl ss) = unlines ss
-
 instance Semigroup AsciiAlligators where
   (<>) = inFrontOf
 
 instance Monoid AsciiAlligators where
   mempty = AsciiAl []
+
+instance Show AsciiAlligators where
+  show (AsciiAl ss) = unlines ss
+
+instance Pretty AsciiAlligators where
+  pretty (AsciiAl ss) = pretty (unlines ss)
 
 -- | 'oldAlligator' @a@ returns an old alligator protecting @a@.
 oldAlligator :: AsciiAlligators -> AsciiAlligators

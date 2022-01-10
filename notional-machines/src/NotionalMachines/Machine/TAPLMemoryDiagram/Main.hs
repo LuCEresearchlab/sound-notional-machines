@@ -3,6 +3,7 @@
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Main ( TAPLMemoryDiagram(..)
                                                        , Location(..)
+                                                       , Name
                                                        , tAlloc
                                                        , tDeref
                                                        , emptyDiagram

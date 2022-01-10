@@ -51,7 +51,7 @@ data ExpTutorDiagram = ExpTutorDiagram { nodes :: Set Node
 
 data Node = Node { nodePlug :: Plug
                  , typ      :: Maybe Type
-                   -- , value    :: NodeValue
+                   -- , value :: ExpTutorDiagram
                  , content  :: [NodeContentElem]
                  }
   deriving (Eq, Ord, Show)

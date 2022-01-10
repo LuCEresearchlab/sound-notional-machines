@@ -157,7 +157,7 @@ eOne   = parse "\\s.\\z.s z"
 eTwo :: Either ParseError Exp
 eTwo   = parse "\\s.\\z.s(s z)"
 eThree :: Either ParseError Exp
-eThree = parse "\\s.\\z.s(s (s z)"
+eThree = parse "\\s.\\z.s(s (s z))"
 eScc :: Either ParseError Exp
 eScc   = parse "\\n.\\s.\\z.s(n s z)"
 

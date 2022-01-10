@@ -3,10 +3,21 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    name: diagrams-input
+    version: '0.1'
+    git: https://github.com/igormoreno/diagrams-input.git
+    pantry-tree:
+      size: 1603
+      sha256: d87aedd3ea17ce6446d8ca83d5b9b3b4dec6c285c3d7a842f61e75099e84e09f
+    commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+  original:
+    git: https://github.com/igormoreno/diagrams-input.git
+    commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
 snapshots:
 - completed:
-    size: 587113
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/6.yaml
-    sha256: f74c482d7c93739ecf3abfbc0f2dea1c20a2dfb2462c689846ed55a9653b66f7
-  original: lts-18.6
+    size: 623212
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2021/12/29.yaml
+    sha256: bb3b3d5de140e2c30cbe5710ffa42bcecff694b1a18f8661fe4ff95ca5be81af
+  original: nightly-2021-12-29

@@ -9,12 +9,18 @@
 
 module NotionalMachines.Machine.AlligatorEggs.Main where
 
-import Data.Colour.RGBSpace.HSV (RGB, hsv, hue)
+import qualified Data.Colour as C (Colour)
+import           Data.Colour.RGBSpace.HSV (RGB, hsv, hue)
+import           Data.Colour.SRGB (sRGB24show)
+import           Data.Colour.Names (black)
+import           Data.Colour.Palette.ColorSet (infiniteWebColors)
 
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (State, evalState, get, put)
 
-import           Data.List (unfoldr)
+import Data.Maybe (fromJust)
+
+import           Data.List (unfoldr, elemIndex)
 import           Data.Map  (Map)
 import qualified Data.Map  as Map
 
@@ -24,29 +30,20 @@ import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (eg
 import           NotionalMachines.Meta.Steppable                    (SteppableM, evalM, stepM)
 
 
-
+------------------------------------------------------------------
+-- Map from variable name to colour (and back) via a mapping from name to Int (and back)
+------------------------------------------------------------------
 -- Fundamentaly, the space of names is infinite, and the space of Colour Double
 -- is not because Double is finite. Nevertheless, the conceptual point of the
 -- mapping from Untyped Lambda Calculus and Alligator Eggs still stands (module
 -- that limitation) so we want to find a mapping of names to colours that is
 -- useful.
 --
--- ===== Invertible functions: This would be easy with automatic backward function generation =====
-nameToRGB :: String -> RGB Double
-nameToRGB = hueToRGB . nameToHue
-rgbToName :: RGB Double -> String
-rgbToName = hueToName . rgbToHue
+-- ps.: This would be easy with automatic backward function generation =====
 
-hueToRGB :: Double -> RGB Double
-hueToRGB h = hsv h 1 1
-rgbToHue :: RGB Double -> Double
-rgbToHue = hue
-
-nameToHue :: String -> Double
-nameToHue = intToHue defaultSpacing . nameToInt
-hueToName :: Double -> String
-hueToName = intToName . hueToInt defaultSpacing
-
+--------------------------
+-- Map from name to Int
+--------------------------
 nameToInt :: String -> Int
 nameToInt = changeBase letterBase . map charToInt
 intToName :: Int -> String
@@ -63,36 +60,89 @@ changeBaseInv :: Int -> Int -> [Int]
 changeBaseInv base = (\l -> if null l then [0] else l) . f
     where f = unfoldr (\b -> if b == 0 then Nothing else Just (b `mod` base, b `div` base))
 
-intToHue :: Int -> Int -> Double
-intToHue spc x = fromIntegral (x `mod` spc) / fromIntegral spc * 360 + fromIntegral (x `div` spc)
-hueToInt :: Int -> Double -> Int
-hueToInt spc x = h x + defaultSpacing * (round x - round (360 / fromIntegral spc) * h x)
-  where h y = round (fromIntegral defaultSpacing * (y / 360))
--- ================================================================================================
-
-defaultSpacing :: Int
-defaultSpacing = 6 -- space between one colour and the next
-
 letterBase :: Int
 letterBase = 26 -- letters are numbers in base 26
 
 
-newtype Color = MkColor { colorContent :: RGB Double }
+--------------------------
+-- Map from Int to Color (v1)
+--------------------------
+
+-- colorToNat :: C.Colour Double -> Int
+-- colorToNat = hueToInt defaultSpacing . rgbToHue . toSRGB
+-- natToColor :: Int -> C.Colour Double
+-- natToColor = uncurryRGB sRGB . hueToRGB . intToHue defaultSpacing
+
+hueToRGB :: Double -> RGB Double
+hueToRGB h = hsv h 1 1
+rgbToHue :: RGB Double -> Double
+rgbToHue = hue
+
+nameToHue :: String -> Double
+nameToHue = intToHue defaultSpacing . nameToInt
+hueToName :: Double -> String
+hueToName = intToName . hueToInt defaultSpacing
+
+intToHue :: Int -> Int -> Double
+intToHue spc x = fromIntegral (x `mod` spc) / fromIntegral spc * 360 + additive
+  where additive = fromIntegral (x `div` spc)
+  -- where additive = (360/fromIntegral spc) / fromIntegral (2^(x `div` spc))
+hueToInt :: Int -> Double -> Int
+hueToInt spc x = h x + defaultSpacing * (round x - round (360 / fromIntegral spc) * h x)
+  where h y = round (fromIntegral defaultSpacing * (y / 360))
+
+defaultSpacing :: Int
+defaultSpacing = 6 -- space between one colour and the next
+
+--------------------------
+-- Another approach to map from Int to Color (v2)
+--------------------------
+-- The focus here is to generate colors that are convenient for visualization,
+-- with good contrast and generally subjectvely pleasant to look at.
+
+colorToNat :: C.Colour Double -> Int
+colorToNat c = fromJust $ elemIndex c convenientColors
+natToColor :: Int -> C.Colour Double
+natToColor i = convenientColors !! i
+
+takePeriod :: Int -> [b] -> [b]
+takePeriod p l = map (\i -> l !! (i*p)) [0..]
+
+-- This list is infinie so indexing into it is guaranteed
+convenientColors :: [C.Colour Double]
+convenientColors = takePeriod 13 $ tail infiniteWebColors
+------------------------------------------------------------------
+------------------------------------------------------------------
+
+--------------------------
+-- Colors
+--------------------------
+-- Wrapping around colors convenient to map to/from names and with Enum and Ord
+-- instances that make color substitution and recoloring simpler.
+
+newtype Color = MkColor { colorContent :: C.Colour Double }
   deriving (Eq, Read, Show)
 
 instance Enum Color where
-  toEnum = MkColor . hueToRGB . fromIntegral
-  fromEnum = round . rgbToHue . colorContent
+  toEnum = MkColor . natToColor
+  fromEnum = colorToNat . colorContent
 
 instance Ord Color where
-  compare (MkColor c1) (MkColor c2) = compare (rgbToHue c1) (rgbToHue c2)
+  compare (MkColor c1) (MkColor c2) = compare (colorToNat c1) (colorToNat c2)
 
 nameToColor :: String -> Color
-nameToColor = MkColor . nameToRGB
+nameToColor = MkColor . natToColor . nameToInt
 
 colorToName :: Color -> String
-colorToName = rgbToName . colorContent
+colorToName = intToName . colorToNat . colorContent
 
+colorHexa :: Color -> String
+colorHexa = sRGB24show . colorContent
+--------------------------
+
+--------------------------
+-- Alligator Eggs
+--------------------------
 
 data AlligatorFamilyF a = HungryAlligator a [AlligatorFamilyF a]
                         | OldAlligator [AlligatorFamilyF a]
@@ -176,7 +226,7 @@ checkThat f x = if f x then Just x else Nothing
 
 -- | Represents a color to be guessed. This color is not generatable with the Enum instance.
 jokerColor :: Color
-jokerColor = MkColor (hsv 0 0 0)
+jokerColor = MkColor black
 
 -- | Check a guess made by the player.
 guess :: AlligatorFamilies
@@ -269,7 +319,38 @@ instance AsAsciiAlligators [AlligatorFamilyF Color] where
 --
 -- * in the "game play" example there's a problem. changing the color will result in something that doesn't have the same colors of "true" and "false" so one needs to talk about equivalence of terms with the same coloring scheme.
 -- "(For this to work well, we'd need a better color rule, to explain that families with different colors in the same "pattern" are equivalent.)".
+--
+-- * "Notice that eggs only use the colors of the alligators guarding them. You can't have a blue egg without there being a blue alligator around to guard it."
+--   At first glance, this rule makes sence. It means that in a complete program there can be no free variables. But this means that many text book examples, such as the one in TAPL page 59 can be represented but are not considered valid because would lead to eggs that are not covered.
 
+
+
+--  Alligators
+--    commutation proof:                                                                                                           FAIL (0.04s)
+--        ✗ commutation proof failed at test/Spec.hs:139:3
+--          after 8 tests and 9 shrinks.
+
+--              ┏━━ test/Spec.hs ━━━
+--          136 ┃ isEquivalentTo :: (Eq a, Show a, Show e) => Gen e -> (e -> a) -> (e -> a) -> Property
+--          137 ┃ isEquivalentTo g f f' = prop $ do
+--          138 ┃   e <- forAll g
+--              ┃   │ App
+--              ┃   │   (Lambda
+--              ┃   │      "a"
+--              ┃   │      (App
+--              ┃   │         (Lambda "g" (App (Var "g") (Lambda "b" (Var "a"))))
+--              ┃   │         (Lambda "a" (Var "a"))))
+--              ┃   │   (Lambda "a" (Var "a"))
+--          139 ┃   f e === f' e
+--              ┃   ^^^^^^^^^^^^
+--              ┃   │ ━━━ Failed (- lhs) (+ rhs) ━━━
+--              ┃   │ - Just [ HungryAlligator 0 [ HungryAlligator 0 [ Egg 0 ] ] ]
+--              ┃   │ + Just [ HungryAlligator 0 [ Egg 0 ] ]
+
+--          This failure can be reproduced by running:
+--          > recheck (Size 7) (Seed 11253128347395396264 14482578956410378323) commutation proof
+
+--      Use '--hedgehog-replay "Size 7 Seed 11253128347395396264 14482578956410378323"' to reproduce.
 
 
 

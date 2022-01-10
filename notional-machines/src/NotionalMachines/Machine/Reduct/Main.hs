@@ -136,7 +136,7 @@ aReduce e stepM l = maybe l (newLevel . updateUids (counter l)) (stepM e)
 
 -- In a reduct game level `l`, connect node `a` to hole i of node `b`.
 aConnect :: ReductExp -> Int -> ReductExp -> ReductLevel -> ReductLevel
-aConnect a i b l = if any (`notElem` (nodeStage l)) [a, b] then l
+aConnect a i b l = if any (`notElem` nodeStage l) [a, b] then l
                    else l { nodeStage = tryMergeAt a b (connect i) (nodeStage l) }
   where
     connect :: Int -> ReductExp -> ReductExp -> Maybe ReductExp
