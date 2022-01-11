@@ -143,19 +143,22 @@ We currently have four notional machines:
 For example, play with the *AlligatorEggs* notional machine.
 
 ```sh
-stack repl
-> import Data.Either
-> import Data.Maybe
-> NotionalMachines.Lang.UntypedLambda.Main.eY
-Lambda "f" (App (Lambda "x" (App (Var "f") (App (Var "x") (Var "x")))) (Lambda "x" (App (Var "f") (App (Var "x") (Var "x")))))
-> (toAscii . fromJust . NotionalMachines.Utils.eitherToMaybe) NotionalMachines.Lang.UntypedLambda.Main.eY
-f---------------<
- x-----< x-----<
-  f ---   f ---
-    x x     x x
+ghci> NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs.repl "alligators.svg" 600
+Welcome!
+Alligator> :h
+Play with the Alligator Eggs notional machine for Lambda Calculus
+REPL commands: help, trace, ascii, asciiTrace, render, renderTrace
+
+Alligator> :ascii (\l. \m. \n. l m n) (\t. \f. t) a b
+l---------< t---< a b
+ m-------<   f-<     
+  n-----<     t      
+   l m n             
+
+Alligator> :render (\l. \m. \n. l m n) (\t. \f. t) a b
 ```
 
-`eY` above is the Y-combinator.
+In the example above, the `render` and `renderTrace` commands will create an image with width `600` in the file `alligators.svg`.
 
 ## Run the code
 
