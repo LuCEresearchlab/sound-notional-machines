@@ -15,7 +15,6 @@ import           Data.Colour.SRGB (sRGB24show)
 import           Data.Colour.Names (black)
 import           Data.Colour.Palette.ColorSet (infiniteWebColors)
 
-import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (State, evalState, get, put)
 
 import Data.Maybe (fromJust)
@@ -154,25 +153,25 @@ type AlligatorFamily = AlligatorFamilyF Color
 
 
 instance (Eq a, Enum a) => SteppableM [AlligatorFamilyF a] Maybe where
-  stepM = stepAlli
+  stepM = fmap evolve . checkThat eggColoredCorrectly
 
 -- | Taking a step consists of applying each rule in sequence: oldAgeRule, colorRule, eatingRule.
 -- The values are Maybes because a family may be malformed if it is not colored properly.
-stepAlli :: (Enum a, Eq a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
-stepAlli = eatingRule <=< return . colorRule <=< oldAgeRule <=< checkThat eggColoredCorrectly
+evolve :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
+evolve = eatingRule . colorRule . oldAgeRule
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
-eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
-eatingRule (a@(HungryAlligator _ _) : as@(OldAlligator _:_)) = (a :) <$> oldAgeRule as
-eatingRule ((HungryAlligator c p):family:rest) = return $ fmap hatch p ++ rest
-  -- where hatch (HungryAlligator c1 as) = HungryAlligator c1 (fmap hatch as)
-  where hatch a@(HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (fmap hatch as)
+eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
+eatingRule (a@(HungryAlligator _ _) : as@(OldAlligator _:_)) = a : oldAgeRule as
+eatingRule ((HungryAlligator c p):family:rest) = map hatch p ++ rest
+  -- where hatch (HungryAlligator c1 as) = HungryAlligator c1 (map hatch as)
+  where hatch a@(HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (map hatch as)
                                         | otherwise = a
         hatch (Egg c1) | c == c1   = family
                        | otherwise = Egg c1
-        hatch (OldAlligator as) = OldAlligator (fmap hatch as)
-eatingRule families = return families
+        hatch (OldAlligator as) = OldAlligator (map hatch as)
+eatingRule families = families
 
 -- "If an alligator is about to eat a family, and there's a color that appears
 -- in both families, we need to change that color in one family to something
@@ -201,11 +200,11 @@ recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)
             nextNotIn as = until (\x -> all (notElem x) as) succ
 
 -- When an old alligator is just guarding a single thing, it dies.
-oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> Maybe [AlligatorFamilyF a]
-oldAgeRule (OldAlligator        [] : rest) = return rest
-oldAgeRule (OldAlligator [protege] : rest) = return (protege : rest)
-oldAgeRule (OldAlligator proteges  : rest) = (\a -> OldAlligator a : rest) <$> stepM proteges
-oldAgeRule families                        = return families
+oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
+oldAgeRule (OldAlligator        [] : rest) = rest
+oldAgeRule (OldAlligator [protege] : rest) = protege : rest
+oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest
+oldAgeRule families                        = families
 
 -- Check that all eggs are guarded by a hungry alligator with the same color.
 eggColoredCorrectly :: forall a. (Eq a) => [AlligatorFamilyF a] -> Bool
