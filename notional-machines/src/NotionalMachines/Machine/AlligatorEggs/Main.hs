@@ -163,14 +163,13 @@ evolve = eatingRule . colorRule . oldAgeRule
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
 eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-eatingRule (a@(HungryAlligator _ _) : as@(OldAlligator _:_)) = a : oldAgeRule as
-eatingRule ((HungryAlligator c p):family:rest) = map hatch p ++ rest
-  -- where hatch (HungryAlligator c1 as) = HungryAlligator c1 (map hatch as)
-  where hatch a@(HungryAlligator c1 as) | c /= c1   = HungryAlligator c1 (map hatch as)
-                                        | otherwise = a
-        hatch (Egg c1) | c == c1   = family
-                       | otherwise = Egg c1
-        hatch (OldAlligator as) = OldAlligator (map hatch as)
+eatingRule (x@(HungryAlligator _ _) : xs@(OldAlligator _:_)) = x : oldAgeRule xs    -- NM fix
+eatingRule ((HungryAlligator c proteges):family:rest) = map hatch proteges ++ rest
+  where hatch (Egg c1)                | c == c1 = family
+        -- hatch (HungryAlligator c1 ys)           = HungryAlligator c1 (map hatch ys)
+        hatch (HungryAlligator c1 ys) | c /= c1 = HungryAlligator c1 (map hatch ys) -- NM fix
+        hatch (OldAlligator ys)                 = OldAlligator (map hatch ys)
+        hatch protege                           = protege
 eatingRule families = families
 
 -- "If an alligator is about to eat a family, and there's a color that appears
@@ -203,7 +202,7 @@ recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)
 oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
 oldAgeRule (OldAlligator        [] : rest) = rest
 oldAgeRule (OldAlligator [protege] : rest) = protege : rest
-oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest
+oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest -- NM fix
 oldAgeRule families                        = families
 
 -- Check that all eggs are guarded by a hungry alligator with the same color.
