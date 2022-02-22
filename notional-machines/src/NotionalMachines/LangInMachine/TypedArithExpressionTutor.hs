@@ -3,6 +3,9 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE TupleSections         #-}
 
 module NotionalMachines.LangInMachine.TypedArithExpressionTutor where
 
@@ -10,23 +13,48 @@ import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (State, StateT (..), lift, liftM3)
 
 import Data.Set                  (Set)
-import Prettyprinter (pretty)
 
-import           NotionalMachines.Lang.TypedArith.Main         (typeof)
+import NotionalMachines.Lang.TypedArith.Main
+    ( typeof,
+      Type(TyNat, TyBool),
+      typeof1,
+      TypedTerm,
+      TyTerm(TyIsZero, TyTru, TyFls, TyIf, TyZero, TySucc, TyPred) )
 import qualified NotionalMachines.Lang.TypedArith.Main         as TypedArith (Type)
-import           NotionalMachines.Lang.UntypedArith.Main       (Term (..))
+import NotionalMachines.Lang.UntypedArith.Main (Term)
 import           NotionalMachines.Machine.ExpressionTutor.Main hiding (Type)
-import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type)
+import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type(..))
 
 import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
-import NotionalMachines.Meta.Bisimulation (Bisimulation (..), mkInjBisim)
+import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
-import NotionalMachines.Meta.Steppable    (step)
 import NotionalMachines.Utils (eitherToMaybe)
 
-newtype TyExpTutorDiagram = TyExpTutorDiagram ExpTutorDiagram
-  deriving (Eq, Show)
+------------------------
+-- Lang Types to NM Type representation and back
+------------------------
+
+tyToNM :: TypedArith.Type -> ET.Type
+tyToNM = ET.MkTy . \case TyBool -> "Bool"
+                         TyNat  -> "Int"
+
+tyNMToTy :: ET.Type -> Maybe TypedArith.Type
+tyNMToTy = \case ET.MkTy "Bool" -> return TyBool
+                 ET.MkTy "Int"  -> return TyNat
+                 _ -> Nothing
+
+-- Ask for the type of a diagram not annotated with types
+typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
+typeOfBisim = MkBisim { fLang  = _fLang
+                      , fNM    = fmap tyToNM . _fLang <=< fromNM
+                      , alphaA = toNM
+                      , alphaB = fmap tyToNM }
+  where _fLang :: Term -> Maybe TypedArith.Type
+        _fLang = eitherToMaybe . typeof
+
+----------------
+----------------
 
 pattern NodeTrue   t i =  MkNode i t [C "true"]
 pattern NodeFalse  t i =  MkNode i t [C "false"]
@@ -40,54 +68,42 @@ pattern NodePred   t i <- MkNode i t [C "pred",   Hole {}] where
 pattern NodeIsZero t i <- MkNode i t [C "iszero", Hole {}] where
         NodeIsZero t i =  MkNode i t [C "iszero", holeP]
 
-arithToET :: Term -> ExpTutorDiagram
-arithToET = langToET go
-  where go :: Term -> State Int ExpTutorDiagram
+langToNM :: TypedTerm -> ExpTutorDiagram
+langToNM = langToET go
+  where go :: TypedTerm -> State Int ExpTutorDiagram
         go s = case s of
-          Tru         -> newDiaLeaf   (NodeTrue   (typeArithToET s))
-          Fls         -> newDiaLeaf   (NodeFalse  (typeArithToET s))
-          If t1 t2 t3 -> newDiaBranch (NodeIf     (typeArithToET s)) go [t1, t2, t3]
-          Zero        -> newDiaLeaf   (NodeZero   (typeArithToET s))
-          Succ t      -> newDiaBranch (NodeSucc   (typeArithToET s)) go [t]
-          Pred t      -> newDiaBranch (NodePred   (typeArithToET s)) go [t]
-          IsZero t    -> newDiaBranch (NodeIsZero (typeArithToET s)) go [t]
+          (TyTru, ty)         -> newDiaLeaf   (NodeTrue   (fmap tyToNM ty))
+          (TyFls, ty)         -> newDiaLeaf   (NodeFalse  (fmap tyToNM ty))
+          (TyIf t1 t2 t3, ty) -> newDiaBranch (NodeIf     (fmap tyToNM ty)) go [t1, t2, t3]
+          (TyZero, ty)        -> newDiaLeaf   (NodeZero   (fmap tyToNM ty))
+          (TySucc t1, ty)     -> newDiaBranch (NodeSucc   (fmap tyToNM ty)) go [t1]
+          (TyPred t1, ty)     -> newDiaBranch (NodePred   (fmap tyToNM ty)) go [t1]
+          (TyIsZero t1, ty)   -> newDiaBranch (NodeIsZero (fmap tyToNM ty)) go [t1]
 
-typeArithToET :: Term -> Maybe ET.Type
-typeArithToET = Just . show . typeof
-
-etToArith :: ExpTutorDiagram -> Maybe Term
-etToArith = etToLang go
+nmToLang :: ExpTutorDiagram -> Maybe TypedTerm
+nmToLang = etToLang go
   where
-    go :: ExpTutorDiagram -> StateT (Set Int) Maybe Term
+    go :: ExpTutorDiagram -> StateT (Set Int) Maybe TypedTerm
     go d = checkCycle d $ case d of
-      DiaLeaf   NodeTrue {}            -> return Tru
-      DiaLeaf   NodeFalse {}           -> return Fls
-      DiaBranch NodeIf {} ts@[_, _, _] -> let [n1, n2, n3] = fmap go ts
-                                           in liftM3 If n1 n2 n3
-      DiaLeaf   NodeZero {}            -> return Zero
-      DiaBranch NodeSucc {}   [t]      -> Succ   <$> go t
-      DiaBranch NodePred {}   [t]      -> Pred   <$> go t
-      DiaBranch NodeIsZero {} [t]      -> IsZero <$> go t
+      DiaLeaf   (NodeTrue   ty _)              -> return (TyTru, tyNMToTy =<< ty)
+      DiaLeaf   (NodeFalse  ty _)              -> return (TyFls, tyNMToTy =<< ty)
+      DiaBranch (NodeIf     ty _) ts@[_, _, _] -> let [n1, n2, n3] = fmap go ts
+                                                   in (, tyNMToTy =<< ty) <$> liftM3 TyIf n1 n2 n3
+      DiaLeaf   (NodeZero   ty _)              -> return (TyZero, tyNMToTy =<< ty)
+      DiaBranch (NodeSucc   ty _) [t]          -> (, tyNMToTy =<< ty) . TySucc   <$> go t
+      DiaBranch (NodePred   ty _) [t]          -> (, tyNMToTy =<< ty) . TyPred   <$> go t
+      DiaBranch (NodeIsZero ty _) [t]          -> (, tyNMToTy =<< ty) . TyIsZero <$> go t
       _ -> lift Nothing -- "incorrect diagram"
 
-instance Injective Term TyExpTutorDiagram where
-  toNM = TyExpTutorDiagram . arithToET
-  fromNM (TyExpTutorDiagram d) = etToArith d
-
--- Ask for the type of a diagram not annotated with types
-typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
-typeOfBisim = MkBisim { fLang  = eitherToMaybe . typeof
-                      , fNM    = fmap (show . pretty) . eitherToMaybe . typeof <=< fromNM
-                      , alphaA = toNM
-                      , alphaB = fmap (show . pretty) }
+instance Injective TypedTerm ExpTutorDiagram where
+  toNM = langToNM
+  fromNM = nmToLang
 
 -- Annotate diagram with types
-annotateTypeBisim :: Bisimulation Term Term ExpTutorDiagram (Maybe TyExpTutorDiagram)
-annotateTypeBisim = MkBisim { fLang  = id
-                            , fNM    = fmap (toNM :: Term -> TyExpTutorDiagram) . fromNM
+annotateTypeBisim :: Bisimulation TypedTerm (Maybe TypedTerm) ExpTutorDiagram (Maybe ExpTutorDiagram)
+annotateTypeBisim = MkBisim { fLang  = _fLang
+                            , fNM    = fmap langToNM . (=<<) _fLang . fromNM
                             , alphaA = toNM
-                            , alphaB = return . toNM }
-
--- Evaluation
-evalBisim :: Bisimulation Term Term TyExpTutorDiagram (Maybe TyExpTutorDiagram)
-evalBisim = mkInjBisim step
+                            , alphaB = fmap langToNM }
+  where _fLang :: TypedTerm -> Maybe TypedTerm
+        _fLang = eitherToMaybe . typeof1

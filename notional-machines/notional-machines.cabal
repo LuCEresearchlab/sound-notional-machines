@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 72bd8e93c90cba56c97eebfc92d1c478bb769a3cbedefd281898e8f88a69da77
+-- hash: faa48d4d11c83c082f8d2686c059be5454c5bf5ff35b56e5895675bc9a21f24b
 
 name:           notional-machines
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      NotionalMachines.Lang.TypedArith.Generators
       NotionalMachines.Lang.TypedArith.Main
       NotionalMachines.Lang.TypedLambdaArith.Generators
       NotionalMachines.Lang.TypedLambdaArith.Main

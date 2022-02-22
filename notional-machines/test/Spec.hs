@@ -24,6 +24,7 @@ import Control.Monad ((<=<), liftM2)
 import Control.Monad.State.Lazy (runStateT)
 
 import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
+import qualified NotionalMachines.Lang.TypedArith.Generators              as TypedArithGen
 import qualified NotionalMachines.Lang.TypedLambdaArith.Main              as TypedLambda
 import qualified NotionalMachines.Lang.UntypedArith.Generators            as ArithGen
 import qualified NotionalMachines.Lang.UntypedArith.Main                  as Arith
@@ -49,9 +50,7 @@ import           NotionalMachines.Machine.Reduct.Main                (ReductExp,
                                                                       updateUids)
 import qualified NotionalMachines.Machine.TAPLMemoryDiagram.Main     as TAPLMemDia
 
-import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (TyExpTutorDiagram,
-                                                                                                 annotateTypeBisim,
-                                                                                                 evalBisim,
+import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (annotateTypeBisim,
                                                                                                  typeOfBisim)
 import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as LambdaRefTAPLDia
 import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
@@ -222,6 +221,8 @@ arithTest = testGroup "Untyped and typed arith" [
         Arith.replEval
     , evalTo "succ (succ (succ 0))" "succ succ succ 0"
         Arith.replEval
+    , testProperty "typeof == recursive typeof1" $
+       isEquivalentTo ArithGen.genTerm TypedArith.typeof TypedArith.typeofEnd
   ]
 
 lambdaTest :: TestTree
@@ -314,7 +315,7 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
         -- setting 's' to 82.  But wait... if we never changed the value of
         -- 'r', how can it now be 82? How can changing another variable (a
         -- variable we're not using to produce the result) affect the result of
-        -- the program? If wee're not using 's' to produce the result of the
+        -- the program? If we're not using 's' to produce the result of the
         -- program, how can changing it's value affect the result of the
         -- program? what does 's' have anything to do with 'r'? (TAPL p.156)
         , evalTo "(\\r:Ref Nat.(\\s:Ref Nat. s := 82; !r) r) (ref 13)" "82 : Nat"
@@ -385,13 +386,11 @@ expressionTutorTest = testGroup "Expressiontutor" [
     ],
     testGroup "ET with Typed Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> TypedArithET.TyExpTutorDiagram)
-      , testProperty "commutation proof for evaluation bisimulation" $
-          bisimulationCommutes ArithGen.genTerm TypedArithET.evalBisim
+          isLeftInverseOf TypedArithGen.genTypedTerm Inj.fromNM (Inj.toNM :: TypedArith.TypedTerm -> ExpTutorDiagram)
       , testProperty "commutation proof for typeof bisim (ask for type of term)" $
           bisimulationCommutes ArithGen.genTerm TypedArithET.typeOfBisim
       , testProperty "commutation proof for type annotated diagram" $
-          bisimulationCommutes ArithGen.genTerm TypedArithET.annotateTypeBisim
+          bisimulationCommutes TypedArithGen.genTypedTerm TypedArithET.annotateTypeBisim
     ],
     testGroup "Malformed ETs" [
         testProperty "Random diagram doesn't crash" $ prop $

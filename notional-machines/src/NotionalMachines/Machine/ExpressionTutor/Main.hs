@@ -6,7 +6,7 @@
 module NotionalMachines.Machine.ExpressionTutor.Main (
   ExpTutorDiagram(..),
   NodeContentElem(..),
-  Type,
+  Type(..),
 
   -- Exporting these constructor allows for the creation of diagrams that are
   -- not trees.
@@ -68,7 +68,8 @@ newtype Plug = Plug (Int, Int)
 data Edge = Edge Plug Plug
   deriving (Show)
 
-type Type = String
+newtype Type = MkTy String
+  deriving (Eq, Ord, Show)
 
 -- the graph is undirected
 instance Eq Edge where

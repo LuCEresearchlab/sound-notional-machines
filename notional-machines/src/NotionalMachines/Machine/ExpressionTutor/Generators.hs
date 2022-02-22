@@ -41,7 +41,7 @@ genPlug = do n1 <- Gen.int (Range.linear 0 100)
              return $ Plug (n1, n2)
 
 genType :: MonadGen m => m Type
-genType = genString
+genType = MkTy <$> genString
 
 genString :: MonadGen m => m String
 genString = Gen.list (Range.linear 0 10) $ Gen.element ['a'..'z']
