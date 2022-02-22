@@ -21,11 +21,11 @@ module NotionalMachines.Machine.AlligatorEggs.Diagram where
 import Data.String (fromString)
 
 import Diagrams.Prelude (Diagram, (#), centerX, (===), alignT, mkWidth, centerXY, extrudeTop, rotateBy, hcat, sized)
-import Diagrams.Backend.SVG (B, renderSVG)
+import Diagrams.Backend.SVG (B)
 import Diagrams.SVG.ReadSVG (readSVGLBS)
 
 import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..), Color, colorHexa)
-import NotionalMachines.Utils (replace, diaSeq)
+import NotionalMachines.Utils (replace)
 
 -- | Returns the diagram of an alligator family.
 toDiagram :: Double -> [AlligatorFamilyF Color] -> IO (Diagram B)
