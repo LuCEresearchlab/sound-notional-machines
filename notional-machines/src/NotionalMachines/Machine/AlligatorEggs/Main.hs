@@ -156,14 +156,13 @@ instance (Eq a, Enum a) => SteppableM [AlligatorFamilyF a] Maybe where
   stepM = fmap evolve . checkThat eggColoredCorrectly
 
 -- | Taking a step consists of applying each rule in sequence: oldAgeRule, colorRule, eatingRule.
--- The values are Maybes because a family may be malformed if it is not colored properly.
 evolve :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
 evolve = eatingRule . colorRule . oldAgeRule
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
 eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-eatingRule (x@(HungryAlligator _ _) : xs@(OldAlligator _:_)) = x : oldAgeRule xs    -- NM fix
+eatingRule (x@(HungryAlligator _ _) : xs@(OldAlligator _:_)) = x : oldAgeRule xs -- needed in CBN
 eatingRule ((HungryAlligator c proteges):family:rest) = map hatch proteges ++ rest
   where hatch (Egg c1)                | c == c1 = family
         -- hatch (HungryAlligator c1 ys)           = HungryAlligator c1 (map hatch ys)
@@ -202,7 +201,7 @@ recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)
 oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
 oldAgeRule (OldAlligator        [] : rest) = rest
 oldAgeRule (OldAlligator [protege] : rest) = protege : rest
-oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest -- NM fix
+oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest -- needed in CBN
 oldAgeRule families                        = families
 
 -- Check that all eggs are guarded by a hungry alligator with the same color.
