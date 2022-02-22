@@ -5,13 +5,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 
 module NotionalMachines.Utils where
 
 import Data.Colour.RGBSpace (uncurryRGB)
-import Data.Colour.SRGB     (RGB, sRGB, sRGB24show)
 
-import           Hedgehog       hiding (eval)
+import Hedgehog ( Gen, MonadGen )
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
@@ -22,6 +22,9 @@ import Control.Monad.Trans      (liftIO)
 import Data.Bifunctor (second)
 import Data.List      (intercalate, uncons, intersperse)
 import Data.List.Split (splitOn, chunksOf)
+import           Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Data (Typeable)
 
 import System.Console.Repline (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
                                ReplOpts (..), evalReplOpts)
@@ -35,7 +38,6 @@ import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDar
 import Diagrams.Prelude hiding (uncons, dot)
 import Diagrams.TwoD.Text (Text)
 import Diagrams.Backend.SVG (renderSVG, SVG)
-import Data.Data (Typeable)
 
 ---- Error types ----
 
@@ -81,6 +83,10 @@ maybeToEither l = maybe (Left l) Right
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace xs ys = intercalate ys . splitOn xs
 
+-- | Equivalent to Map.map but with a monadic mapM behavior.
+mapMapM :: (Ord k, Monad m) => (a -> m b) -> Map k a -> m (Map k b)
+mapMapM f = fmap Map.fromList . mapM (\(a, b) -> (a, ) <$> f b) . Map.toList
+
 -- Turns a function that operatees on State into a function that operates on tuples.
 stateToTuple :: (a -> StateT s m b) -> (a, s) -> m (b, s)
 stateToTuple f (a, s) = runStateT (f a) s
@@ -105,6 +111,13 @@ showRGB = sRGB24show . uncurryRGB sRGB
 
 framed :: (Enveloped d, Transformable d, TrailLike d, Monoid d, V d ~ V2) => d -> d
 framed d = d <> boundingRect d
+
+framedRound :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
+framedRound d = d # centerXY <> roundedRect w h r
+  where
+    w = width d
+    h = height d
+    r = 0.5
 
 diaSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
           Int -> Double -> Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any

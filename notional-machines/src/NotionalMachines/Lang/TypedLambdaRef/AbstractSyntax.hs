@@ -23,6 +23,7 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   assign,
   nextLocation,
 
+  Name,
   NameEnv,
   StateRacket(..),
 
@@ -70,7 +71,7 @@ data Type = TyFun Type Type
           | TyBool
           | TyNat
           | TyVar Name
-  deriving (Eq, Show)
+  deriving (Eq, Show, Read)
 
 type TypCtx = [(Name, Type)]
 
@@ -252,7 +253,7 @@ stepAlaWadler = \case
 ----------------------
 -- step ala racket
 ----------------------
-data StateRacket = StateRacket NameEnv (Store Location)
+data StateRacket = StateRacket NameEnv (Store Location) deriving Show
 
 emptyStateAlaRacket :: StateRacket
 emptyStateAlaRacket = StateRacket Map.empty Map.empty
@@ -395,24 +396,24 @@ peanoToDec t        = error $ "internal error: can't show term as number: " ++ s
 
 instance Pretty Term where
   pretty = \case
-    App e1 e2                      -> p e1 <+> p e2
-    Lambda x t e                   -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
-    Closure env x t                -> parens (mconcat ["Closure ", pretty env, " \\", pretty x, ". ", pretty t])
-    Var x                          -> pretty x
-    Unit                           -> "unit"
-    Seq t1 t2                      -> pretty t1 <> ";" <+> pretty t2
-    Ref t                          -> "ref" <+> p t
-    Deref t                        -> "!"   <>  p t
-    Assign t1 t2                   -> hsep [p t1, ":=", pretty t2]
-    Loc l                          -> "Loc" <+> pretty l
-    Tru                            -> "true"
-    Fls                            -> "false"
-    If t1 t2 t3                    -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
-    Zero                           -> "0"
-    Succ t | isNumVal t            -> pretty (peanoToDec (Succ t))
-    Succ t | otherwise             -> "succ"   <+> p t
-    Pred t                         -> "pred"   <+> p t
-    IsZero t                       -> "iszero" <+> p t
+    App e1 e2           -> p e1 <+> p e2
+    Lambda x t e        -> parens (mconcat ["\\", pretty x, ":", pretty t, ". ", pretty e])
+    Closure env x t     -> parens (mconcat ["Closure ", pretty env, " \\", pretty x, ". ", pretty t])
+    Var x               -> pretty x
+    Unit                -> "unit"
+    Seq t1 t2           -> pretty t1 <> ";" <+> pretty t2
+    Ref t               -> "ref" <+> p t
+    Deref t             -> "!"   <>  p t
+    Assign t1 t2        -> hsep [p t1, ":=", pretty t2]
+    Loc l               -> "Loc" <+> pretty l
+    Tru                 -> "true"
+    Fls                 -> "false"
+    If t1 t2 t3         -> hsep ["if", pretty t1, "then", pretty t2, "else", p t3]
+    Zero                -> "0"
+    Succ t | isNumVal t -> pretty (peanoToDec (Succ t))
+    Succ t | otherwise  -> "succ"   <+> p t
+    Pred t              -> "pred"   <+> p t
+    IsZero t            -> "iszero" <+> p t
     where p = parenIf $ \case App    {}                 -> True
                               If     {}                 -> True
                               Succ t | not (isNumVal t) -> True

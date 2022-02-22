@@ -2,6 +2,7 @@
 
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 {-|
 Description : Simply Typed Lambda Calculus with References, Unit, Booleans, and Natural numbers based on TAPL Ch.3 (WIP)
@@ -14,6 +15,7 @@ WIP...
 module NotionalMachines.Lang.TypedLambdaRef.Main (
   Term(..),
   Type(..),
+  Trace(..),
 
   isValue,
 
@@ -23,11 +25,15 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   unparse,
 
   evalM',
+  trace',
 
   repl,
   replEval,
   replEvalAlaWadler,
-  replEvalAlaRacket) where
+  replEvalAlaRacket,
+
+  langPipeline,
+  traceAlaRacket) where
 
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
@@ -103,7 +109,9 @@ repl :: IO ()
 repl = mkLangReplOpts [ ("traceAlaWadler", mkCmd . traceAlaWadler)
                       , ("traceAlaRacket", mkCmd . traceAlaRacket) ]
                       "LambdaRef>" (taplBookMsg "13") langPipeline
-  where traceAlaWadler :: String -> Either Error (Trace MachineStateAlaWadler)
-        traceAlaWadler = trace' emptyStateAlaWadler MachineStateAlaWadler <=< parse
-        traceAlaRacket :: String -> Either Error (Trace MachineStateAlaRacket)
-        traceAlaRacket = trace' emptyStateAlaRacket MachineStateAlaRacket <=< parse
+
+traceAlaWadler :: String -> Either Error (Trace MachineStateAlaWadler)
+traceAlaWadler = trace' emptyStateAlaWadler MachineStateAlaWadler <=< parse
+
+traceAlaRacket :: String -> Either Error (Trace MachineStateAlaRacket)
+traceAlaRacket = trace' emptyStateAlaRacket MachineStateAlaRacket <=< parse

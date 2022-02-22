@@ -1,162 +1,125 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
-{-# LANGUAGE TupleSections #-}
+{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE PatternSynonyms #-}
 
 module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
 
-import           Control.Monad.Identity                              (runIdentity)
-import           Data.Bifunctor                                      (bimap, second)
-import qualified Data.Map                                            as Map
-import           NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, Store,
-                                                                      Term (..), alloc, assign,
-                                                                      deref, nextLocation, StateRacket (StateRacket))
-import           NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..),
-                                                                      tAlloc, tAssign, tDeref)
-import qualified NotionalMachines.Machine.TAPLMemoryDiagram.Main     as NM (Location (Loc))
-import           NotionalMachines.Meta.Bisimulation                  (Bisimulation (..))
-import           NotionalMachines.Utils                              (eitherToMaybe, stateToTuple)
-import NotionalMachines.Meta.Bijective (Bijective (toNM, fromNM))
+import Control.Monad.State.Lazy (StateT)
+import Control.Monad ((<=<))
+
+import qualified Data.Map as Map
+
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
+                                                            Term (..), StateRacket (StateRacket))
+import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..), DTerm (..), DLocation (DLoc))
+import NotionalMachines.Meta.Bisimulation                  (Bisimulation (..))
 import NotionalMachines.Meta.Steppable (stepM)
+import NotionalMachines.Meta.Injective (Injective (..))
+import NotionalMachines.Utils (eitherToMaybe, stateToTuple, mapMapM)
 
--- convert from the language store to NM store.
-langStoreToNMStore :: Store Location -> TAPLMemoryDiagram Location Term
-langStoreToNMStore = TAPLMemoryDiagram Map.empty . Map.mapKeys NM.Loc
+pattern MDVar name          = Leaf name
+pattern MDLambda name typ t = Branch [Leaf "(\\", Leaf name, Leaf ":", Leaf typ, Leaf ".", t, Leaf ")"]
+pattern MDApp t1 t2         = Branch [t1, t2]
+-- Unit
+pattern MDUnit              = Leaf "unit"
+-- Sequence
+pattern MDSeq t1 t2         = Branch [t1, Leaf ";", t2]
+-- References
+pattern MDRef t             = Branch [Leaf "ref", Leaf " ", t]
+pattern MDDeref t           = Branch [Leaf "!", t]
+pattern MDAssign t1 t2      = Branch [t1, Leaf ":=", t2]
+-- Booleans
+pattern MDTru               = Leaf "true"
+pattern MDFls               = Leaf "false"
+pattern MDIf t1 t2 t3       = Branch [Leaf "if", Leaf " ", t1, Leaf " ", t2, Leaf " ", t3]
+-- Arithmetic Expressions
+pattern MDZero              = Leaf "0"
+pattern MDSucc t            = Branch [Leaf "succ",   Leaf " ", t]
+pattern MDPred t            = Branch [Leaf "pred",   Leaf " ", t]
+pattern MDIsZero t          = Branch [Leaf "iszero", Leaf " ", t]
 
-langToNMTerm :: (Term,     Store Location) -> (Term,               TAPLMemoryDiagram Location Term)
-langToNMTerm = second langStoreToNMStore
+termToDTerm :: Term -> DTerm Location
+termToDTerm = \case
+  -- Lambdas
+  Var name          -> MDVar name
+  Lambda name typ t -> MDLambda name (show typ) (rec t)
+  Closure {}        -> error "Ala Wadler not covered"
+  App t1 t2         -> MDApp (rec t1) (rec t2)
+  -- Unit
+  Unit              -> MDUnit
+  -- Sequence
+  Seq t1 t2         -> MDSeq (rec t1) (rec t2)
+  -- References
+  Ref t             -> MDRef (rec t)
+  Deref t           -> MDDeref (rec t)
+  Assign t1 t2      -> MDAssign (rec t1) (rec t2)
+  Loc l             -> TLoc (DLoc l)
+  -- Booleans
+  Tru               -> MDTru
+  Fls               -> MDFls
+  If t1 t2 t3       -> MDIf (rec t1) (rec t2) (rec t3)
+  -- Arithmetic Exprsions
+  Zero              -> MDZero
+  Succ t            -> MDSucc (rec t)
+  Pred t            -> MDPred (rec t)
+  IsZero t          -> MDIsZero (rec t)
+  where rec = termToDTerm
 
-langToNMLoc  :: (Location, Store Location) -> (NM.Location Location, TAPLMemoryDiagram Location Term)
-langToNMLoc  = bimap NM.Loc  langStoreToNMStore
+dTermToTerm :: DTerm Location -> Maybe Term
+dTermToTerm = \case
+  -- Unit
+  MDUnit              -> return Unit
+  -- Sequence
+  MDSeq t1 t2         -> Seq <$> rec t1 <*> rec t2
+  -- References
+  MDRef t             -> Ref <$> rec t
+  MDDeref t           -> Deref <$> rec t
+  MDAssign t1 t2      -> Assign <$> rec t1 <*> rec t2
+  TLoc (DLoc l)       -> return $ Loc l
+  -- Booleans
+  MDTru               -> return Tru
+  MDFls               -> return Fls
+  MDIf t1 t2 t3       -> If <$> rec t1 <*> rec t2 <*> rec t3
+  -- Arithmetic Expressions
+  MDZero              -> return Zero
+  MDSucc   t          -> Succ <$> rec t
+  MDPred   t          -> Pred <$> rec t
+  MDIsZero t          -> IsZero <$> rec t
+  -- Lambdas
+  MDLambda name typ t -> Lambda name (read typ) <$> rec t
+  MDApp t1 t2         -> App <$> rec t1 <*> rec t2
+  MDVar name          -> return $ Var name
+  _ -> Nothing
+  where rec = dTermToTerm
 
+langToNM :: (Term, StateRacket) -> TAPLMemoryDiagram Location
+langToNM (term, StateRacket env store) = TAPLMemoryDiagram (termToDTerm term)
+                                                           (Map.map termToDTerm env)
+                                                           (Map.map termToDTerm (Map.mapKeys DLoc store))
 
--- The challenge in building a bisimulation for the operation of memory
--- allocation is the encoding of the monadic State nature of it.
---
--- Memory in lang is represented using State but in the NM it's a product
--- type. These ways to represent state are incompatible so either we adapt the
--- State interface so that the lang functions operate on explicit tuples or we
--- adapt the NM to work via a State monad.
---
--- The fist case is shown below in the next 3 bisimulations.
---
--- An interesting question when we try to go in the other direction: can we
--- write a bisimulation only using State.  The result would be a bisimulation
--- in which one or more vertices of the permutation squares are State and the
--- commutation proof would happen via monadic composition (<=<) instead of
--- function composition!  Monadic bisimulation.  But... No... Apparently that
--- doesn't work or I don't know how to... :-(
---
---
--- (Term,                             ------->  (NM.Location Location,
---  TAPLMemoryDiagram Location Term)             TAPLMemoryDiagram Location Term)
---
---      ^                                                     ^
---      |                                                     |
---      |                                                     |
---      |                                                     |
---
--- (Term, Store Location)               ------->  (Location, Store Location)
---
-allocBisim :: Bisimulation (Term, Store Location)
-                           (Location, Store Location)
-                           (Term, TAPLMemoryDiagram Location Term)
-                           (NM.Location Location, TAPLMemoryDiagram Location Term)
-allocBisim = MkBisim { fLang  = runIdentity . stateToTuple alloc
-                     , fNM    = tAlloc nextLocation
-                     , alphaA = langToNMTerm
-                     , alphaB = langToNMLoc}
+nmToLang :: TAPLMemoryDiagram Location -> Maybe (Term, StateRacket)
+nmToLang (TAPLMemoryDiagram dTerm dEnv dStore) =
+  do term <- dTermToTerm dTerm
+     env <- mapMapM dTermToTerm dEnv
+     store <- mapMapM dTermToTerm (Map.mapKeys (\(DLoc l) -> l) dStore)
+     return (term, StateRacket env store)
 
---
--- (Location, Store Location)                       ------------>  Either Error Term
---
---      ^                                                               ^
---      |                                                               |
---      |                                                               |
---      |                                                               |
---
--- (NM.Location Int, TAPLMemoryDiagram Int Term)  ------------>  Maybe Term
---
-derefBisim :: Bisimulation (Location, Store Location)
-                           (Either Error Term)
-                           (NM.Location Location, TAPLMemoryDiagram Location Term)
-                           (Maybe Term)
-derefBisim = MkBisim { fLang  = fmap fst . stateToTuple deref
-                     , fNM    = tDeref
-                     , alphaA = langToNMLoc
-                     , alphaB = eitherToMaybe }
-
---
--- ((Location, Term), Store Location)  ------------>  Either Error (Store Location)
---
---      ^                                                               ^
---      |                                                               |
---      |                                                               |
---      |                                                               |
---
--- (NM.Location Location,              ------------>  Maybe (TAPLMemoryDiagram Location Term)
---  Term,
---  TAPLMemoryDiagram Location Term)
---
-assignBisim :: Bisimulation ((Location, Term), Store Location)
-                            (Either Error (Store Location))
-                            (NM.Location Location, Term, TAPLMemoryDiagram Location Term)
-                            (Maybe (TAPLMemoryDiagram Location Term))
-assignBisim = MkBisim { fLang  = fmap snd . stateToTuple (uncurry assign)
-                      , fNM    = tAssign
-                      , alphaA = \((l,t),s) -> (NM.Loc l, t, langStoreToNMStore s)
-                      , alphaB = eitherToMaybe . fmap langStoreToNMStore }
-
-
--- =====================
-------
--- Monadic bisimulation - doesn't work :-( or it's not done right... I don't know
-------
-
--- Here we write equivalent bisimulations but now using the State monad. The
--- commutation proof happens via monadic composition (<=<) instead of function
--- composition!  Monadic bisimulation.
---
---
---    Term               ------->  State (TAPLMemoryDiagram Location Term) (NM.Location Location)
---
---      ^                                                     ^
---      |                                                     |
---      |                                                     |
---      |                                                     |
---
---    Term               ------->  State (Store Location) Location
---
--- mAllocBisim :: Bisimulation Term
---                             (State (Store Location) Location)
---                             Term
---                             (State (TAPLMemoryDiagram Location Term) (NM.Location Location))
--- mAllocBisim = MkBisim { fLang  = alloc
---                       , fNM    = tupleToState (return . tAlloc nextLocation)
---                       , alphaA = id
---                       , alphaB = g}
-
-
--- g :: State (Store Location) Location -> State (TAPLMemoryDiagram Location Term) (NM.Location Location)
--- g = error "todo"
--- =====================
-
-langToNM :: (Term, StateRacket) -> (Term, TAPLMemoryDiagram Location Term)
-langToNM (term, StateRacket env store) = (term, TAPLMemoryDiagram env (Map.mapKeys NM.Loc store))
-
-nmToLang :: (Term, TAPLMemoryDiagram Location Term) -> (Term, StateRacket)
-nmToLang (term, TAPLMemoryDiagram env store) = (term, StateRacket env (Map.mapKeys (\(NM.Loc l) -> l) store))
-
-instance Bijective (Term, StateRacket) (Term, TAPLMemoryDiagram Location Term) where
+instance Injective (Term, StateRacket) (TAPLMemoryDiagram Location) where
   toNM   = langToNM
   fromNM = nmToLang
 
 
 bisim :: Bisimulation (Term, StateRacket)
-                      (Either Error (Term, StateRacket))
-                      (Term, TAPLMemoryDiagram Location Term)
-                      (Either Error (Term, TAPLMemoryDiagram Location Term))
-bisim = MkBisim { fLang  = stateToTuple stepM
-                , fNM    = fmap toNM . stateToTuple stepM . fromNM
+                      (Maybe (Term, StateRacket))
+                      (TAPLMemoryDiagram Location)
+                      (Maybe (TAPLMemoryDiagram Location))
+bisim = MkBisim { fLang  = step
+                , fNM    = fmap toNM . step <=< fromNM
                 , alphaA = toNM
                 , alphaB = fmap toNM }
+  where step :: (Term, StateRacket) -> Maybe (Term, StateRacket)
+        step = eitherToMaybe . stateToTuple (stepM :: Term -> StateT StateRacket (Either Error) Term)

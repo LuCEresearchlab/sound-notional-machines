@@ -48,7 +48,6 @@ import           NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..),
                                                                       Plug (..))
 import           NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..),
                                                                       updateUids)
-import qualified NotionalMachines.Machine.TAPLMemoryDiagram.Main     as TAPLMemDia
 
 import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (annotateTypeBisim,
                                                                                                  typeOfBisim)
@@ -482,16 +481,8 @@ alligatorTest = testGroup "Alligators" [
 
 taplMemeryDiagramTest :: TestTree
 taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
-      testProperty "`(deref . alloc) t === return t` (modulo glue code)" $
-        isEquivalentTo LambdaRefGen.genTerm
-                       (return)
-                       (TAPLMemDia.tDeref . TAPLMemDia.tAlloc LambdaRefAST.nextLocation . (, TAPLMemDia.emptyDiagram))
-    , testProperty "commutation proof for alloc" $
-        bisimulationCommutes LambdaRefGen.genTermStore LambdaRefTAPLDia.allocBisim
-    , testProperty "commutation proof for deref" $
-        bisimulationCommutes LambdaRefGen.genLocationStore LambdaRefTAPLDia.derefBisim
-    , testProperty "commutation proof for assign" $
-        bisimulationCommutes LambdaRefGen.genLocationTermStore LambdaRefTAPLDia.assignBisim
+      testProperty "commutation proof for eval" $
+        bisimulationCommutes LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.bisim
   ]
 
 tests :: TestTree

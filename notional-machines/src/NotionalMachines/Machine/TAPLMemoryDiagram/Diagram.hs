@@ -2,19 +2,19 @@
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram where
 
-import Data.String (fromString)
+-- import Data.String (fromString)
 
-import Diagrams.Prelude (Diagram, (#), centerX, (===), alignT, mkWidth, centerXY, extrudeTop, rotateBy, hcat, sized)
-import Diagrams.Backend.SVG (B, renderSVG)
-import Diagrams.SVG.ReadSVG (readSVGLBS)
+-- import Diagrams.Prelude (Diagram, (#), centerX, (===), alignT, mkWidth, centerXY, extrudeTop, rotateBy, hcat, sized)
+-- import Diagrams.Backend.SVG (B, renderSVG)
+-- import Diagrams.SVG.ReadSVG (readSVGLBS)
 
-import           Data.Map (Map)
-import qualified Data.Map as Map
+-- import           Data.Map (Map)
+-- import qualified Data.Map as Map
 
-import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..), Color, colorHexa)
-import NotionalMachines.Utils (replace, diaSeq)
-import NotionalMachines.Machine.TAPLMemoryDiagram.Main (TAPLMemoryDiagram, Name, Location)
-import Control.Monad.State.Lazy (State)
+-- import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..), Color, colorHexa)
+-- import NotionalMachines.Utils (replace, diaSeq)
+-- import NotionalMachines.Machine.TAPLMemoryDiagram.Main (TAPLMemoryDiagram, Name)
+-- import Control.Monad.State.Lazy (State)
 
 -- data Val = Val Int | Loc Loc
 
