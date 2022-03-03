@@ -1,11 +1,13 @@
-# notional-machines
+# The "Sound Notional Machines" Artifact
+
+This is the Haskell implementation for the "Sound Notional Machines" paper.
 
 ## What's here?
 
 * [notional-machines]:
   * `Lang/` - language implementations
   * `Machine/` - notional machine implementations
-  * `LangInMachine/` - Simulation relation between language and NM
+  * `LangInMachine/` - simulation relation between language and NM
   * `Meta/` - high-level machinery to aid implementations
 
 ## Run
@@ -58,7 +60,6 @@ LambdaRef> :trace 123
 LambdaRef> :trace iszero 0
 LambdaRef> :trace iszero 1
 LambdaRef> :trace succ 10
-LambdaRef> :trace pred 10
 LambdaRef> :trace pred 10
 ```
 
