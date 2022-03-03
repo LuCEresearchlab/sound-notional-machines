@@ -33,11 +33,11 @@ stack test --file-watch
 Run the REPL of a given language.
 We currently have a sequence of five languages inspired by TAPL:
 
-* [UntypedArith](notional-machines/src/NotionalMachines/Lang/UntypedArith/README.md)
-* [UntypedLambda](notional-machines/src/NotionalMachines/Lang/UntypedLambda/README.md)
-* [TypedArith](notional-machines/src/NotionalMachines/Lang/TypedArith/README.md)
-* [TypedLambda](notional-machines/src/NotionalMachines/Lang/TypedLambda/README.md)
-* [TypedLambdaRef](notional-machines/src/NotionalMachines/Lang/TypedLamdaRef/README.md)
+* [UntypedArith](src/NotionalMachines/Lang/UntypedArith/README.md)
+* [UntypedLambda](src/NotionalMachines/Lang/UntypedLambda/README.md)
+* [TypedArith](src/NotionalMachines/Lang/TypedArith/README.md)
+* [TypedLambdaArith](src/NotionalMachines/Lang/TypedLambdaArith/README.md)
+* [TypedLambdaRef](src/NotionalMachines/Lang/TypedLambdaRef/README.md)
 
 For example, run the *TypedLambdaRef* REPL,
 and then try some of its features:
@@ -113,10 +113,11 @@ LambdaRef> :trace (\r:Ref Nat.(\s:Ref Nat. s := 82; !r) r) (ref 13)
 
 We currently have four notional machines:
 
-* [AlligatorEggs](notional-machines/src/NotionalMachines/Machine/AlligatorEggs/README.md) (on UntypedLambda)
-* [ExpressionTree](notional-machines/src/NotionalMachines/Machine/ExpressionTree/README.md) (on UntypedLambda)
-* ExpressionTutor (on UntypedArith, TypedArith and UntypedLambda)
-* Reduct (on UntypedLambda)
+* [AlligatorEggs](src/NotionalMachines/Machine/AlligatorEggs/README.md) (on UntypedLambda)
+* [ExpressionTree](src/NotionalMachines/Machine/ExpressionTree/README.md) (on UntypedLambda)
+* [ExpressionTutor](src/NotionalMachines/Machine/ExpressionTutor/README.md) (on UntypedArith, TypedArith and UntypedLambda)
+* [Reduct](src/NotionalMachines/Machine/Reduct/README.md) (on UntypedLambda)
+* [TAPLMemoryDiagram](src/NotionalMachines/Machine/TAPLMemoryDiagram/README.md) (on TypedLambdaRef)
 
 For example, play with the *AlligatorEggs* notional machine.
 
