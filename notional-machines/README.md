@@ -49,7 +49,7 @@ stack repl
 > NotionalMachines.Lang.TypedLambdaRef.Main.repl
 LambdaRef> :help
 The syntax of the language follows TAPL Ch.13
-REPL commands: help, type, trace
+REPL commands: help, type, trace, traceAlaWadler, traceWithNameEnv
 LambdaRef> 123
 123 : Nat
 LambdaRef> :type 1
