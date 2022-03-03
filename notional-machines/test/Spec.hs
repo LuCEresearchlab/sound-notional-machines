@@ -49,18 +49,18 @@ import           NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..),
 import           NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..),
                                                                       updateUids)
 
-import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (annotateTypeBisim,
-                                                                                                 typeOfBisim)
+import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (annotateTypeSim,
+                                                                                                 typeOfSim)
 import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as LambdaRefTAPLDia
-import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (bisim,
+import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (sim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (sim,
                                                                                       langToNm)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (sim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (sim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (sim)
 
 import qualified NotionalMachines.Meta.Bijective    as Bij
-import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
+import           NotionalMachines.Meta.Simulation (Simulation (..))
 import qualified NotionalMachines.Meta.Injective    as Inj
 import           NotionalMachines.Meta.Steppable    (eval, evalM)
 
@@ -136,8 +136,8 @@ isEquivalentTo g f f' = prop $ do
   e <- forAll g
   f e === f' e
 
-bisimulationCommutes :: (Eq b, Show b, Show a') => Gen a' -> Bisimulation a' b' a b -> Property
-bisimulationCommutes g b = isEquivalentTo g (alphaB b . fLang b) (fNM b . alphaA b)
+simulationCommutes :: (Eq b, Show b, Show a') => Gen a' -> Simulation a' b' a b -> Property
+simulationCommutes g b = isEquivalentTo g (alphaB b . fLang b) (fNM b . alphaA b)
 
 ----- Reduct -----
 
@@ -155,7 +155,7 @@ uids = toList
 colorRuleProp :: Property
 colorRuleProp = prop $ do
   e1 <- forAll LambdaGen.genExp
-  case alphaA A.bisim e1 of
+  case alphaA A.sim e1 of
     a1:a2:_ ->
       let newA2 = recolor a1 a2
       in do annotateShow a1
@@ -344,16 +344,16 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
     , testGroup "LambdaRef ala Racket" [
         -- Example that uses variable shadowing and variable captured by closure:
           evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true) x) 1" "1 : Nat"
-            LambdaRef.replEvalAlaRacket
+            LambdaRef.replEvalWithNameEnv
         -- Example where environment contains closure that contains an environment with another closure (that contains an environment):
         , evalTo "(\\zz:Nat->Nat. (\\xx:Nat->Nat->Nat. xx 1 2) (\\y:Nat. zz)) (\\z:Nat. z)" "2 : Nat"
-            LambdaRef.replEvalAlaRacket
+            LambdaRef.replEvalWithNameEnv
         -- Example with fresh name inside lambda inside name env
         , evalTo "(\\x:Nat->Nat. (\\x:Nat->Nat->Nat. (\\z:Nat->Nat->Nat->Nat. z 9) (\\w:Nat. x) 0 1) (\\y:Nat. x)) (\\x:Nat. x)" "1 : Nat"
-            LambdaRef.replEvalAlaRacket
+            LambdaRef.replEvalWithNameEnv
         -- Example with store cell that refers to store cell
         , evalTo "ref (ref 1)" "Loc 1 : Ref (Ref Nat)"
-            LambdaRef.replEvalAlaRacket
+            LambdaRef.replEvalWithNameEnv
     ]
     , testGroup "Store" [
           testCase "deref on empty store" $ assertEqual ""
@@ -375,21 +375,21 @@ expressionTutorTest = testGroup "Expressiontutor" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTutorDiagram)
       , testProperty "commutation proof" $
-          bisimulationCommutes LambdaGen.genExp LambdaET.bisim
+          simulationCommutes LambdaGen.genExp LambdaET.sim
     ],
     testGroup "ET with Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTutorDiagram)
       , testProperty "commutation proof" $
-          bisimulationCommutes ArithGen.genTerm ArithET.bisim
+          simulationCommutes ArithGen.genTerm ArithET.sim
     ],
     testGroup "ET with Typed Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf TypedArithGen.genTypedTerm Inj.fromNM (Inj.toNM :: TypedArith.TypedTerm -> ExpTutorDiagram)
-      , testProperty "commutation proof for typeof bisim (ask for type of term)" $
-          bisimulationCommutes ArithGen.genTerm TypedArithET.typeOfBisim
+      , testProperty "commutation proof for typeof sim (ask for type of term)" $
+          simulationCommutes ArithGen.genTerm TypedArithET.typeOfSim
       , testProperty "commutation proof for type annotated diagram" $
-          bisimulationCommutes TypedArithGen.genTypedTerm TypedArithET.annotateTypeBisim
+          simulationCommutes TypedArithGen.genTypedTerm TypedArithET.annotateTypeSim
     ],
     testGroup "Malformed ETs" [
         testProperty "Random diagram doesn't crash" $ prop $
@@ -420,7 +420,7 @@ expTreeTest = testGroup "Expression Trees" [
       testProperty "nmToLang is inverse of langToNm" $
         isEquivalentTo LambdaGen.genExp (Bij.fromNM . Bij.toNM) id
     , testProperty "commutation proof" $
-        bisimulationCommutes LambdaGen.genExp ETree.bisim
+        simulationCommutes LambdaGen.genExp ETree.sim
   ]
 
 reductTest :: TestTree
@@ -428,7 +428,7 @@ reductTest = testGroup "Reduct" [
       testProperty "nmToLang is left inverse of langToNm" $
         isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ReductExp)
     , testProperty "commutation proof" $
-        bisimulationCommutes LambdaGen.genExp R.bisim
+        simulationCommutes LambdaGen.genExp R.sim
     , testProperty "reduct trees have unique ids"
         prop_uniqids
   ]
@@ -438,7 +438,7 @@ alligatorTest = testGroup "Alligators" [
       -- testProperty "nmToLang is left inverse of langToNm" $
       --   isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
       testProperty "commutation proof" $
-        bisimulationCommutes LambdaGen.genCombinator A.bisim
+        simulationCommutes LambdaGen.genCombinator A.sim
     , testProperty "color rule"
         colorRuleProp
     , testProperty "In example, right guess <=> right colors"
@@ -482,7 +482,7 @@ alligatorTest = testGroup "Alligators" [
 taplMemeryDiagramTest :: TestTree
 taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
       testProperty "commutation proof for eval" $
-        bisimulationCommutes LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.bisim
+        simulationCommutes LambdaRefGen.genTermStateNameEnv LambdaRefTAPLDia.sim
   ]
 
 tests :: TestTree

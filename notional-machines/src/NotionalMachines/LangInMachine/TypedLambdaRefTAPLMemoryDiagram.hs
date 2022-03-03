@@ -14,9 +14,9 @@ import Control.Monad ((<=<))
 import qualified Data.Map as Map
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
-                                                            Term (..), StateRacket (StateRacket))
+                                                            Term (..), StateNameEnv (StateNameEnv))
 import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..), DTerm (..), DLocation (DLoc))
-import NotionalMachines.Meta.Bisimulation                  (Bisimulation (..))
+import NotionalMachines.Meta.Simulation                  (Simulation (..))
 import NotionalMachines.Meta.Steppable (stepM)
 import NotionalMachines.Meta.Injective (Injective (..))
 import NotionalMachines.Utils (eitherToMaybe, stateToTuple, mapMapM)
@@ -96,30 +96,30 @@ dTermToTerm = \case
   _ -> Nothing
   where rec = dTermToTerm
 
-langToNM :: (Term, StateRacket) -> TAPLMemoryDiagram Location
-langToNM (term, StateRacket env store) = TAPLMemoryDiagram (termToDTerm term)
+langToNM :: (Term, StateNameEnv) -> TAPLMemoryDiagram Location
+langToNM (term, StateNameEnv env store) = TAPLMemoryDiagram (termToDTerm term)
                                                            (Map.map termToDTerm env)
                                                            (Map.map termToDTerm (Map.mapKeys DLoc store))
 
-nmToLang :: TAPLMemoryDiagram Location -> Maybe (Term, StateRacket)
+nmToLang :: TAPLMemoryDiagram Location -> Maybe (Term, StateNameEnv)
 nmToLang (TAPLMemoryDiagram dTerm dEnv dStore) =
   do term <- dTermToTerm dTerm
      env <- mapMapM dTermToTerm dEnv
      store <- mapMapM dTermToTerm (Map.mapKeys (\(DLoc l) -> l) dStore)
-     return (term, StateRacket env store)
+     return (term, StateNameEnv env store)
 
-instance Injective (Term, StateRacket) (TAPLMemoryDiagram Location) where
+instance Injective (Term, StateNameEnv) (TAPLMemoryDiagram Location) where
   toNM   = langToNM
   fromNM = nmToLang
 
 
-bisim :: Bisimulation (Term, StateRacket)
-                      (Maybe (Term, StateRacket))
+sim :: Simulation (Term, StateNameEnv)
+                      (Maybe (Term, StateNameEnv))
                       (TAPLMemoryDiagram Location)
                       (Maybe (TAPLMemoryDiagram Location))
-bisim = MkBisim { fLang  = step
+sim = MkSim { fLang  = step
                 , fNM    = fmap toNM . step <=< fromNM
                 , alphaA = toNM
                 , alphaB = fmap toNM }
-  where step :: (Term, StateRacket) -> Maybe (Term, StateRacket)
-        step = eitherToMaybe . stateToTuple (stepM :: Term -> StateT StateRacket (Either Error) Term)
+  where step :: (Term, StateNameEnv) -> Maybe (Term, StateNameEnv)
+        step = eitherToMaybe . stateToTuple (stepM :: Term -> StateT StateNameEnv (Either Error) Term)

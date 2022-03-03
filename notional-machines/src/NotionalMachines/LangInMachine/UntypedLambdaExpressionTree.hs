@@ -8,7 +8,7 @@ import NotionalMachines.Lang.UntypedLambda.Main     (Exp (..))
 import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..))
 
 import NotionalMachines.Meta.Bijective    (Bijective, fromNM, toNM)
-import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, stepNM)
+import NotionalMachines.Meta.Simulation (Simulation, mkBijSim, stepNM)
 import NotionalMachines.Meta.Steppable    (Steppable, step)
 
 langToNM :: Exp -> ExpAsTree
@@ -28,9 +28,9 @@ instance Bijective Exp ExpAsTree where
 instance Steppable ExpAsTree where
   step = stepNM step
 
-bisim :: Bisimulation Exp Exp ExpAsTree ExpAsTree
-bisim = mkBijBisim
--- bisim = Bisim { fLang  = eval
+sim :: Simulation Exp Exp ExpAsTree ExpAsTree
+sim = mkBijSim
+-- sim = Sim { fLang  = eval
 --               , fNM    = toNM . eval . fromNM
 --               , alphaA = toNM
 --               , alphaB = toNM }

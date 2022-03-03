@@ -27,7 +27,7 @@ import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type(..))
 
 import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
-import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
+import NotionalMachines.Meta.Simulation (Simulation (..))
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
 import NotionalMachines.Utils (eitherToMaybe)
 
@@ -45,8 +45,8 @@ tyNMToTy = \case ET.MkTy "Bool" -> return TyBool
                  _ -> Nothing
 
 -- Ask for the type of a diagram not annotated with types
-typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
-typeOfBisim = MkBisim { fLang  = _fLang
+typeOfSim :: Simulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
+typeOfSim = MkSim { fLang  = _fLang
                       , fNM    = fmap tyToNM . _fLang <=< fromNM
                       , alphaA = toNM
                       , alphaB = fmap tyToNM }
@@ -100,8 +100,8 @@ instance Injective TypedTerm ExpTutorDiagram where
   fromNM = nmToLang
 
 -- Annotate diagram with types
-annotateTypeBisim :: Bisimulation TypedTerm (Maybe TypedTerm) ExpTutorDiagram (Maybe ExpTutorDiagram)
-annotateTypeBisim = MkBisim { fLang  = _fLang
+annotateTypeSim :: Simulation TypedTerm (Maybe TypedTerm) ExpTutorDiagram (Maybe ExpTutorDiagram)
+annotateTypeSim = MkSim { fLang  = _fLang
                             , fNM    = fmap langToNM . (=<<) _fLang . fromNM
                             , alphaA = toNM
                             , alphaB = fmap langToNM }

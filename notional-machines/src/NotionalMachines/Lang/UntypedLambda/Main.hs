@@ -19,7 +19,7 @@ import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl,
                                         prettyToString, taplBookMsg)
 
 --------------------
--- Bisimulation
+-- Simulation
 --------------------
 --
 --    A  --f-->  B

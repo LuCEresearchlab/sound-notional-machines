@@ -1,9 +1,0 @@
-digraph abs {
-  pad="0,0"
-  margin="0,0"
-
-  s0abs [label="λ|x|<h0>",shape=record]
-  s0abs:h0 -> t3
-
-  t3 [style = invis]
-}

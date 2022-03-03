@@ -14,7 +14,7 @@ import Data.Maybe             (mapMaybe)
 import NotionalMachines.Utils (maybeHead)
 
 --------------------
--- Bisimulation
+-- Simulation
 --------------------
 --
 --    A  --f-->  B

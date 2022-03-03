@@ -22,7 +22,7 @@ import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), Node
                                                       newDiaBranch, newDiaLeaf, pattern DiaBranch,
                                                       pattern DiaLeaf, pattern MkNode)
 
-import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
+import NotionalMachines.Meta.Simulation (Simulation, mkInjSim)
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
 import NotionalMachines.Meta.Steppable    (eval, step)
 
@@ -59,9 +59,9 @@ instance Injective Exp ExpTutorDiagram where
   toNM   = lambdaToET
   fromNM = etToLambda
 
-bisim :: Bisimulation Exp Exp ExpTutorDiagram (Maybe ExpTutorDiagram)
-bisim = mkInjBisim step
--- bisim = Bisim { fLang  = step
+sim :: Simulation Exp Exp ExpTutorDiagram (Maybe ExpTutorDiagram)
+sim = mkInjSim step
+-- sim = Sim { fLang  = step
 --               , fNM    = stepM
 --               , alphaA = toNM
 --               , alphaB = return . toNM }

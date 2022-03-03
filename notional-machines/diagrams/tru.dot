@@ -1,8 +1,0 @@
-digraph tru {
-  margin="0,0"
-  abs1 [label="λ|t|<h0>",shape=record]
-  abs2 [label="λ|f|<h0>",shape=record]
-  var [label="t",shape=rectangle]
-  abs1:h0 -> abs2
-  abs2:h0 -> var
-}

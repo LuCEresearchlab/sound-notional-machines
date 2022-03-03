@@ -21,7 +21,7 @@ stack repl
 ## Stepping (the f)
 
 The abstract program state transition function
-in the bisimulation diagram performs a step in the notional machine:
+in the Simulation diagram performs a step in the notional machine:
 
 ```sh
 > stepM [aid] :: Maybe [AlligatorFamilyF Color]

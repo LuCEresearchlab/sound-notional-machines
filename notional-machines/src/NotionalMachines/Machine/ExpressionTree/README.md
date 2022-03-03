@@ -20,7 +20,7 @@ LambdaBox "x" (Box "x")
 ## Stepping (the f)
 
 The abstract program state transition function
-in the bisimulation diagram performs a step in the notional machine.
+in the Simulation diagram performs a step in the notional machine.
 This notional machine does not define that function.
 Instead, `LangInMachine/UntypedLambdaExpressionTree.hs`
 defines it by mapping to untyped lambda calculus, stepping there,

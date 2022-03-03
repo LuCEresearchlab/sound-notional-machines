@@ -8,7 +8,7 @@ import qualified Hedgehog.Range as Range
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (Term (..), Type (..))
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Location, StateRacket (StateRacket), Name)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Location, StateNameEnv (StateNameEnv), Name)
 import NotionalMachines.Utils                              (genName)
 
 
@@ -70,8 +70,8 @@ genLocationStore = (,) <$> genLocation <*> genStore
 genLocationTermStore :: MonadGen m => m ((Location, Term), Store Location)
 genLocationTermStore = (,) <$> ((,) <$> genLocation <*> genTerm) <*> genStore
 
-genStateRacket :: MonadGen m => m StateRacket
-genStateRacket = StateRacket <$> genNameEnv <*> genStore
+genStateNameEnv :: MonadGen m => m StateNameEnv
+genStateNameEnv = StateNameEnv <$> genNameEnv <*> genStore
 
-genTermStateRacket :: MonadGen m => m (Term, StateRacket)
-genTermStateRacket = (,) <$> genTerm <*> genStateRacket
+genTermStateNameEnv :: MonadGen m => m (Term, StateNameEnv)
+genTermStateNameEnv = (,) <$> genTerm <*> genStateNameEnv

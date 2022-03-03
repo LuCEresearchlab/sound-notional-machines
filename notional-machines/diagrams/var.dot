@@ -1,6 +1,0 @@
-digraph var {
-  pad="0,0"
-  margin="0,0"
-
-  s0varx [label="x",shape=record]
-}

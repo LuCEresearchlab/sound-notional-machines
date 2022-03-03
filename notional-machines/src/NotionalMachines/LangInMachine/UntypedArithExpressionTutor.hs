@@ -13,7 +13,7 @@ import Data.Set (Set)
 import NotionalMachines.Lang.UntypedArith.Main       (Term (..))
 import NotionalMachines.Machine.ExpressionTutor.Main
 
-import NotionalMachines.Meta.Bisimulation
+import NotionalMachines.Meta.Simulation
 import NotionalMachines.Meta.Injective
 import NotionalMachines.Meta.Steppable
 
@@ -60,5 +60,5 @@ instance Injective Term ExpTutorDiagram where
   toNM   = arithToET
   fromNM = etToArith
 
-bisim :: Bisimulation Term Term ExpTutorDiagram (Maybe ExpTutorDiagram)
-bisim = mkInjBisim step
+sim :: Simulation Term Term ExpTutorDiagram (Maybe ExpTutorDiagram)
+sim = mkInjSim step

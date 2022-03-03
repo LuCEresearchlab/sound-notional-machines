@@ -33,6 +33,7 @@ resolver: nightly-2021-12-29
 #   - wai
 packages:
 - .
+- lib/diagrams-input
 # Dependency packages to be pulled from upstream that are not in the resolver.
 # These entries can reference officially published versions as well as
 # forks / in-progress versions pinned to a git hash. For example:
@@ -44,10 +45,6 @@ packages:
 #
 # extra-deps: []
 extra-deps:
-# - git: https://github.com/diagrams/diagrams-input.git
-#   commit: 14befea574750ea66881afc4f2bb815acec1d5d7
-- git: https://github.com/igormoreno/diagrams-input.git
-  commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

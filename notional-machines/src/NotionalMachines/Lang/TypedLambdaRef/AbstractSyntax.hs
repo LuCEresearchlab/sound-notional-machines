@@ -25,7 +25,7 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
 
   Name,
   NameEnv,
-  StateRacket(..),
+  StateNameEnv(..),
 
   isValue,
   isNumVal,
@@ -36,9 +36,9 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   typecheck,
 
   emptyStateAlaWadler,
-  emptyStateAlaRacket,
+  emptyStateWithNameEnv,
 
-  evalMAlaRacket,
+  evalMWithNameEnv,
   evalMAlaWadler) where
 
 import Control.Monad.State.Lazy (MonadState (put), State, StateT (StateT), evalStateT, get, lift,
@@ -253,52 +253,52 @@ stepAlaWadler = \case
 ----------------------
 -- step ala racket
 ----------------------
-data StateRacket = StateRacket NameEnv (Store Location) deriving Show
+data StateNameEnv = StateNameEnv NameEnv (Store Location) deriving Show
 
-emptyStateAlaRacket :: StateRacket
-emptyStateAlaRacket = StateRacket Map.empty Map.empty
+emptyStateWithNameEnv :: StateNameEnv
+emptyStateWithNameEnv = StateNameEnv Map.empty Map.empty
 
-evalMAlaRacket :: Term -> Either Error Term
-evalMAlaRacket t = evalStateT (evalM t) emptyStateAlaRacket
+evalMWithNameEnv :: Term -> Either Error Term
+evalMWithNameEnv t = evalStateT (evalM t) emptyStateWithNameEnv
 
-instance SteppableM Term (StateT StateRacket (Either Error)) where
-  stepM = stepAlaRacket
+instance SteppableM Term (StateT StateNameEnv (Either Error)) where
+  stepM = stepWithNameEnv
 
-storeToStateRacket :: Monad m => StateT (Store Location) m t -> StateT StateRacket m t
-storeToStateRacket st = StateT (\(StateRacket env store) -> second (StateRacket env) <$> runStateT st store)
+storeToStateNameEnv :: Monad m => StateT (Store Location) m t -> StateT StateNameEnv m t
+storeToStateNameEnv st = StateT (\(StateNameEnv env store) -> second (StateNameEnv env) <$> runStateT st store)
 
-stepAlaRacket :: Term -> StateT StateRacket (Either Error) Term
-stepAlaRacket = \case
+stepWithNameEnv :: Term -> StateT StateNameEnv (Either Error) Term
+stepWithNameEnv = \case
   -- Lambdas
-  App t1 t2 | not (isValue t1)    -> (\t1' -> App t1' t2 ) <$> stepAlaRacket t1           -- E-App1
-  App v1 t2 | not (isValue t2)    -> (\t2' -> App v1  t2') <$> stepAlaRacket t2           -- E-App2
-  App (Lambda name _ t1) t2       -> do StateRacket env s <- get
+  App t1 t2 | not (isValue t1)    -> (\t1' -> App t1' t2 ) <$> stepWithNameEnv t1           -- E-App1
+  App v1 t2 | not (isValue t2)    -> (\t2' -> App v1  t2') <$> stepWithNameEnv t2           -- E-App2
+  App (Lambda name _ t1) t2       -> do StateNameEnv env s <- get
                                         let newName = until (`Map.notMember` env) fresh name
-                                        put $ StateRacket (Map.insert newName t2 env) s
+                                        put $ StateNameEnv (Map.insert newName t2 env) s
                                         return (subst name (Var newName) t1)
-  v@(Var name)                    -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
+  v@(Var name)                    -> (\(StateNameEnv env _) -> fromMaybe v (Map.lookup name env)) <$> get
   -- Sequence
   Seq Unit t2                     -> return t2                                            -- E-NextSeq
-  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> stepAlaRacket t1            -- E-Seq
+  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> stepWithNameEnv t1            -- E-Seq
   -- References
-  Ref v | isValue v               -> storeToStateRacket $ stateToStateT $ Loc <$> alloc v -- E-RefV
-  Ref t | otherwise               -> Ref   <$> stepAlaRacket t                            -- E-Ref
-  Deref (Loc l)                   -> storeToStateRacket $ deref l                         -- E-DerefLoc
-  Deref t                         -> Deref <$> stepAlaRacket t                            -- E-Deref
-  Assign (Loc l) v | isValue v    -> storeToStateRacket $ assign l v                      -- E-Assign
-  Assign t1 t2 | not (isValue t1) -> (\t1' -> Assign t1' t2 ) <$> stepAlaRacket t1        -- E-Assign1
-  Assign v1 t2 | otherwise        -> (\t2' -> Assign v1  t2') <$> stepAlaRacket t2        -- E-Assign2
+  Ref v | isValue v               -> storeToStateNameEnv $ stateToStateT $ Loc <$> alloc v -- E-RefV
+  Ref t | otherwise               -> Ref   <$> stepWithNameEnv t                            -- E-Ref
+  Deref (Loc l)                   -> storeToStateNameEnv $ deref l                         -- E-DerefLoc
+  Deref t                         -> Deref <$> stepWithNameEnv t                            -- E-Deref
+  Assign (Loc l) v | isValue v    -> storeToStateNameEnv $ assign l v                      -- E-Assign
+  Assign t1 t2 | not (isValue t1) -> (\t1' -> Assign t1' t2 ) <$> stepWithNameEnv t1        -- E-Assign1
+  Assign v1 t2 | otherwise        -> (\t2' -> Assign v1  t2') <$> stepWithNameEnv t2        -- E-Assign2
   -- Booleans + Arith
   If Tru t2 _                     -> return t2                                            -- E-IfTrue
   If Fls _  t3                    -> return t3                                            -- E-IfFalse
-  If t1  t2 t3                    -> (\t1' -> If t1' t2 t3)   <$> stepAlaRacket t1        -- E-If
-  Succ t                          -> Succ   <$> stepAlaRacket t                           -- E-Succ
+  If t1  t2 t3                    -> (\t1' -> If t1' t2 t3)   <$> stepWithNameEnv t1        -- E-If
+  Succ t                          -> Succ   <$> stepWithNameEnv t                           -- E-Succ
   Pred Zero                       -> return Zero                                          -- E-PredZero
   Pred (Succ v) | isNumVal v      -> return v                                             -- E-PredSucc
-  Pred t                          -> Pred   <$> stepAlaRacket t                           -- E-Pred
+  Pred t                          -> Pred   <$> stepWithNameEnv t                           -- E-Pred
   IsZero Zero                     -> return Tru                                           -- E-IsZeroZero
   IsZero (Succ v) | isNumVal v    -> return Fls                                           -- E-IsZeroSucc
-  IsZero t                        -> IsZero <$> stepAlaRacket t                           -- E-IsZero
+  IsZero t                        -> IsZero <$> stepWithNameEnv t                           -- E-IsZero
   t                               -> return t
 
 ----------------------

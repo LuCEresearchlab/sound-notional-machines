@@ -30,20 +30,20 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   repl,
   replEval,
   replEvalAlaWadler,
-  replEvalAlaRacket,
+  replEvalWithNameEnv,
 
   langPipeline,
-  traceAlaRacket) where
+  traceWithNameEnv) where
 
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, NameEnv,
-                                                            StateRacket (StateRacket), Store,
+                                                            StateNameEnv (StateNameEnv), Store,
                                                             Term (..), Type (..),
-                                                            emptyStateAlaRacket,
+                                                            emptyStateWithNameEnv,
                                                             emptyStateAlaWadler, emptyStore, evalM',
-                                                            evalMAlaRacket, evalMAlaWadler, isValue,
+                                                            evalMWithNameEnv, evalMAlaWadler, isValue,
                                                             typecheck, typeof)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (SteppableM, traceM)
@@ -68,9 +68,9 @@ newtype MachineStateAlaWadler = MachineStateAlaWadler (Term, (NameEnv, Store Loc
 instance Pretty MachineStateAlaWadler where
   pretty (MachineStateAlaWadler (term, (nameEnv, store))) = vsep [pretty term, pretty nameEnv, pretty store]
 
-newtype MachineStateAlaRacket = MachineStateAlaRacket (Term, StateRacket)
-instance Pretty MachineStateAlaRacket where
-  pretty (MachineStateAlaRacket (term, StateRacket nameEnv store)) = vsep [pretty term, pretty nameEnv, pretty store]
+newtype MachineStateWithNameEnv = MachineStateWithNameEnv (Term, StateNameEnv)
+instance Pretty MachineStateWithNameEnv where
+  pretty (MachineStateWithNameEnv (term, StateNameEnv nameEnv store)) = vsep [pretty term, pretty nameEnv, pretty store]
 
 
 trace' :: (SteppableM Term (StateT s (Either Error)), Eq (StateT s (Either Error) Term))
@@ -88,8 +88,8 @@ instance Eq (StateT (NameEnv, Store Location) (Either Error) Term) where
   s1 == s2 = evalStateT s1 emptyStateAlaWadler == evalStateT s2 emptyStateAlaWadler
 
 -- This instance is required for tracing because it needs to compare StateTs.
-instance Eq (StateT StateRacket (Either Error) Term) where
-  s1 == s2 = evalStateT s1 emptyStateAlaRacket == evalStateT s2 emptyStateAlaRacket
+instance Eq (StateT StateNameEnv (Either Error) Term) where
+  s1 == s2 = evalStateT s1 emptyStateWithNameEnv == evalStateT s2 emptyStateWithNameEnv
 
 
 
@@ -102,16 +102,16 @@ replEval = mkReplEval langPipeline
 replEvalAlaWadler :: String -> Either Error String
 replEvalAlaWadler = mkReplEval langPipeline { _eval = evalMAlaWadler }
 
-replEvalAlaRacket :: String -> Either Error String
-replEvalAlaRacket = mkReplEval langPipeline { _eval = evalMAlaRacket }
+replEvalWithNameEnv :: String -> Either Error String
+replEvalWithNameEnv = mkReplEval langPipeline { _eval = evalMWithNameEnv }
 
 repl :: IO ()
 repl = mkLangReplOpts [ ("traceAlaWadler", mkCmd . traceAlaWadler)
-                      , ("traceAlaRacket", mkCmd . traceAlaRacket) ]
+                      , ("traceWithNameEnv", mkCmd . traceWithNameEnv) ]
                       "LambdaRef>" (taplBookMsg "13") langPipeline
 
 traceAlaWadler :: String -> Either Error (Trace MachineStateAlaWadler)
 traceAlaWadler = trace' emptyStateAlaWadler MachineStateAlaWadler <=< parse
 
-traceAlaRacket :: String -> Either Error (Trace MachineStateAlaRacket)
-traceAlaRacket = trace' emptyStateAlaRacket MachineStateAlaRacket <=< parse
+traceWithNameEnv :: String -> Either Error (Trace MachineStateWithNameEnv)
+traceWithNameEnv = trace' emptyStateWithNameEnv MachineStateWithNameEnv <=< parse
