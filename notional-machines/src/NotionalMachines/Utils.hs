@@ -35,7 +35,7 @@ import qualified Text.Parsec        as Parsec (ParseError)
 import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg,
                                      outputOptionsCompact, pPrintOpt)
 
-import Diagrams.Prelude hiding (uncons, dot)
+import Diagrams.Prelude hiding (uncons, dot, trace)
 import Diagrams.TwoD.Text (Text)
 import Diagrams.Backend.SVG (renderSVG, SVG)
 
