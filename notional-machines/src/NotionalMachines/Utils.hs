@@ -38,6 +38,9 @@ import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDar
 import Diagrams.Prelude hiding (uncons, dot)
 import Diagrams.TwoD.Text (Text)
 import Diagrams.Backend.SVG (renderSVG, SVG)
+import qualified Diagrams.Backend.Rasterific as Rasterific ( B )
+import Diagrams.Backend.Rasterific.CmdLine ( mainWith )
+import Diagrams.Backend.CmdLine (DiagramOpts(..), DiagramLoopOpts (..), mainRender)
 
 ---- Error types ----
 
@@ -134,6 +137,11 @@ diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds)) 
 renderDiagram :: (Show n, Typeable n, RealFloat n) =>
                  FilePath -> n -> QDiagram SVG V2 n Any -> IO ()
 renderDiagram fileName w = renderSVG fileName (mkWidth w)
+
+-- Rendering with Rasterific
+renderD :: String -> Diagram Rasterific.B -> IO ()
+renderD fileName = mainRender (dft fileName)
+  where dft fileName = (DiagramOpts (Just 640) (Just 480) fileName, DiagramLoopOpts False Nothing 0)
 
 ------- Generators utils ----------
 
