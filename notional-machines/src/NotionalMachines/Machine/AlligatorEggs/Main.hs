@@ -410,3 +410,36 @@ aq :: AlligatorFamily
 aq = HungryAlligator (nameToColor "b") [HungryAlligator (nameToColor "c") [Egg jokerColor]]
 anot :: AlligatorFamily
 anot = HungryAlligator (nameToColor "a") [Egg (nameToColor "a"), aq, aq]
+
+
+
+--     Alligators
+--       commutation proof:                                                                                                           FAIL (0.12s)
+--           ✗ commutation proof failed at test/Spec.hs:137:7
+--             after 193 tests and 15 shrinks.
+--           
+--                 ┏━━ test/Spec.hs ━━━
+--             134 ┃ isEquivalentTo :: (Eq a, Show a, Show e) => Gen e -> (e -> a) -> (e -> a) -> Property
+--             135 ┃ isEquivalentTo g f f' = prop $ do
+--             136 ┃   e <- forAll g
+--                 ┃   │ￔ� App
+--                 ┃   │ￔ�   (Lambda
+--                 ┃   │ￔ�      "a"
+--                 ┃   │ￔ�      (App
+--                 ┃   │ￔ�         (Lambda
+--                 ┃   │ￔ�            "a"
+--                 ┃   │ￔ�            (App
+--                 ┃   │ￔ�               (Lambda "b" (Var "a")) (Lambda "a" (App (Var "a") (Var "a")))))
+--                 ┃   │ￔ�         (Lambda "a" (Var "a"))))
+--                 ┃   │ￔ�   (Lambda "a" (Var "a"))
+--             137 ┃   f e === f' e
+--                 ┃   ^^^^^^^^^^^^
+--                 ┃   │ￔ� ━━━ Exception (ErrorCall) ━━━
+--                 ┃   │ￔ� Prelude.!!: negative index
+--           
+--             This failure can be reproduced by running:
+--             > recheck (Size 92) (Seed 9259115493789069110 4342968287765638441) commutation proof
+--           
+--         Use '--hedgehog-replay "Size 92 Seed 9259115493789069110 4342968287765638441"' to reproduce.
+--         
+--         Use -p '/Alligators.commutation proof/' to rerun this test only.
