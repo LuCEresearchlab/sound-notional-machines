@@ -139,9 +139,9 @@ renderDiagram :: (Show n, Typeable n, RealFloat n) =>
 renderDiagram fileName w = renderSVG fileName (mkWidth w)
 
 -- Rendering with Rasterific
-renderD :: String -> Diagram Rasterific.B -> IO ()
-renderD fileName = mainRender (dft fileName)
-  where dft fileName = (DiagramOpts (Just 640) (Just 480) fileName, DiagramLoopOpts False Nothing 0)
+renderD :: String -> Int -> Diagram Rasterific.B -> IO ()
+renderD fileName w = mainRender (dft fileName)
+  where dft fileName = (DiagramOpts (Just w) Nothing fileName, DiagramLoopOpts False Nothing 0)
 
 ------- Generators utils ----------
 

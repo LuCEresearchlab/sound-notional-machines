@@ -1,19 +1,20 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE TupleSections    #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE StandaloneDeriving  #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
-module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram where
-
+module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (
+    mainStackAndHeap
+  , toDiagram
+  ) where
 -- import Data.String (fromString)
 
 -- import Diagrams.Prelude (Diagram, (#), centerX, (===), alignT, mkWidth, centerXY, extrudeTop, rotateBy, hcat, sized)
 -- import Diagrams.Backend.SVG (B, renderSVG)
 -- import Diagrams.SVG.ReadSVG (readSVGLBS)
-
--- import           Data.Map (Map)
--- import qualified Data.Map as Map
 
 -- import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..), Color, colorHexa)
 -- import NotionalMachines.Utils (replace, diaSeq)
@@ -21,12 +22,18 @@ module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram where
 
 import Control.Monad.State.Lazy
 
+import           Data.Map (Map)
+import qualified Data.Map as Map
 
 import Data.Typeable (Typeable)
 
-import Diagrams.Prelude hiding (Name, Loc)
+import Prettyprinter (Pretty (pretty))
+
+import Diagrams.Prelude (Diagram, Angle, Trail, V2, D, IsName, _arrowShaft, (#), centerXY, rect, roundedRect, width, height, circle, hcat, named, fc, black, phantom, vsep, (|||), (@@), straightShaft, rad, arc, tau, xDir, turn, hsep, applyAll, def, connectPerim', fullTurn, vcat, bgFrame, white, strutX, _arrowHead, spike)
 import Diagrams.Backend.Rasterific.CmdLine
 import Diagrams.Backend.Rasterific.Text
+
+import NotionalMachines.Machine.TAPLMemoryDiagram.Main (TAPLMemoryDiagram(..), DTerm(..), DLocation(..))
 
 ---------------
 -- Tree Heap diagram
@@ -66,10 +73,10 @@ stackAndHeap stack heap = hsep 2 ds # applyAll (map connector arrowLocs)
       where draw :: (Name, Val) -> State [ArrowInfo] (Diagram B, Diagram B)
             draw (name, val) = (txt name, ) <$> valDia val (tau/2 @@ rad) straightShaft
             frameStack :: [(Diagram B, Diagram B)] -> Diagram B
-            frameStack stack = vcat $ map frameSlot stack
-              where frameSlot (nameD, valD) = boxed (1 + maxWidth fst) (h nameD) nameD
-                                          ||| boxed (1 + maxWidth snd) (h nameD) valD
-                    maxWidth f = maximum (map (width . f) stack)
+            frameStack s = vcat $ map frameSlot s
+              where frameSlot (nD, vD) = boxed (1 + maxWidth fst) (h nD) nD
+                                     ||| boxed (1 + maxWidth snd) (h nD) vD
+                    maxWidth f = maximum (map (width . f) s)
                     h _ = 2.5
 
     heapDia :: Heap -> State [ArrowInfo] (Diagram B)
@@ -84,40 +91,71 @@ stackAndHeap stack heap = hsep 2 ds # applyAll (map connector arrowLocs)
       where nextId [] = 0
             nextId ((i,_,_,_):_) = succ i
 
+mainStackAndHeap :: Diagram B
+mainStackAndHeap = bgFrame 1 white $ stackAndHeap stackEx heapEx
 -------------
 
--- toDiagram :: Double -> TAPLMemoryDiagram -> Diagram B
--- toDiagram size md = hsep 2 ds # applyAll (map (uncurry connectOutside) arrowLocs)
---   where
---     (ds, arrowLocs) = runState (sequence [nameEnvDia (taplNameEnv md), storeDia (taplStore md)]) []
+type ArrowInfo2 l = (Int, DLocation l, Angle Double, Trail V2 Double)
+instance IsName a => IsName (DLocation a)
 
---     nameEnvDia :: Map Name t -> State [(Int, Location)] (Diagram B) 
---     nameEnvDia = fmap vcat . mapM draw
---       where draw (name, val) = slotDia name <$> valDia val
---             slotDia t d = (text t <> rect 4 (height d)) ||| d # centerXY # framed
+toDiagram :: forall l. (IsName l) => TAPLMemoryDiagram l -> Diagram B
+toDiagram taplDia = let (d, arrowLocs) = runState (allDia taplDia) []
+                     in d # applyAll (map connector arrowLocs)
+  where
+    leftSideOfStore = tau/2 @@ rad
+    rightSideOfStore = 0 @@ rad
+    topSideOfStore = tau/4 @@ rad
+
+    curvedShaft = arc xDir (1/2 @@ turn)
+
+    connector (l1, l2, angle, shaft) = connectPerim' arrowConfig l1 l2 fullTurn angle
+      where arrowConfig = def { _arrowShaft = shaft, _arrowHead = spike }
+
+    allDia :: TAPLMemoryDiagram l -> State [ArrowInfo2 l] (Diagram B)
+    allDia (TAPLMemoryDiagram term nameEnv store) = do t <- valDia topSideOfStore straightShaft term
+                                                       env <- nameEnvDia nameEnv
+                                                       s <- storeDia store
+                                                       return $ vsep 2 [t, hsep 2 [env, s]]
+
+    nameEnvDia :: Map Name (DTerm l) -> State [ArrowInfo2 l] (Diagram B) 
+    nameEnvDia = fmap ((<>) (strutX 10) . frameStack) . mapM draw . Map.toList
+      where draw :: (Name, DTerm l) -> State [ArrowInfo2 l] (Diagram B, Diagram B)
+            draw (name, val) = (txt name, ) <$> valDia leftSideOfStore straightShaft val
+            frameStack :: [(Diagram B, Diagram B)] -> Diagram B
+            frameStack stack = vcat $ map frameSlot stack
+              where frameSlot (nD, vD) = boxed (1 + maxWidth fst) (h nD) nD
+                                          ||| boxed (1 + maxWidth snd) (h nD) vD
+                    maxWidth f = maximum (map (width . f) stack)
+                    h _ = 2.5
     
---     storeDia :: Map (Location l) t -> State [(Int, Location)] (Diagram B)
---     storeDia = fmap (vsep 0.8) . mapM draw
---       where draw (loc, val) = named loc . framedRound <$> valDia val
+    storeDia :: Map (DLocation l) (DTerm l) -> State [ArrowInfo2 l] (Diagram B)
+    storeDia = fmap (vsep 0.8) . mapM draw . Map.toList
+      where draw (loc, val) = named loc . framedRound <$> valDia rightSideOfStore curvedShaft val
     
---     valDia :: Val -> State [(Int, Location)] (Diagram B)
---     -- valDia _ = treeDia
---     valDia (Val v) = return $ txt 1 (show v)
---     valDia (Loc v) = do newId <- fmap nextId get
---                         withState ((newId, v) :) (return $ point # named newId <> phm 1)
---       where nextId [] = 0
---             nextId ((i,_):_) = succ i
-    
+    valDia :: Angle Double -> Trail V2 Double -> DTerm l -> State [ArrowInfo2 l] (Diagram B)
+    -- valDia _ = treeDia
+    valDia _     _     (Leaf v)    = (return . txt . show . pretty) v
+    valDia _     _     (Branch [Leaf "$nat", Leaf " ", Leaf n]) = (return . txt . show . pretty) n
+    valDia angle shaft (Branch xs) = hcat <$> (mapM (valDia angle shaft) xs)
+    valDia angle shaft (TLoc l)    = do newId <- fmap nextId get
+                                        withState ((newId, l, angle, shaft) :) (return $ point # named newId <> phm 0.5)
+      where nextId [] = 0
+            nextId ((i,_,_,_):_) = succ i
+
+point :: Diagram B
 point = circle 0.05 # fc black
 
 -- "boxed" text (with dimentions)
 txt :: String -> Diagram B
 txt t = texterific t
 
+phm :: Double -> Diagram B
 phm s = phantom (circle s :: D V2 Double)
 
+boxed :: Double -> Double -> Diagram B -> Diagram B
 boxed w h d = d # centerXY <> rect w h
 
+framedRound :: Diagram B -> Diagram B
 framedRound d = d # centerXY <> roundedRect w h r
   where
     r = 0.9
@@ -126,8 +164,3 @@ framedRound d = d # centerXY <> roundedRect w h r
     cap f = if f d < 1 then 2.5 else 2 + f d
 
 
---------------------------
---------------------------
-
--- mainStackAndHeap :: Diagram B
--- mainStackAndHeap = bgFrame 1 white $ stackAndHeap stackEx heapEx

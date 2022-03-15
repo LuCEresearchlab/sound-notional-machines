@@ -16,6 +16,7 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
   Term(..),
   Type(..),
   Trace(..),
+  MachineStateAlaRacket(..),
 
   isValue,
 
@@ -79,18 +80,16 @@ trace' initState format = fmap (Trace . fmap format) . runTrace . traceM . fst <
   where runTrace = mapM (`runStateT` initState)
 
 
--- This instance is required for tracing because it needs to compare StateTs.
+-- These instance are required for tracing because StateTs have to be compared for eq.
 instance Eq (StateT (Store Location) (Either Error) Term) where
-  s1 == s2 = evalStateT s1 emptyStore == evalStateT s2 emptyStore
-
--- This instance is required for tracing because it needs to compare StateTs.
+  (==) = stateEq emptyStore
 instance Eq (StateT (NameEnv, Store Location) (Either Error) Term) where
-  s1 == s2 = evalStateT s1 emptyStateAlaWadler == evalStateT s2 emptyStateAlaWadler
-
--- This instance is required for tracing because it needs to compare StateTs.
+  (==) = stateEq emptyStateAlaWadler
 instance Eq (StateT StateRacket (Either Error) Term) where
-  s1 == s2 = evalStateT s1 emptyStateAlaRacket == evalStateT s2 emptyStateAlaRacket
+  (==) = stateEq emptyStateAlaRacket
 
+stateEq :: (Eq (m a), Monad m) => s -> StateT s m a -> StateT s m a -> Bool
+stateEq empty s1 s2 = evalStateT s1 empty == evalStateT s2 empty
 
 
 langPipeline :: LangPipeline Term Type Error (Trace MachineState)

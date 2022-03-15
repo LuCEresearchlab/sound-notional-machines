@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 {-# LANGUAGE LambdaCase #-}
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Main ( TAPLMemoryDiagram(..)
@@ -13,7 +13,7 @@ module NotionalMachines.Machine.TAPLMemoryDiagram.Main ( TAPLMemoryDiagram(..)
 --
 -- Part of the secret of the bisimulaltion is that `f` is not the one `f` but is "there exists and `f` that implements the semantics of the language". So it is correct if one can come up with an `f`. The proof is by construction by constructing the right `f`. That's definitely needed (e.g. typing and naming in lambdaref->memdiagram). But then how to proof that a NM is definitely incorrect? Proof by constradiction?
 
-import           Data.Map (Map)
+import Data.Map (Map)
 import Prettyprinter (Pretty, pretty, (<+>), hcat)
 
 data TAPLMemoryDiagram l =

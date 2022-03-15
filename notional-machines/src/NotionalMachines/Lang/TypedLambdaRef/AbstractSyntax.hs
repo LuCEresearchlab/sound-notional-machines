@@ -30,6 +30,8 @@ module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   isValue,
   isNumVal,
 
+  peanoToDec,
+
   evalM',
 
   typeof,
