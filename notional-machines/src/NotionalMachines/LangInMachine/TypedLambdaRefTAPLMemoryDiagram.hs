@@ -1,11 +1,11 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
+{-# LANGUAGE TypeFamilies        #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE TupleSections #-}
 
 module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
 
@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Prelude (Diagram, vsep, bgFrame, white, hrule)
+import Diagrams.Prelude (Diagram, vsep, bgFrame, white, hrule, width)
 import Diagrams.Backend.Rasterific.CmdLine (B)
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (langPipeline, MachineStateAlaRacket(..), Trace(..), traceAlaRacket)
@@ -139,9 +139,9 @@ dTermToTerm = \case
   where rec = dTermToTerm
 
         decToPeano :: Integer -> Term
-        decToPeano 0             = Zero
-        decToPeano n | n > 0     = Succ (decToPeano (n - 1))
-        decToPeano n | otherwise = error $ "internal error: negative numbers are not supported: " ++ show n
+        decToPeano 0         = Zero
+        decToPeano n | n > 0 = Succ (decToPeano (n - 1))
+        decToPeano n         = error $ "internal error: negative numbers are not supported: " ++ show n
 
 langToNM :: (Term, StateRacket) -> TAPLMemoryDiagram Location
 langToNM (term, StateRacket env store) = TAPLMemoryDiagram (termToDTerm term)
@@ -178,7 +178,9 @@ bisim = MkBisim { fLang  = step
 
 -- | Start a REPL for the TAPL mem diagram notional machine. The svg output goes
 -- to a file given as argument scaled to be rendered with @w@ pixels.
--- TODO use w.
+-- TODO: use w. sizes should be relative
+-- TODO: allow for different displays of diaSeq
+-- TODO: arrow heads should be smaller
 repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("traceNameEnv", mkCmd . traceAlaRacket)
@@ -186,6 +188,8 @@ repl fileName w = mkLangReplOpts
     "TAPLMemoryDiagram>" helpMsg langPipeline
   where helpMsg = "Play with the TAPL Memory Diagram notional machine for Lambda Calculus with References"
         traceDiagram :: Trace MachineStateAlaRacket -> Diagram B
-        traceDiagram (Trace ss) = vsep 1 . intersperse (hrule 1) $ map (\(MachineStateAlaRacket s) -> toDiagram (langToNM s)) ss
+        traceDiagram (Trace ss) = vsep 1 $ intersperse (hrule (maxWidth dias)) dias
+          where dias = map (\(MachineStateAlaRacket s) -> toDiagram 10 (langToNM s)) ss
+                maxWidth = maximum . map width
         render :: Diagram B -> IO ()
         render = renderD fileName w . bgFrame 0.05 white
