@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
@@ -35,11 +34,11 @@ import qualified Text.Parsec        as Parsec (ParseError)
 import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg,
                                      outputOptionsCompact, pPrintOpt)
 
-import Diagrams.Prelude hiding (uncons, dot)
+import Diagrams.Prelude hiding (uncons, dot, trace)
 import Diagrams.TwoD.Text (Text)
 import Diagrams.Backend.SVG (renderSVG, SVG)
 import qualified Diagrams.Backend.Rasterific as Rasterific ( B )
-import Diagrams.Backend.Rasterific.CmdLine ( mainWith )
+import Diagrams.Backend.Rasterific.CmdLine ()
 import Diagrams.Backend.CmdLine (DiagramOpts(..), DiagramLoopOpts (..), mainRender)
 
 ---- Error types ----
@@ -140,8 +139,8 @@ renderDiagram fileName w = renderSVG fileName (mkWidth w)
 
 -- Rendering with Rasterific
 renderD :: String -> Int -> Diagram Rasterific.B -> IO ()
-renderD fileName w = mainRender (dft fileName)
-  where dft fileName = (DiagramOpts (Just w) Nothing fileName, DiagramLoopOpts False Nothing 0)
+renderD fileName w = mainRender dft
+  where dft = (DiagramOpts (Just w) Nothing fileName, DiagramLoopOpts False Nothing 0)
 
 ------- Generators utils ----------
 

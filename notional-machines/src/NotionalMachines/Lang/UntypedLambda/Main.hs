@@ -130,42 +130,31 @@ unparse = prettyToString
 -- Examples --
 --------------
 
-eId :: Either ParseError Exp
+tru, fls, sAnd :: String
+tru    = "(\\t.\\f.t)"
+fls    = "(\\t.\\f.f)"
+sAnd   = "\\b.\\c.b c " ++ fls
+
+eId, eTrue, eFalse, eAnd, eOr, eZero, eOne, eTwo, eThree, eScc, eOmega, eY, eFix :: Either ParseError Exp
+
 eId = parse "\\x.x"
 
 -- church booleans
-tru    :: String
-tru    = "(\\t.\\f.t)"
-eTrue :: Either ParseError Exp
 eTrue  = parse tru
-fls    :: String
-fls    = "(\\t.\\f.f)"
-eFalse :: Either ParseError Exp
 eFalse = parse fls
-sAnd   :: String
-sAnd   = "\\b.\\c.b c " ++ fls
-eAnd :: Either ParseError Exp
 eAnd   = parse sAnd
-eOr :: Either ParseError Exp
 eOr    = parse ("\\b.\\c.b " ++ tru ++ " c")
 
 -- church numbers
-eZero :: Either ParseError Exp
 eZero  = parse "\\s.\\z.z"
-eOne :: Either ParseError Exp
 eOne   = parse "\\s.\\z.s z"
-eTwo :: Either ParseError Exp
 eTwo   = parse "\\s.\\z.s(s z)"
-eThree :: Either ParseError Exp
 eThree = parse "\\s.\\z.s(s (s z))"
-eScc :: Either ParseError Exp
 eScc   = parse "\\n.\\s.\\z.s(n s z)"
 
-eOmega :: Either ParseError Exp
+-- recursion
 eOmega = parse "(\\x.x x) (\\x.x x)"
-eY :: Either ParseError Exp
 eY     = parse "\\f.(\\x.f (x x)) (\\x.f (x x))"
-eFix :: Either ParseError Exp
 eFix   = parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
 
 --------------------
