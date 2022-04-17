@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
+{-# LANGUAGE TupleSections #-}
+
 module NotionalMachines.Lang.TypedLambdaRef.Generators where
 
 import           Hedgehog       (MonadGen)
@@ -8,7 +10,7 @@ import qualified Hedgehog.Range as Range
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (Term (..), Type (..))
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Location, StateRacket (StateRacket), Name)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Location, emptyStateAlaRacket, StateRacket)
 import NotionalMachines.Utils                              (genName)
 
 
@@ -33,6 +35,8 @@ genTerm =
     , Gen.subterm  genTerm Ref
     , Gen.subterm  genTerm Deref
     , Gen.subterm2 genTerm genTerm Assign
+    , Tuple <$> Gen.list (Range.linear 0 5) genTerm
+    , Gen.subtermM genTerm (\x -> Proj <$> Gen.integral (Range.linear 0 10) <*> pure x)
     ]
 
 genType :: MonadGen m => m Type
@@ -46,32 +50,19 @@ genType =
       -- recursive generators
       Gen.subterm2 genType genType TyFun
     , Gen.subterm  genType TyRef
+    , TyTuple <$> Gen.list (Range.linear 0 5) genType
     ]
 
 genLocation :: MonadGen m => m Location
-genLocation = Gen.int (Range.constant 0 10)
+genLocation = Gen.int (Range.linear 0 10)
 
 genStore :: MonadGen m => m (Store Location)
-genStore = Gen.map (Range.constant 0 5) genEntry
+genStore = Gen.map (Range.linear 0 5) genEntry
   where genEntry :: MonadGen m => m (Location, Term)
         genEntry = (,) <$> genLocation <*> genTerm
-
-genNameEnv :: MonadGen m => m (Store Name)
-genNameEnv = Gen.map (Range.constant 0 5) genEntry
-  where genEntry :: MonadGen m => m (Name, Term)
-        genEntry = (,) <$> genName <*> genTerm
 
 genTermStore :: MonadGen m => m (Term, Store Location)
 genTermStore = (,) <$> genTerm <*> genStore
 
-genLocationStore :: MonadGen m => m (Location, Store Location)
-genLocationStore = (,) <$> genLocation <*> genStore
-
-genLocationTermStore :: MonadGen m => m ((Location, Term), Store Location)
-genLocationTermStore = (,) <$> ((,) <$> genLocation <*> genTerm) <*> genStore
-
-genStateRacket :: MonadGen m => m StateRacket
-genStateRacket = StateRacket <$> genNameEnv <*> genStore
-
 genTermStateRacket :: MonadGen m => m (Term, StateRacket)
-genTermStateRacket = (,) <$> genTerm <*> genStateRacket
+genTermStateRacket = ( , emptyStateAlaRacket) <$> genTerm

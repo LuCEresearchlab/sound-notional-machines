@@ -106,7 +106,11 @@ evalProducesValue = prop $ do
   (Lambda.isValue <$> evalM e) === Just True
 
 typeSafety :: (Show term, Show typ, Show er, Eq er)
-            => Gen term -> (term -> Either er typ) -> (term -> Either er term) -> (term -> Bool) -> Property
+           => Gen term
+           -> (term -> Either er typ)
+           -> (term -> Either er term)
+           -> (term -> Bool)
+           -> Property
 typeSafety g typer evaluer isValuer = prop $ do
   e <- forAll g
   classify "type checks" $ (isRight . typer) e
@@ -481,7 +485,9 @@ alligatorTest = testGroup "Alligators" [
 
 taplMemeryDiagramTest :: TestTree
 taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
-      testProperty "commutation proof for eval" $
+      testProperty "nmToLang is left inverse of langToNm" $
+          isLeftInverseOf LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.nmToLang LambdaRefTAPLDia.langToNM
+    , testProperty "commutation proof for eval" $
         bisimulationCommutes LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.bisim
   ]
 

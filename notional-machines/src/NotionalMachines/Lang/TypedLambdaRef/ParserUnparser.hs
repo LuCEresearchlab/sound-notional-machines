@@ -2,6 +2,7 @@
 
 module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
   parse,
+  parseType,
   unparse
   ) where
 
@@ -43,13 +44,15 @@ contents :: Parser a -> Parser a
 contents p = do Tok.whiteSpace lexer
                 p <* eof
 
-pParens :: Parser a -> Parser a
-pParens = Tok.parens lexer
+parens, braces :: Parser a -> Parser a
+parens = Tok.parens lexer
+braces = Tok.braces lexer
 
-reserved :: String -> Parser ()
+commaSep :: Parser a -> Parser [a]
+commaSep = Tok.commaSep lexer
+
+reserved, reservedOp :: String -> Parser ()
 reserved = Tok.reserved lexer
-
-reservedOp :: String -> Parser ()
 reservedOp = Tok.reservedOp lexer
 
 identifier :: Parser String
@@ -57,17 +60,6 @@ identifier = Tok.identifier lexer
 
 decimal :: Parser Integer
 decimal = Tok.natural lexer
-
-pTerm :: Parser Term
-pTerm = Ex.buildExpressionParser table factor
-  where table = [ [ Ex.Prefix (Deref  <$ reservedOp "!") ]
-                , [ Ex.Prefix (Succ   <$ reserved   "succ")
-                  , Ex.Prefix (Pred   <$ reserved   "pred")
-                  , Ex.Prefix (IsZero <$ reserved   "iszero")
-                  , Ex.Prefix (Ref    <$ reserved   "ref") ]
-                , [ Ex.Infix  (App    <$ reservedOp "")       Ex.AssocLeft  ]
-                , [ Ex.Infix  (Assign <$ reservedOp ":=")     Ex.AssocRight ]
-                , [ Ex.Infix  (Seq    <$ reservedOp ";")      Ex.AssocRight ] ]
 
 factor :: Parser Term
 factor = Tru  <$ reserved "true"
@@ -78,7 +70,9 @@ factor = Tru  <$ reserved "true"
      <|> pLambda
      <|> Var <$> identifier
      <|> decToPeano <$> decimal
-     <|> pParens pTerm
+     <|> decToPeano <$> decimal
+     <|> Tuple <$> braces (commaSep pTerm)
+     <|> parens pTerm
   where
     pLambda = do { reservedOp "\\"; name <- identifier;
                    reservedOp ":";  typ  <- pTyp;
@@ -89,27 +83,47 @@ factor = Tru  <$ reserved "true"
                reserved "else"; f <- pTerm;
                return $ If c t f }
 
+pTerm :: Parser Term
+pTerm = Ex.buildExpressionParser table factor
+  where table = [
+                  [ Ex.Postfix (Proj   <$> (reservedOp "." >> decimal)) ]
+                , [ Ex.Prefix  (Deref  <$ reservedOp "!") ]
+                , [ Ex.Prefix  (Succ   <$ reserved   "succ")
+                  , Ex.Prefix  (Pred   <$ reserved   "pred")
+                  , Ex.Prefix  (IsZero <$ reserved   "iszero")
+                  , Ex.Prefix  (Ref    <$ reserved   "ref") ]
+                , [ Ex.Infix   (App    <$ reservedOp "")       Ex.AssocLeft  ]
+                , [ Ex.Infix   (Assign <$ reservedOp ":=")     Ex.AssocRight ]
+                , [ Ex.Infix   (Seq    <$ reservedOp ";")      Ex.AssocRight ] ]
+
+---
+
 pTypAtom :: Parser Type
-pTypAtom = TyBool <$ reserved "Bool"
-       <|> TyNat  <$ reserved "Nat"
-       <|> TyUnit <$ reserved "Unit"
-       <|> pParens pTyp
+pTypAtom = TyBool  <$ reserved "Bool"
+       <|> TyNat   <$ reserved "Nat"
+       <|> TyUnit  <$ reserved "Unit"
+       <|> TyTuple <$> braces (commaSep pTyp)
+       <|> parens pTyp
 
 pTyp :: Parser Type
 pTyp = Ex.buildExpressionParser table pTypAtom
   where table = [ [ Ex.Infix  (TyFun <$ reservedOp "->")  Ex.AssocRight
                   , Ex.Prefix (TyRef <$ reservedOp "Ref") ] ]
 
-parse :: String -> Either Error Term
-parse = first ParseError . Parsec.parse (contents pTerm) ""
-
 decToPeano :: Integer -> Term
 decToPeano 0 = Zero
 decToPeano n = Succ (decToPeano (n - 1))
 
+----
+
+parseType :: String -> Either Error Type
+parseType = first ParseError . Parsec.parse (contents pTyp) ""
+
+parse :: String -> Either Error Term
+parse = first ParseError . Parsec.parse (contents pTerm) ""
+
 unparse :: Term -> String
 unparse = prettyToString
-
 
 ----
 

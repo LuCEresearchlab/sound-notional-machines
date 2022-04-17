@@ -76,6 +76,9 @@ mismatch ctxTerm expected found term = Left . TypeError . show $
 maybeHead :: [a] -> Maybe a
 maybeHead = fmap fst . uncons
 
+maybeAt :: [a] -> Integer -> Maybe a
+maybeAt xs i = lookup i (zip [0..] xs)
+
 eitherToMaybe :: Either a b -> Maybe b
 eitherToMaybe = either (const Nothing) Just
 

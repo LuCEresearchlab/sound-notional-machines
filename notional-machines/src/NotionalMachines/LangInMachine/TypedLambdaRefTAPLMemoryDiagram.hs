@@ -6,6 +6,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ViewPatterns #-}
 
 module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
 
@@ -23,7 +25,7 @@ import Diagrams.Backend.Rasterific.CmdLine (B)
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (langPipeline, MachineStateAlaRacket(..), Trace(..), traceAlaRacket)
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
-                                                            Term (..), Type(..), StateRacket (StateRacket), isNumVal, peanoToDec)
+                                                            Term (..), StateRacket (StateRacket), isNumVal, peanoToDec, typecheck)
 import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..), DTerm (..), DLocation (DLoc))
 import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (toDiagram)
 
@@ -31,83 +33,80 @@ import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Steppable (stepM)
 import NotionalMachines.Meta.Injective (Injective (..))
 
-import NotionalMachines.Utils (eitherToMaybe, stateToTuple, mapMapM, mkCmd, mkLangReplOpts, renderD)
+import NotionalMachines.Utils (eitherToMaybe, stateToTuple, mapMapM, mkCmd, mkLangReplOpts, renderD, prettyToString)
+import Text.Read (readMaybe)
+import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parseType)
 
-pattern MDVar name          = Leaf name
-pattern MDLambda name typ t = Branch [Leaf "(\\", Leaf name, Leaf " : ", typ, Leaf ". ", t, Leaf ")"]
+pattern MDVar name          = Branch [Leaf name]
+pattern MDLambda name typ t = Branch [Leaf "(\\", Leaf name, Leaf " : ", Leaf typ, Leaf ". ", t, Leaf ")"]
 pattern MDApp t1 t2         = Branch [t1, Leaf " ", t2]
 -- Unit
-pattern MDUnit              = Leaf "unit"
+pattern MDUnit              = Branch [Leaf "unit"]
 -- Sequence
 pattern MDSeq t1 t2         = Branch [t1, Leaf "; ", t2]
 -- References
 pattern MDRef t             = Branch [Leaf "ref", Leaf " ", t]
 pattern MDDeref t           = Branch [Leaf "!", t]
 pattern MDAssign t1 t2      = Branch [t1, Leaf " := ", t2]
+-- Compound data
+pattern MDTuple ts         <- Branch (tupleElems -> Just ts) where
+        MDTuple ts          = Branch $ [Leaf "{"] ++ intersperse (Leaf ",") ts ++ [Leaf "}"]
+pattern MDProj i t          = Branch [t, Leaf ".", Leaf i]
 -- Booleans
-pattern MDTru               = Leaf "true"
-pattern MDFls               = Leaf "false"
+pattern MDTru               = Branch [Leaf "true"]
+pattern MDFls               = Branch [Leaf "false"]
 pattern MDIf t1 t2 t3       = Branch [Leaf "if", Leaf " ", t1, Leaf " ", t2, Leaf " ", t3]
 -- Arithmetic Expressions
-pattern MDZero              = Leaf "0"
+pattern MDZero              = Branch [Leaf "0"]
 pattern MDSucc t            = Branch [Leaf "succ",   Leaf " ", t]
 pattern MDNat n             = Branch [Leaf "$nat",   Leaf " ", Leaf n]
 pattern MDPred t            = Branch [Leaf "pred",   Leaf " ", t]
 pattern MDIsZero t          = Branch [Leaf "iszero", Leaf " ", t]
--- Types
-pattern MDTyBool            = Leaf "Bool"
-pattern MDTyNat             = Leaf "Nat"
-pattern MDTyUnit            = Leaf "Unit"
-pattern MDTyRef t           = Branch [Leaf "Ref", Leaf " ", t]
-pattern MDTyFun t1 t2       = Branch [t1, Leaf "->", t2]
-pattern MDTyVar name        = Leaf name
 
-typeToDTerm :: Type -> DTerm Location
-typeToDTerm = \case
-    TyBool      -> MDTyBool
-    TyNat       -> MDTyNat
-    TyUnit      -> MDTyUnit
-    TyRef t     -> MDTyRef (typeToDTerm t)
-    TyFun t1 t2 -> MDTyFun (typeToDTerm t1) (typeToDTerm t2)
-    TyVar name  -> MDTyVar name
--- TODO: see about parens (similar to pretty printing parens)
-
-dTermToType :: DTerm Location -> Maybe Type
-dTermToType = \case
-  MDTyBool      -> return TyBool
-  MDTyNat       -> return TyNat
-  MDTyUnit      -> return TyUnit
-  MDTyRef t     -> TyRef <$> dTermToType t
-  MDTyFun t1 t2 -> TyFun <$> dTermToType t1 <*> dTermToType t2
-  MDTyVar name  -> return $ TyVar name
-  _ -> Nothing
+tupleElems :: Eq l => [DTerm l] -> Maybe [DTerm l]
+tupleElems = \case
+  []                   -> Nothing
+  [Leaf "{", Leaf "}"] -> Just []
+  [Leaf "{", _]        -> Nothing
+  ((Leaf "{"):xs) | last xs == Leaf "}" -> commaSep (init xs)
+  _                    -> Nothing
+  where commaSep = \case
+          []              -> Just []
+          [Leaf ","]      -> Nothing
+          [x]             -> Just [x]
+          [_, _]          -> Nothing
+          (x:Leaf ",":xs) -> (x :) <$> commaSep xs
+          _               -> Nothing
 
 termToDTerm :: Term -> DTerm Location
 termToDTerm = \case
   -- Lambdas
-  Var name          -> MDVar name
-  Lambda name typ t -> MDLambda name (typeToDTerm typ) (rec t)
-  Closure {}        -> error "Ala Wadler not covered"
-  App t1 t2         -> MDApp (rec t1) (rec t2)
+  Var name            -> MDVar name
+  Lambda name typ t   -> MDLambda name (prettyToString typ) (rec t)
+  Closure {}          -> error "Ala Wadler not covered"
+  App t1 t2           -> MDApp (rec t1) (rec t2)
   -- Unit
-  Unit              -> MDUnit
+  Unit                -> MDUnit
   -- Sequence
-  Seq t1 t2         -> MDSeq (rec t1) (rec t2)
+  Seq t1 t2           -> MDSeq (rec t1) (rec t2)
   -- References
-  Ref t             -> MDRef (rec t)
-  Deref t           -> MDDeref (rec t)
-  Assign t1 t2      -> MDAssign (rec t1) (rec t2)
-  Loc l             -> TLoc (DLoc l)
+  Ref t               -> MDRef (rec t)
+  Deref t             -> MDDeref (rec t)
+  Assign t1 t2        -> MDAssign (rec t1) (rec t2)
+  Loc l               -> TLoc (DLoc l)
+  -- Compound data
+  Tuple ts            -> MDTuple (map rec ts)
+  Proj i t            -> MDProj (show i) (rec t)
   -- Booleans
-  Tru               -> MDTru
-  Fls               -> MDFls
-  If t1 t2 t3       -> MDIf (rec t1) (rec t2) (rec t3)
-  -- Arithmetic Exprsions
-  Zero              -> MDZero
+  Tru                 -> MDTru
+  Fls                 -> MDFls
+  If t1 t2 t3         -> MDIf (rec t1) (rec t2) (rec t3)
+  -- Arithmetic Expr  sions
+  Zero                -> MDZero
   Succ t | isNumVal t -> (MDNat . show . peanoToDec . Succ) t
   Succ t | otherwise  -> MDSucc (rec t)
-  Pred t            -> MDPred (rec t)
-  IsZero t          -> MDIsZero (rec t)
+  Pred t              -> MDPred (rec t)
+  IsZero t            -> MDIsZero (rec t)
   where rec = termToDTerm
 
 dTermToTerm :: DTerm Location -> Maybe Term
@@ -121,27 +120,30 @@ dTermToTerm = \case
   MDDeref t           -> Deref <$> rec t
   MDAssign t1 t2      -> Assign <$> rec t1 <*> rec t2
   TLoc (DLoc l)       -> return $ Loc l
+  -- Compound data
+  MDTuple ts          -> Tuple <$> mapM rec ts
+  MDProj i t          -> Proj <$> readMaybe i <*> rec t
   -- Booleans
   MDTru               -> return Tru
   MDFls               -> return Fls
   MDIf t1 t2 t3       -> If <$> rec t1 <*> rec t2 <*> rec t3
   -- Arithmetic Expressions
   MDZero              -> return Zero
-  MDNat n             -> (return . decToPeano . read) n
+  MDNat n             -> decToPeano =<< readMaybe n
   MDSucc t            -> Succ <$> rec t
   MDPred t            -> Pred <$> rec t
   MDIsZero t          -> IsZero <$> rec t
   -- Lambdas
-  MDLambda name typ t -> Lambda name <$> dTermToType typ <*> rec t
+  MDLambda name typ t -> Lambda name <$> eitherToMaybe (parseType typ) <*> rec t
   MDApp t1 t2         -> App <$> rec t1 <*> rec t2
   MDVar name          -> return $ Var name
   _ -> Nothing
   where rec = dTermToTerm
 
-        decToPeano :: Integer -> Term
-        decToPeano 0         = Zero
-        decToPeano n | n > 0 = Succ (decToPeano (n - 1))
-        decToPeano n         = error $ "internal error: negative numbers are not supported: " ++ show n
+        decToPeano :: Integer -> Maybe Term
+        decToPeano 0         = Just Zero
+        decToPeano n | n > 0 = Succ <$> decToPeano (n - 1)
+        decToPeano _         = Nothing -- error $ "internal error: negative numbers are not supported: " ++ show n
 
 langToNM :: (Term, StateRacket) -> TAPLMemoryDiagram Location
 langToNM (term, StateRacket env store) = TAPLMemoryDiagram (termToDTerm term)
@@ -169,7 +171,8 @@ bisim = MkBisim { fLang  = step
                 , alphaA = toNM
                 , alphaB = fmap toNM }
   where step :: (Term, StateRacket) -> Maybe (Term, StateRacket)
-        step = eitherToMaybe . stateToTuple (stepM :: Term -> StateT StateRacket (Either Error) Term)
+        step x = eitherToMaybe $ stateToTuple s x <* typecheck (fst x)
+        s = stepM :: Term -> StateT StateRacket (Either Error) Term
 
 
 -------------------------
