@@ -88,6 +88,16 @@ maybeToEither l = maybe (Left l) Right
 replace :: Eq a => [a] -> [a] -> [a] -> [a]
 replace xs ys = intercalate ys . splitOn xs
 
+mapFirst :: (a -> Bool) -> (a -> a) -> [a] -> [a]
+mapFirst _ _ []             = []
+mapFirst p f (x : xs) | p x = f x : xs
+mapFirst p f (x : xs)       =   x : mapFirst p f xs
+
+mapFirstM :: Monad m => (a -> Bool) -> (a -> m a) -> [a] -> m [a]
+mapFirstM _ _ []             = return []
+mapFirstM p f (x : xs) | p x = (  : xs) <$> f x
+mapFirstM p f (x : xs)       = (x :   ) <$> mapFirstM p f xs
+
 -- | Equivalent to Map.map but with a monadic mapM behavior.
 mapMapM :: (Ord k, Monad m) => (a -> m b) -> Map k a -> m (Map k b)
 mapMapM f = fmap Map.fromList . mapM (\(a, b) -> (a, ) <$> f b) . Map.toList

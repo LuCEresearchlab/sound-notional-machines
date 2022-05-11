@@ -20,14 +20,14 @@ import qualified Data.Map as Map
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Prelude (Diagram, vsep, bgFrame, white, hrule, width)
+import Diagrams.Prelude (Diagram, vsep, bgFrame, white, hrule, width, Measured, local, (#), centerX, lwO, centerXY, alignBR, rect, height, text, fontSize)
 import Diagrams.Backend.Rasterific.CmdLine (B)
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (langPipeline, MachineStateAlaRacket(..), Trace(..), traceAlaRacket)
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
                                                             Term (..), StateRacket (StateRacket), isNumVal, peanoToDec, typecheck)
 import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..), DTerm (..), DLocation (DLoc))
-import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (toDiagram)
+import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (toDiagram, termToTreeDiagram)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Steppable (stepM)
@@ -50,7 +50,7 @@ pattern MDDeref t           = Branch [Leaf "!", t]
 pattern MDAssign t1 t2      = Branch [t1, Leaf " := ", t2]
 -- Compound data
 pattern MDTuple ts         <- Branch (tupleElems -> Just ts) where
-        MDTuple ts          = Branch $ [Leaf "{"] ++ intersperse (Leaf ",") ts ++ [Leaf "}"]
+        MDTuple ts          = Branch $ [Leaf "{"] ++ intersperse (Leaf CommaSymb) ts ++ [Leaf "}"]
 pattern MDProj i t          = Branch [t, Leaf ".", Leaf i]
 -- Booleans
 pattern MDTru               = Branch [Leaf "true"]
@@ -72,11 +72,13 @@ tupleElems = \case
   _                    -> Nothing
   where commaSep = \case
           []              -> Just []
-          [Leaf ","]      -> Nothing
+          [Leaf CommaSymb]      -> Nothing
           [x]             -> Just [x]
           [_, _]          -> Nothing
-          (x:Leaf ",":xs) -> (x :) <$> commaSep xs
+          (x:Leaf CommaSymb:xs) -> (x :) <$> commaSep xs
           _               -> Nothing
+
+pattern CommaSymb = ", "
 
 termToDTerm :: Term -> DTerm Location
 termToDTerm = \case
@@ -187,12 +189,29 @@ bisim = MkBisim { fLang  = step
 repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("traceNameEnv", mkCmd . traceAlaRacket)
-    , ("renderTrace", either (print . pretty) (render . traceDiagram) . traceAlaRacket) ]
+    , ("renderTrace", renderTrace fileName w) ]
     "TAPLMemoryDiagram>" helpMsg langPipeline
   where helpMsg = "Play with the TAPL Memory Diagram notional machine for Lambda Calculus with References"
+
+renderTrace :: FilePath -> Int -> String -> IO ()
+renderTrace filePath w = either (print . pretty) (render . traceDiagram) . traceAlaRacket
+  where
         traceDiagram :: Trace MachineStateAlaRacket -> Diagram B
-        traceDiagram (Trace ss) = vsep 1 $ intersperse (hrule (maxWidth dias)) dias
-          where dias = map (\(MachineStateAlaRacket s) -> toDiagram 10 (langToNM s)) ss
+        traceDiagram = vsep 1.5
+                     . zipWith (addIndex 1.5 (local 0.5)) [0..]
+                     . (\ds -> map (\d -> vsep 1.5 [d # centerX, hrule (maxWidth ds) # lwO 1]) ds)
+                     . dias
+          where dias :: Trace MachineStateAlaRacket -> [Diagram B]
+                dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram termToTreeDiagram 1 . langToNM) s) ss
+                -- dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram 10 . langToNM) s) ss
+
+                -- diaSeq :: [Diagram B] -> Diagram B 
+                -- diaSeq ds = vsep 1 $ intersperse (hrule (maxWidth ds) # lwO 1) ds
                 maxWidth = maximum . map width
         render :: Diagram B -> IO ()
-        render = renderD fileName w . bgFrame 0.05 white
+        render = renderD filePath w . bgFrame 1 white
+
+addIndex :: Double -> Measured Double Double -> Integer -> Diagram B -> Diagram B
+addIndex spc fontS i d = d # centerXY <> (innerRect # alignBR <> idx i) # centerXY
+  where innerRect = rect (width d - spc) (height d - spc) # lwO 0
+        idx j = text (show j) # fontSize fontS

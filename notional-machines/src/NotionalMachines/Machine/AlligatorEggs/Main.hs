@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveFunctor         #-}
 {-# LANGUAGE DeriveTraversable     #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
@@ -54,7 +53,7 @@ intToChar :: Int -> Char
 intToChar = toEnum . (\i -> i + fromEnum 'a')
 
 changeBase :: Int -> [Int] -> Int
-changeBase base = sum . zipWith (\i n -> n * base^i) [0..]
+changeBase base = sum . zipWith (\i n -> n * base^i) [0::Integer ..]
 changeBaseInv :: Int -> Int -> [Int]
 changeBaseInv base = (\l -> if null l then [0] else l) . f
     where f = unfoldr (\b -> if b == 0 then Nothing else Just (b `mod` base, b `div` base))
@@ -87,7 +86,7 @@ intToHue spc x = fromIntegral (x `mod` spc) / fromIntegral spc * 360 + additive
   where additive = fromIntegral (x `div` spc)
   -- where additive = (360/fromIntegral spc) / fromIntegral (2^(x `div` spc))
 hueToInt :: Int -> Double -> Int
-hueToInt spc x = h x + defaultSpacing * (round x - round (360 / fromIntegral spc) * h x)
+hueToInt spc x = h x + defaultSpacing * (round x - round ((360 :: Double) / fromIntegral spc) * h x)
   where h y = round (fromIntegral defaultSpacing * (y / 360))
 
 defaultSpacing :: Int

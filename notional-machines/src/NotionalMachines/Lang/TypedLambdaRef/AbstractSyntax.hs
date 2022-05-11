@@ -53,7 +53,7 @@ import           Data.Maybe     (fromMaybe)
 
 
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT, typeOfEq, mismatch, maybeAt)
+import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT, typeOfEq, mismatch, maybeAt, mapFirstM)
 
 import Prettyprinter (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
                                   (<+>), lbrace, rbrace, comma, encloseSep)
@@ -230,8 +230,8 @@ isValue' t          = isValue t
 stepAlaWadler :: Term -> StateT (NameEnv, Store Location) (Either Error) Term
 stepAlaWadler = \case
   -- Lambdas
-  App t1 t2 | not (isValue' t1)    -> (\t1' -> App t1' t2 ) <$> stepAlaWadler t1     -- E-App1
-  App v1 t2 | not (isValue' t2)    -> (\t2' -> App v1  t2') <$> stepAlaWadler t2     -- E-App2
+  App t1 t2 | not (isValue' t1)    -> (\t1' -> App t1' t2 ) <$> rec t1               -- E-App1
+  App v1 t2 | not (isValue' t2)    -> (\t2' -> App v1  t2') <$> rec t2               -- E-App2
   -- Here substitution was replacedy explicit naming environment management
   -- Lambdas are turned into Closure which capture the environment.
   Lambda name _ t                  -> (\(env, _) -> Closure env name t) <$> get
@@ -239,31 +239,32 @@ stepAlaWadler = \case
   v@(Var name)                     -> fromMaybe v . Map.lookup name . fst <$> get
   -- Sequence
   Seq Unit t2                      -> return t2                                      -- E-NextSeq
-  Seq t1   t2                      -> (\t1' -> Seq t1' t2) <$> stepAlaWadler t1      -- E-Seq
+  Seq t1   t2                      -> (\t1' -> Seq t1' t2) <$> rec t1                -- E-Seq
   -- References
   Ref v | isValue' v               -> augmentState $ stateToStateT $ Loc <$> alloc v -- E-RefV
-  Ref t | otherwise                -> Ref   <$> stepAlaWadler t                      -- E-Ref
+  Ref t | otherwise                -> Ref   <$> rec t                                -- E-Ref
   Deref (Loc l)                    -> augmentState $ deref l                         -- E-DerefLoc
-  Deref t                          -> Deref <$> stepAlaWadler t                      -- E-Deref
+  Deref t                          -> Deref <$> rec t                                -- E-Deref
   Assign (Loc l) v | isValue' v    -> augmentState $ assign l v                      -- E-Assign
-  Assign t1 t2 | not (isValue' t1) -> (\t1' -> Assign t1' t2 ) <$> stepAlaWadler t1  -- E-Assign1
-  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> stepAlaWadler t2  -- E-Assign2
+  Assign t1 t2 | not (isValue' t1) -> (\t1' -> Assign t1' t2 ) <$> rec t1            -- E-Assign1
+  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> rec t2            -- E-Assign2
   -- Compound data
-  Tuple ts                         -> Tuple <$> mapM stepAlaWadler ts                -- E-Tuple
+  Tuple ts                         -> Tuple <$> mapFirstM (not . isValue') rec ts    -- E-Tuple
   Proj i t@(Tuple vs) | isValue' t -> proj i vs                                      -- E-ProjTuple
-  Proj i t                         -> Proj i <$> stepAlaWadler t                     -- E-Proj
+  Proj i t                         -> Proj i <$> rec t                               -- E-Proj
   -- Booleans + Arith
   If Tru t2 _                      -> return t2                                      -- E-IfTrue
   If Fls _  t3                     -> return t3                                      -- E-IfFalse
-  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> stepAlaWadler t1  -- E-If
-  Succ t                           -> Succ   <$> stepAlaWadler t                     -- E-Succ
+  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> rec t1            -- E-If
+  Succ t                           -> Succ   <$> rec t                               -- E-Succ
   Pred Zero                        -> return Zero                                    -- E-PredZero
   Pred (Succ v) | isNumVal v       -> return v                                       -- E-PredSucc
-  Pred t                           -> Pred   <$> stepAlaWadler t                     -- E-Pred
+  Pred t                           -> Pred   <$> rec t                               -- E-Pred
   IsZero Zero                      -> return Tru                                     -- E-IsZeroZero
   IsZero (Succ v) | isNumVal v     -> return Fls                                     -- E-IsZeroSucc
-  IsZero t                         -> IsZero <$> stepAlaWadler t                     -- E-IsZero
+  IsZero t                         -> IsZero <$> rec t                               -- E-IsZero
   t                                -> return t
+  where rec = stepAlaWadler
 
 -- | Generic Proj. The error below is captured before by the type system so it shouldn't happen.
 proj :: Integer -> [a] -> StateT s (Either Error) a
@@ -292,40 +293,41 @@ storeToStateRacket st = StateT (\(StateRacket env store) -> second (StateRacket 
 stepAlaRacket :: Term -> StateT StateRacket (Either Error) Term
 stepAlaRacket = \case
   -- Lambdas
-  App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 ) <$> stepAlaRacket t1           -- E-App1
-  App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2') <$> stepAlaRacket t2           -- E-App2
-  App (Lambda name _ t1) t2        -> do StateRacket env s <- get
-                                         let newName = until (`Map.notMember` env) fresh name
-                                         put $ StateRacket (Map.insert newName t2 env) s
-                                         return (subst name (Var newName) t1)
-  v@(Var name)                     -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
+  App t1 t2 | not (isValue t1)    -> (\t1' -> App t1' t2 ) <$> rec t1                     -- E-App1
+  App v1 t2 | not (isValue t2)    -> (\t2' -> App v1  t2') <$> rec t2                     -- E-App2
+  App (Lambda name _ t1) t2       -> do StateRacket env s <- get
+                                        let newName = until (`Map.notMember` env) fresh name
+                                        put $ StateRacket (Map.insert newName t2 env) s
+                                        return (subst name (Var newName) t1)
+  v@(Var name)                    -> (\(StateRacket env _) -> fromMaybe v (Map.lookup name env)) <$> get
   -- Sequence
-  Seq Unit t2                      -> return t2                                            -- E-NextSeq
-  Seq t1   t2                      -> (\t1' -> Seq t1' t2) <$> stepAlaRacket t1            -- E-Seq
+  Seq Unit t2                     -> return t2                                            -- E-NextSeq
+  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> rec t1                      -- E-Seq
   -- References
-  Ref v | isValue v                -> storeToStateRacket $ stateToStateT $ Loc <$> alloc v -- E-RefV
-  Ref t | otherwise                -> Ref   <$> stepAlaRacket t                            -- E-Ref
-  Deref (Loc l)                    -> storeToStateRacket $ deref l                         -- E-DerefLoc
-  Deref t                          -> Deref <$> stepAlaRacket t                            -- E-Deref
-  Assign (Loc l) v | isValue v     -> storeToStateRacket $ assign l v                      -- E-Assign
-  Assign t1 t2 | not (isValue t1)  -> (\t1' -> Assign t1' t2 ) <$> stepAlaRacket t1        -- E-Assign1
-  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> stepAlaRacket t2        -- E-Assign2
+  Ref v | isValue v               -> storeToStateRacket $ stateToStateT $ Loc <$> alloc v -- E-RefV
+  Ref t | otherwise               -> Ref   <$> rec t                                      -- E-Ref
+  Deref (Loc l)                   -> storeToStateRacket $ deref l                         -- E-DerefLoc
+  Deref t                         -> Deref <$> rec t                                      -- E-Deref
+  Assign (Loc l) v | isValue v    -> storeToStateRacket $ assign l v                      -- E-Assign
+  Assign t1 t2 | not (isValue t1) -> (\t1' -> Assign t1' t2 ) <$> rec t1                  -- E-Assign1
+  Assign v1 t2 | otherwise        -> (\t2' -> Assign v1  t2') <$> rec t2                  -- E-Assign2
   -- Compound data
-  Tuple ts                         -> Tuple <$> mapM stepAlaRacket ts                      -- E-Tuple
-  Proj i t@(Tuple vs) | isValue' t -> proj i vs                                            -- E-ProjTuple
-  Proj i t                         -> Proj i <$> stepAlaRacket t                           -- E-Proj
+  Tuple ts                        -> Tuple <$> mapFirstM (not . isValue) rec ts           -- E-Tuple
+  Proj i t@(Tuple vs) | isValue t -> proj i vs                                            -- E-ProjTuple
+  Proj i t                        -> Proj i <$> rec t                                     -- E-Proj
   -- Booleans + Arith
-  If Tru t2 _                      -> return t2                                            -- E-IfTrue
-  If Fls _  t3                     -> return t3                                            -- E-IfFalse
-  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> stepAlaRacket t1        -- E-If
-  Succ t                           -> Succ   <$> stepAlaRacket t                           -- E-Succ
-  Pred Zero                        -> return Zero                                          -- E-PredZero
-  Pred (Succ v) | isNumVal v       -> return v                                             -- E-PredSucc
-  Pred t                           -> Pred   <$> stepAlaRacket t                           -- E-Pred
-  IsZero Zero                      -> return Tru                                           -- E-IsZeroZero
-  IsZero (Succ v) | isNumVal v     -> return Fls                                           -- E-IsZeroSucc
-  IsZero t                         -> IsZero <$> stepAlaRacket t                           -- E-IsZero
-  t                                -> return t
+  If Tru t2 _                     -> return t2                                            -- E-IfTrue
+  If Fls _  t3                    -> return t3                                            -- E-IfFalse
+  If t1  t2 t3                    -> (\t1' -> If t1' t2 t3)   <$> rec t1                  -- E-If
+  Succ t                          -> Succ   <$> rec t                                     -- E-Succ
+  Pred Zero                       -> return Zero                                          -- E-PredZero
+  Pred (Succ v) | isNumVal v      -> return v                                             -- E-PredSucc
+  Pred t                          -> Pred   <$> rec t                                     -- E-Pred
+  IsZero Zero                     -> return Tru                                           -- E-IsZeroZero
+  IsZero (Succ v) | isNumVal v    -> return Fls                                           -- E-IsZeroSucc
+  IsZero t                        -> IsZero <$> rec t                                     -- E-IsZero
+  t                               -> return t
+  where rec = stepAlaRacket
 
 ----------------------
 ----------------------
@@ -342,36 +344,37 @@ evalM' t = evalStateT (evalM t) emptyStore
 step' :: Term -> StateT (Store Location) (Either Error) Term
 step' = \case
   -- Lambdas
-  App t1 t2 | not (isValue t1)     -> (\t1' -> App t1' t2 ) <$> step' t1    -- E-App1
-  App v1 t2 | not (isValue t2)     -> (\t2' -> App v1  t2') <$> step' t2    -- E-App2
-  App (Lambda name _ t1) t2        -> return $ subst name t2 t1             -- E-AppAbs
+  App t1 t2 | not (isValue t1)    -> (\t1' -> App t1' t2 ) <$> rec t1           -- E-App1
+  App v1 t2 | not (isValue t2)    -> (\t2' -> App v1  t2') <$> rec t2           -- E-App2
+  App (Lambda name _ t1) t2       -> return $ subst name t2 t1                  -- E-AppAbs
   -- Sequence
-  Seq Unit t2                      -> return t2                             -- E-NextSeq
-  Seq t1   t2                      -> (\t1' -> Seq t1' t2) <$> step' t1     -- E-Seq
+  Seq Unit t2                     -> return t2                                  -- E-NextSeq
+  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> rec t1            -- E-Seq
   -- References
-  Ref v | isValue v                -> stateToStateT $ Loc <$> alloc v       -- E-RefV
-  Ref t | otherwise                -> Ref   <$> step' t                     -- E-Ref
-  Deref (Loc l)                    -> deref l                               -- E-DerefLoc
-  Deref t                          -> Deref <$> step' t                     -- E-Deref
-  Assign (Loc l) v | isValue v     -> assign l v                            -- E-Assign
-  Assign t1 t2 | not (isValue t1)  -> (\t1' -> Assign t1' t2 ) <$> step' t1 -- E-Assign1
-  Assign v1 t2 | otherwise         -> (\t2' -> Assign v1  t2') <$> step' t2 -- E-Assign2
+  Ref v | isValue v               -> stateToStateT $ Loc <$> alloc v            -- E-RefV
+  Ref t | otherwise               -> Ref   <$> rec t                            -- E-Ref
+  Deref (Loc l)                   -> deref l                                    -- E-DerefLoc
+  Deref t                         -> Deref <$> rec t                            -- E-Deref
+  Assign (Loc l) v | isValue v    -> assign l v                                 -- E-Assign
+  Assign t1 t2 | not (isValue t1) -> (\t1' -> Assign t1' t2 ) <$> rec t1        -- E-Assign1
+  Assign v1 t2 | otherwise        -> (\t2' -> Assign v1  t2') <$> rec t2        -- E-Assign2
   -- Compound data
-  Tuple ts                         -> Tuple <$> mapM step' ts               -- E-Tuple
-  Proj i t@(Tuple vs) | isValue' t -> proj i vs                             -- E-ProjTuple
-  Proj i t                         -> Proj i <$> step' t                    -- E-Proj
+  Tuple ts                        -> Tuple <$> mapFirstM (not . isValue) rec ts -- E-Tuple
+  Proj i t@(Tuple vs) | isValue t -> proj i vs                                  -- E-ProjTuple
+  Proj i t                        -> Proj i <$> rec t                           -- E-Proj
   -- Booleans + Arith
-  If Tru t2 _                      -> return t2                             -- E-IfTrue
-  If Fls _  t3                     -> return t3                             -- E-IfFalse
-  If t1  t2 t3                     -> (\t1' -> If t1' t2 t3)   <$> step' t1 -- E-If
-  Succ t                           -> Succ   <$> step' t                    -- E-Succ
-  Pred Zero                        -> return Zero                           -- E-PredZero
-  Pred (Succ v) | isNumVal v       -> return v                              -- E-PredSucc
-  Pred t                           -> Pred   <$> step' t                    -- E-Pred
-  IsZero Zero                      -> return Tru                            -- E-IsZeroZero
-  IsZero (Succ v) | isNumVal v     -> return Fls                            -- E-IsZeroSucc
-  IsZero t                         -> IsZero <$> step' t                    -- E-IsZero
-  t                                -> return t
+  If Tru t2 _                     -> return t2                                  -- E-IfTrue
+  If Fls _  t3                    -> return t3                                  -- E-IfFalse
+  If t1  t2 t3                    -> (\t1' -> If t1' t2 t3)   <$> rec t1        -- E-If
+  Succ t                          -> Succ   <$> rec t                           -- E-Succ
+  Pred Zero                       -> return Zero                                -- E-PredZero
+  Pred (Succ v) | isNumVal v      -> return v                                   -- E-PredSucc
+  Pred t                          -> Pred   <$> rec t                           -- E-Pred
+  IsZero Zero                     -> return Tru                                 -- E-IsZeroZero
+  IsZero (Succ v) | isNumVal v    -> return Fls                                 -- E-IsZeroSucc
+  IsZero t                        -> IsZero <$> rec t                           -- E-IsZero
+  t                               -> return t 
+  where rec = step'
 
 -- | Return @e@ with all free occurences of @x@ substituted by @v@a.
 -- Renaming of variables is performed as need to avoid variable capture.

@@ -4,8 +4,6 @@ module NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs where
 
 import Control.Monad ((<=<))
 
-import Data.List (intersperse)
-
 import NotionalMachines.Lang.UntypedLambda.Main    (Exp (..), parse)
 
 import NotionalMachines.Machine.AlligatorEggs.Diagram (toDiagram)
@@ -21,7 +19,7 @@ import NotionalMachines.Utils ( mkLangReplOpts, LangPipeline(LangPipeline), rend
 
 import Text.Parsec (ParseError)
 
-import Prettyprinter (Pretty, pretty, line, vsep)
+import Prettyprinter (Pretty, pretty, vsep)
 import Diagrams.Prelude (white, bgFrame)
 
 -------------------------
