@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE LambdaCase #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (
     toDiagram
@@ -22,7 +23,7 @@ import qualified Data.Map as Map
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Prelude (Diagram, IsName, Angle, Trail, V2, (#), applyAll, connectPerim', straightShaft, fullTurn, connectOutside', with, (&), arrowShaft, (.~), headLength, local, normalized, headGap, shaftStyle, (%~), lwO, Applicative (liftA2), opacity, hsep, composeAligned, alignT, centerX, hrule, width, vsep, named, hcat, alignB, circle, fc, black, rect, lw, scale, height, centerXY, roundedRect, white, vcat, (|||), (@@), rad, tau, arc, xDir, turn, pad, (~~), extentY, green, text, extentX)
+import Diagrams.Prelude (Diagram, IsName, Angle, Trail, V2, (#), applyAll, connectPerim', straightShaft, fullTurn, connectOutside', with, (&), arrowShaft, (.~), headLength, local, normalized, headGap, shaftStyle, (%~), lwO, Applicative (liftA2), opacity, hsep, composeAligned, alignT, centerX, hrule, width, vsep, named, hcat, alignB, circle, fc, black, rect, lw, scale, height, centerXY, roundedRect, white, vcat, (|||), (@@), rad, tau, arc, xDir, turn, pad, (~~), extentY, green, text, extentX, ArrowOpts, TypeableFloat)
 import Diagrams.TwoD.Layout.Tree (renderTree, symmLayout', slHSep, slVSep, slHeight, slWidth)
 import Diagrams.Backend.Rasterific.CmdLine ( B )
 import Diagrams.Backend.Rasterific.Text ( texterific )
@@ -33,14 +34,39 @@ import NotionalMachines.Machine.TAPLMemoryDiagram.Main (TAPLMemoryDiagram(..), D
 -- Tree Heap diagram
 ---------------
 
+instance IsName a => IsName (DLocation a)
+
 type Name = String
 
 data ArrowInfo l = ArrowInfo { arrowOrigin :: Int,
                                arrowDestination :: DLocation l,
                                arrowConnector :: Connector l }
+
+---
+
 type Connector l = Int -> DLocation l -> Diagram B -> Diagram B
 
-instance IsName a => IsName (DLocation a)
+connectToLeft, connectToRight, connectAnywhere :: IsName l => Double -> Connector l
+connectToLeft   ts l1 l2 = connectPerim'   (arrowConfig ts straightShaft) l1 l2 fullTurn leftSide
+connectToRight  ts l1 l2 = connectPerim'   (arrowConfig ts curvedShaft)   l1 l2 fullTurn rightSide
+connectAnywhere ts       = connectOutside' (arrowConfig ts straightShaft)
+
+leftSide, rightSide :: Angle Double
+rightSide = 0     @@ rad
+leftSide  = tau/2 @@ rad
+
+curvedShaft :: Trail V2 Double
+curvedShaft = arc xDir (1/2 @@ turn)
+
+
+arrowConfig :: TypeableFloat n => n -> Trail V2 n -> ArrowOpts n
+arrowConfig ts shaft = with & arrowShaft .~ shaft
+                            & headLength .~ local (ts * 0.5) `atLeast` normalized 0.008
+                            & headGap    .~ local (ts * 0.3)
+                            & shaftStyle %~ lwO 1
+          where atLeast = liftA2 max
+
+---
 
 toDiagram :: forall l. (IsName l) => (Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B))
                                   -> Double
@@ -49,23 +75,6 @@ toDiagram :: forall l. (IsName l) => (Double -> Connector l -> DTerm l -> State 
 toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) []
                                   in d # applyAll (map connect arrowLocs)
   where
-    connectToLeft  l1 l2 = connectPerim'   (arrowConfig straightShaft) l1 l2 fullTurn leftSide
-    connectToRight l1 l2 = connectPerim'   (arrowConfig curvedShaft)   l1 l2 fullTurn rightSide
-    connectAnywhere      = connectOutside' (arrowConfig straightShaft)
-
-    leftSide, rightSide :: Angle Double
-    rightSide = 0     @@ rad
-    leftSide  = tau/2 @@ rad
-    
-    curvedShaft :: Trail V2 Double
-    curvedShaft = arc xDir (1/2 @@ turn)
-
-    arrowConfig shaft = with & arrowShaft .~ shaft
-                             & headLength .~ local (ts * 0.5) `atLeast` normalized 0.008
-                             & headGap    .~ local (ts * 0.3)
-                             & shaftStyle %~ lwO 1
-              where atLeast = liftA2 max
-
     connect :: ArrowInfo l -> Diagram B -> Diagram B
     connect (ArrowInfo l1 l2 connector) = connector l1 l2
 
@@ -74,7 +83,7 @@ toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) 
 
     allDia :: TAPLMemoryDiagram l -> State [ArrowInfo l] (Diagram B)
     allDia (TAPLMemoryDiagram term nameEnv store) =
-      do t <- termToDia ts connectAnywhere term
+      do t <- termToDia ts (connectAnywhere ts) term
          env <- nameEnvDia nameEnv
          s <- storeDia store
          let memDiaParts = catMaybes [env, s]
@@ -87,7 +96,7 @@ toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) 
     nameEnvDia :: Map Name (DTerm l) -> State [ArrowInfo l] (Maybe (Diagram B))
     nameEnvDia = fmap frameIt . mapM draw . Map.toList
       where draw :: (Name, DTerm l) -> State [ArrowInfo l] (Diagram B, Diagram B)
-            draw (name, val) = (txt ts name, ) <$> termToDia ts connectToLeft val
+            draw (name, val) = (txt ts name, ) <$> termToDia ts (connectToLeft ts) val
             frameIt []   = Nothing
             frameIt rows = Just $ table (ts * 2) (ts * 2) rows
             -- frameIt rows = Just $ hsep (ts * 0.2) [ txt (ts * 0.3) "NameEnv"
@@ -103,7 +112,7 @@ toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) 
 
     storeDia :: Map (DLocation l) (DTerm l) -> State [ArrowInfo l] (Maybe (Diagram B))
     storeDia = fmap frameIt . mapM draw . Map.toList
-      where draw (loc, val) = named loc . framedRound (ts * 2) 0.9 <$> termToDia ts connectToRight val
+      where draw (loc, val) = named loc . framedRound (ts * 2) 0.9 <$> termToDia ts (connectToRight ts) val
             frameIt []    = Nothing
             frameIt items = Just $ vsep ts items
             -- frameIt items = Just $ hsep (ts * 0.2) [ vsep ts items
@@ -113,18 +122,8 @@ termToTextDiagram :: Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Di
 termToTextDiagram ts _ (Leaf v)    = return $ (txt ts . show . pretty) v
 termToTextDiagram ts _ (Branch [Leaf "$nat", Leaf " ", Leaf n]) = return $ (txt ts . show . pretty) n
 termToTextDiagram ts c (Branch xs) = hcat <$> mapM (termToTextDiagram ts c) xs
-termToTextDiagram ts c (TLoc l)    = alignB . textCentered ts <$> locDia point c l
-  where 
-    locDia :: Diagram B -> Connector l -> DLocation l -> State [ArrowInfo l] (Diagram B)
-    locDia d conn l = do newId <- fmap nextId get
-                         withState (ArrowInfo newId l conn :) (return (refOrigin newId))
-      where nextId [] = 0
-            nextId (ArrowInfo { arrowOrigin = i }:_) = succ i
-            refOrigin newId = d # named newId
-
-    point :: Diagram B
-    point = circle 0.05 # fc black
-
+termToTextDiagram ts c (TLoc loc)    = alignB . textCentered ts <$> locDia c loc
+  where
     textCentered :: Double -> Diagram B -> Diagram B
     textCentered size d = d <> rect size (txtHeight size) # lw 0
       where
@@ -140,8 +139,8 @@ data NodeContent l = Val String
                    | Hole
                    deriving (Eq, Show)
 
-termToTreeDiagram :: Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B)
-termToTreeDiagram size _ = return . lwO 1 . renderT size . treeToTree
+termToTreeDiagram :: forall l. (IsName l) => Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B)
+termToTreeDiagram size conn = fmap (lwO 1) . renderT size . treeToTree
   where
 
     treeToTree :: DTerm l -> Tree [NodeContent l]
@@ -155,25 +154,35 @@ termToTreeDiagram size _ = return . lwO 1 . renderT size . treeToTree
         termToNodeContent (TLoc l)   = LLoc l
         termToNodeContent (Branch _) = Hole
 
-    renderT :: Double -> Tree [NodeContent l] -> Diagram B
-    renderT size = centerXY
-                 . pad size
-                 . drawTree
-                 . fmap drawType
+    renderT :: Double -> Tree [NodeContent l] -> State [ArrowInfo l] (Diagram B)
+    renderT size = fmap (centerXY . pad size . drawTree) . mapM drawType
       where
         drawTree :: Tree (Diagram B) -> Diagram B
         drawTree = renderTree id (~~)
                  . symmLayout' (with & slWidth  .~ fromMaybe (0,0) . extentX
-                                     & slHeight .~ fromMaybe (0,0) . extentY) 
+                                     & slHeight .~ fromMaybe (0,0) . extentY)
 
-        drawType :: [NodeContent l] -> Diagram B
-        drawType = framedRound size (size/3). hcat . map drawNode
+        drawType :: [NodeContent l] -> State [ArrowInfo l] (Diagram B)
+        drawType = fmap (framedRound size (size/3) . hcat) . mapM drawNode
 
-        drawNode :: NodeContent l -> Diagram B
-        drawNode (Val s) = b (txt size s)
+        drawNode :: NodeContent l -> State [ArrowInfo l] (Diagram B)
+        drawNode (Val s) = return $ b (txt size s)
            where b v = v -- boxed (1 + width v) (1 + height v) v
-        drawNode Hole = roundedRect size size (size/3) # fc black # alignB
-        drawNode (LLoc _) = circle (size/2) # fc green # alignB
+        drawNode Hole = return $ roundedRect size size (size/3) # fc black # alignB
+        drawNode (LLoc l) = alignB <$> locDia conn l -- circle (size/2) # fc green # alignB
+
+
+-------
+
+locDia :: Connector l -> DLocation l -> State [ArrowInfo l] (Diagram B)
+locDia = locDiaState point
+  where
+    locDiaState :: Diagram B -> Connector l -> DLocation l -> State [ArrowInfo l] (Diagram B)
+    locDiaState d conn l = do newId <- fmap nextId get
+                              withState (ArrowInfo newId l conn :) (return (refOrigin newId))
+      where nextId [] = 0
+            nextId (ArrowInfo { arrowOrigin = i }:_) = succ i
+            refOrigin newId = d # named newId
 
 -------
 
@@ -226,4 +235,7 @@ framedRound :: Double -> Double -> Diagram B -> Diagram B
 framedRound spaceSize roundness d = d # centerXY <> roundedRect w h roundness # lwO 1 # fc white
   where w = spaceSize + width  d
         h = spaceSize + height d
+
+point :: Diagram B
+point = circle 0.05 # fc black
 
