@@ -49,11 +49,13 @@ type Connector l = Int -> DLocation l -> Diagram B -> Diagram B
 connectToLeft, connectToRight, connectAnywhere :: IsName l => Double -> Connector l
 connectToLeft   ts l1 l2 = connectPerim'   (arrowConfig ts straightShaft) l1 l2 fullTurn leftSide
 connectToRight  ts l1 l2 = connectPerim'   (arrowConfig ts curvedShaft)   l1 l2 fullTurn rightSide
+-- connectToTop    ts l1 l2 = connectPerim'   (arrowConfig ts curvedShaft)   l1 l2 fullTurn topSide
 connectAnywhere ts       = connectOutside' (arrowConfig ts straightShaft)
 
 leftSide, rightSide :: Angle Double
 rightSide = 0     @@ rad
 leftSide  = tau/2 @@ rad
+-- topSide  = tau/4 @@ rad
 
 curvedShaft :: Trail V2 Double
 curvedShaft = arc xDir (1/2 @@ turn)
@@ -134,42 +136,44 @@ termToTextDiagram ts c (TLoc loc)    = alignB . textCentered ts <$> locDia c loc
 -------
 -------
 
-data NodeContent l = Val String
-                   | LLoc (DLocation l)
-                   | Hole
-                   deriving (Eq, Show)
+data NodeContentElem l = Val String
+                       | LLoc (DLocation l)
+                       | Hole
+                       deriving (Eq, Show)
+
+type NodeContent l = [NodeContentElem l]
 
 termToTreeDiagram :: forall l. (IsName l) => Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B)
-termToTreeDiagram size conn = fmap (lwO 1) . renderT size . treeToTree
+termToTreeDiagram size conn = fmap (lwO 1) . renderT size . termToTreeData
   where
 
-    treeToTree :: DTerm l -> Tree [NodeContent l]
-    treeToTree = \case t@(Leaf _)   -> Node [termToNodeContent t] []
-                       t@(TLoc _)   -> Node [termToNodeContent t] []
-                       Branch [Leaf "$nat", Leaf " ", Leaf n] -> Node [Val n] []
-                       Branch terms -> Node (map termToNodeContent terms) [treeToTree t | t@(Branch _) <- terms]
+    termToTreeData :: DTerm l -> Tree [NodeContentElem l]
+    termToTreeData = \case t@(Leaf _)   -> Node [termToNodeContent t] []
+                           t@(TLoc _)   -> Node [termToNodeContent t] []
+                           Branch [Leaf "$nat", Leaf " ", Leaf n] -> Node [Val n] []
+                           Branch terms -> Node (map termToNodeContent terms) [termToTreeData t | t@(Branch _) <- terms]
       where
-        termToNodeContent :: DTerm l -> NodeContent l
+        termToNodeContent :: DTerm l -> NodeContentElem l
         termToNodeContent (Leaf s)   = Val s
         termToNodeContent (TLoc l)   = LLoc l
         termToNodeContent (Branch _) = Hole
 
-    renderT :: Double -> Tree [NodeContent l] -> State [ArrowInfo l] (Diagram B)
-    renderT size = fmap (centerXY . pad size . drawTree) . mapM drawType
+    renderT :: Double -> Tree [NodeContentElem l] -> State [ArrowInfo l] (Diagram B)
+    renderT size = fmap (centerXY . pad size . drawTree) . mapM drawNode
       where
         drawTree :: Tree (Diagram B) -> Diagram B
         drawTree = renderTree id (~~)
                  . symmLayout' (with & slWidth  .~ fromMaybe (0,0) . extentX
                                      & slHeight .~ fromMaybe (0,0) . extentY)
 
-        drawType :: [NodeContent l] -> State [ArrowInfo l] (Diagram B)
-        drawType = fmap (framedRound size (size/3) . hcat) . mapM drawNode
-
         drawNode :: NodeContent l -> State [ArrowInfo l] (Diagram B)
-        drawNode (Val s) = return $ b (txt size s)
-           where b v = v -- boxed (1 + width v) (1 + height v) v
-        drawNode Hole = return $ roundedRect size size (size/3) # fc black # alignB
-        drawNode (LLoc l) = alignB <$> locDia conn l -- circle (size/2) # fc green # alignB
+        drawNode = fmap (framedRound size (size/3) . hcat) . mapM drawContentElem
+          where
+            drawContentElem :: NodeContentElem l -> State [ArrowInfo l] (Diagram B)
+            drawContentElem (Val s) = return $ b (txt size s)
+               where b v = v -- boxed (1 + width v) (1 + height v) v
+            drawContentElem Hole = return $ roundedRect size size (size/3) # fc black # alignB
+            drawContentElem (LLoc l) = alignB <$> locDia conn l -- circle (size/2) # fc green # alignB
 
 
 -------
