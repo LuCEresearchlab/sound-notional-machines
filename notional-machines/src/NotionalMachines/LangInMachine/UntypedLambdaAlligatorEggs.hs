@@ -20,7 +20,8 @@ import NotionalMachines.Utils ( mkLangReplOpts, LangPipeline(LangPipeline), rend
 import Text.Parsec (ParseError)
 
 import Prettyprinter (Pretty, pretty, vsep)
-import Diagrams.Prelude (white, bgFrame)
+import Diagrams.Prelude (white, bgFrame, Diagram)
+import Diagrams.Backend.SVG ( SVG )
 
 -------------------------
 -- Lang to NM and back --
@@ -49,16 +50,32 @@ instance Pretty s => Pretty (Trace s) where
 langPipeline :: LangPipeline Exp () ParseError [Exp]
 langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
 
--- | Start a REPL for tha Alligator Eggs notional machine. It has both ascii art and svg rendering as concrete representations. The svg output goes to a file given as argument scaled to be rendered with @w@ pixels.
+-- | Start a REPL for tha Alligator Eggs notional machine.
+-- It has both ascii art and svg rendering as concrete representations.
+-- The svg output goes to a file given as argument scaled to be rendered with @w@ pixels.
 repl :: FilePath -> Double -> IO ()
 repl fileName w = mkLangReplOpts
-    [ ("ascii", mkCmd . fmap (toAscii . langToNm) . parse)
-    , ("asciiTrace", mkCmd . fmap (Trace . map (toAscii . langToNm) . trace) . parse)
-    , ("render", either print (renderAlligators . langToNm) . parse)
-    , ("renderTrace", either print (renderAlligatorSeq . map langToNm . trace) . parse)
+    [ ("ascii",       mkAsciiTraceCmd . fmap return . str2Alligator)
+    , ("asciiTrace",  mkAsciiTraceCmd . str2AlligatorTrace)
+    , ("render",      either print renderAlligators . str2Alligator)
+    , ("renderTrace", either print renderAlligatorSeq . str2AlligatorTrace)
     ] "Alligator>" helpMsg langPipeline
   where helpMsg = "Play with the Alligator Eggs notional machine for Lambda Calculus"
-        renderAlligatorSeq = render <=< fmap (diaSeq 4 0.9 0.5) . mapM (toDiagram 1)
-        renderAlligators = render <=< toDiagram 1
-        render = renderDiagram fileName w . bgFrame 0.05 white
 
+        str2Alligator :: String -> Either ParseError [AlligatorFamily]
+        str2Alligator = fmap langToNm . parse
+
+        str2AlligatorTrace :: String -> Either ParseError [[AlligatorFamily]]
+        str2AlligatorTrace = fmap trace . str2Alligator
+
+        mkAsciiTraceCmd :: Either ParseError [[AlligatorFamily]] -> IO ()
+        mkAsciiTraceCmd = mkCmd . fmap (Trace . map toAscii)
+
+        renderAlligatorSeq :: [[AlligatorFamily]] -> IO ()
+        renderAlligatorSeq = render <=< fmap (diaSeq 6 0.9 0.5) . mapM (toDiagram 1)
+
+        renderAlligators :: [AlligatorFamily] -> IO ()
+        renderAlligators = render <=< toDiagram 1
+
+        render :: Diagram SVG -> IO ()
+        render = renderDiagram fileName w . bgFrame 0.05 white
