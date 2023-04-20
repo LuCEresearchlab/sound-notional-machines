@@ -139,9 +139,9 @@ diaSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
 diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds)) ds)
              . map (vcat .              (\ds -> intersperse (hrule (width  ds)) ds))
              . chunksOf n
-             . zipWith (addIndex 0.9) [0..]
+             . zipWith (addIndex 0.9) [(0 :: Integer)..]
              . map withSpacing
-  where withSpacing = withEnvelope (rect w h :: D V2 Double) . centerXY
+  where withSpacing = withEnvelope (rect w h :: D V2 Double) . centerXY . sized (dims2D (0.9 * w) (0.9 * h))
         rectPerc p d = rect (p * width d) (p * height d) # lw 0
         addIndex perc i d = d <> (rectPerc perc d # alignBR <> idx i) # centerXY
           where idx j = rectPerc (1-perc) d <> text (show j) # fontSizeL ((1-perc) * height d)
