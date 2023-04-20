@@ -25,7 +25,7 @@ import qualified Data.Map  as Map
 import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
 import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator,
                                                                               oldAlligator)
-import           NotionalMachines.Meta.Steppable                    (SteppableM, evalM, stepM)
+import           NotionalMachines.Meta.Steppable                    (SteppableM, evalM, stepM, Steppable (step))
 
 
 ------------------------------------------------------------------
@@ -119,7 +119,7 @@ convenientColors = takePeriod 13 $ tail infiniteWebColors
 -- instances that make color substitution and recoloring simpler.
 
 newtype Color = MkColor { colorContent :: C.Colour Double }
-  deriving (Eq, Read, Show)
+  deriving (Eq, Read)
 
 instance Enum Color where
   toEnum = MkColor . natToColor
@@ -127,6 +127,9 @@ instance Enum Color where
 
 instance Ord Color where
   compare (MkColor c1) (MkColor c2) = compare (colorToNat c1) (colorToNat c2)
+
+instance Show Color where
+  show = colorHexa
 
 nameToColor :: String -> Color
 nameToColor = MkColor . natToColor . nameToInt
@@ -151,17 +154,27 @@ type AlligatorFamilies = [AlligatorFamily]
 type AlligatorFamily = AlligatorFamilyF Color
 
 
+instance (Eq a, Enum a) => Steppable [AlligatorFamilyF a] where
+  step = evolve
+
 instance (Eq a, Enum a) => SteppableM [AlligatorFamilyF a] Maybe where
   stepM = fmap evolve . checkThat eggColoredCorrectly
 
--- | Taking a step consists of applying each rule in sequence: oldAgeRule, colorRule, eatingRule.
+-- | Taking a step consists of using the first rule that applies (order matters).
+-- TODO: talk about the fact that evolve doesn't correspond to step from lambda
+-- (e.g. oldAlligator rule, :asciiTrace (\a.a) ((\b.b) c)). Talk about non-lock-step simulation.
 evolve :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-evolve = eatingRule . colorRule . oldAgeRule
+evolve = applyRules [oldAgeRule, colorRule, eatingRule]
+
+-- | Given a list of functions, apply each one in sequence until one of them
+-- returns a different value.
+applyRules :: Eq a => [a -> a] -> a -> a
+applyRules [] a = a
+applyRules (f:fs) a = if f a == a then applyRules fs a else f a
 
 -- The eating rule says that if there are some families side-by-side, the
 -- top-left alligator eats the family to her right.
 eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
-eatingRule (x@(HungryAlligator _ _) : xs@(OldAlligator _:_)) = x : oldAgeRule xs -- needed in CBN
 eatingRule ((HungryAlligator c proteges):family:rest) = map hatch proteges ++ rest
   where hatch (Egg c1)                | c == c1 = family
         -- hatch (HungryAlligator c1 ys)           = HungryAlligator c1 (map hatch ys)
@@ -200,7 +213,8 @@ recolor a1 a2 = evalState (mapM go a2) ([], toEnum 0)
 oldAgeRule :: (Eq a, Enum a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
 oldAgeRule (OldAlligator        [] : rest) = rest
 oldAgeRule (OldAlligator [protege] : rest) = protege : rest
-oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest -- needed in CBN
+oldAgeRule (OldAlligator proteges  : rest) = OldAlligator (evolve proteges) : rest -- needed in CBV
+oldAgeRule (a : rest@(OldAlligator _:_))   = a : evolve rest -- needed in CBV
 oldAgeRule families                        = families
 
 -- Check that all eggs are guarded by a hungry alligator with the same color.

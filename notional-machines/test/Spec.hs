@@ -2,7 +2,6 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies      #-}
-{-# LANGUAGE TupleSections     #-}
 
 import           Hedgehog       hiding (Var, eval, evalM)
 import qualified Hedgehog       (eval)
@@ -18,7 +17,6 @@ import           Data.Foldable (toList)
 import           Data.List     (intersect)
 import           Data.Maybe    (fromJust)
 import qualified Data.Set      as Set
-import Data.Function ((&))
 
 import Control.Monad ((<=<), liftM2)
 import Control.Monad.State.Lazy (runStateT)
@@ -469,18 +467,37 @@ alligatorTest = testGroup "Alligators" [
             (Just "(\\0.(\\0.0)) (\\0.0)") -- expected
             (f "(\\x.(\\x.x)) (\\x.x)")
       ])
+    , testGroup "Alligator rules stepping" (
+      let f = fmap Lambda.unparse . (=<<) (nmToLang' colorToName . evolve . A.langToNm) . eitherToMaybe . Lambda.parse
+      in [
+          testCase "lonely old alligator" $ assertEqual ""
+            [HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]] -- expected
+            (evolve [OldAlligator [],
+                     HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]])
+        , testCase "old alligator in the left" $ assertEqual ""
+            [ HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]
+            , HungryAlligator (nameToColor "a") [Egg (nameToColor "a")] ] -- expected
+            (evolve [ OldAlligator [HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]]
+                    , HungryAlligator (nameToColor "a") [Egg (nameToColor "a")] ])
+        , testCase "old alligator in the right" $ assertEqual ""
+            (Just "(\\a.a) c") -- expected
+            (f "(\\a.a) ((\\b.b) c)")
+        , testCase "color rule" $ assertEqual ""
+            (Just "(\\a.a) (\\b.b)") -- expected
+            (f "(\\a.a) (\\a.a)")
+      ])
     , testProperty "asciiAlligator nm == asciiAlligators lambda" $
        isEquivalentTo LambdaGen.genExp (show . toAscii . A.langToNm) (show . toAscii)
   ]
     where
       nmToLang' :: (a -> String) -> [AlligatorFamilyF a] -> Maybe Lambda.Exp
-      nmToLang' toName families = fmap f2e families & \e -> case e of
-          []           -> Nothing
-          [me]         -> me
-          me1:me2:rest -> foldl (liftM2 Lambda.App) (liftM2 Lambda.App me1 me2) rest
-        where f2e (HungryAlligator c proteges) = Lambda.Lambda (toName c) <$> nmToLang' toName proteges
-              f2e (OldAlligator proteges)      = nmToLang' toName proteges
-              f2e (Egg c)                      = Just (Lambda.Var (toName c))
+      nmToLang' toName = alligator2exp . fmap family2exp
+        where family2exp (HungryAlligator c proteges) = Lambda.Lambda (toName c) <$> nmToLang' toName proteges
+              family2exp (OldAlligator proteges)      = nmToLang' toName proteges
+              family2exp (Egg c)                      = Just (Lambda.Var (toName c))
+              alligator2exp []             = Nothing
+              alligator2exp [me]           = me
+              alligator2exp (me1:me2:rest) = foldl (liftM2 Lambda.App) (liftM2 Lambda.App me1 me2) rest
 
 
 taplMemeryDiagramTest :: TestTree
