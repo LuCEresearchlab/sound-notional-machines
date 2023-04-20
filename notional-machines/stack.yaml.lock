@@ -5,19 +5,19 @@
 
 packages:
 - completed:
+    commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+    git: https://github.com/igormoreno/diagrams-input.git
     name: diagrams-input
-    version: '0.1'
-    git: https://github.com/igormoreno/diagrams-input.git
     pantry-tree:
-      size: 1603
       sha256: d87aedd3ea17ce6446d8ca83d5b9b3b4dec6c285c3d7a842f61e75099e84e09f
-    commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+      size: 1603
+    version: '0.1'
   original:
-    git: https://github.com/igormoreno/diagrams-input.git
     commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+    git: https://github.com/igormoreno/diagrams-input.git
 snapshots:
 - completed:
-    size: 623212
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2021/12/29.yaml
-    sha256: bb3b3d5de140e2c30cbe5710ffa42bcecff694b1a18f8661fe4ff95ca5be81af
-  original: nightly-2021-12-29
+    sha256: 9fa4bece7acfac1fc7930c5d6e24606004b09e80aa0e52e9f68b148201008db9
+    size: 649606
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/20/18.yaml
+  original: lts-20.18
