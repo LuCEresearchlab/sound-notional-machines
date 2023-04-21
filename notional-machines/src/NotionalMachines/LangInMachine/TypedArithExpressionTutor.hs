@@ -1,11 +1,11 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
+{-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms       #-}
 {-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
+
 
 module NotionalMachines.LangInMachine.TypedArithExpressionTutor where
 
@@ -52,6 +52,14 @@ typeOfBisim = MkBisim { fLang  = _fLang
 
 ----------------
 ----------------
+
+pattern NodeTrue   :: Maybe ET.Type -> Int -> Node
+pattern NodeFalse  :: Maybe ET.Type -> Int -> Node
+pattern NodeIf     :: Maybe ET.Type -> Int -> Node
+pattern NodeZero   :: Maybe ET.Type -> Int -> Node
+pattern NodeSucc   :: Maybe ET.Type -> Int -> Node
+pattern NodePred   :: Maybe ET.Type -> Int -> Node
+pattern NodeIsZero :: Maybe ET.Type -> Int -> Node
 
 pattern NodeTrue   t i =  MkNode i t [C "true"]
 pattern NodeFalse  t i =  MkNode i t [C "false"]

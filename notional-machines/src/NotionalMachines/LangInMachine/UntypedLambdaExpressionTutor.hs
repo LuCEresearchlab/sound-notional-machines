@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
+{-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -17,15 +17,20 @@ import qualified Hedgehog.Gen as Gen
 import NotionalMachines.Lang.UntypedLambda.Generators (genCombinator, genExp)
 import NotionalMachines.Lang.UntypedLambda.Main       (Exp (..), parse, unparse)
 
-import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), NodeContentElem (..),
-                                                      checkCycle, etToLang, holeP, langToET,
-                                                      newDiaBranch, newDiaLeaf, pattern DiaBranch,
-                                                      pattern DiaLeaf, pattern MkNode)
+import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), Node,
+                                                      NodeContentElem (..), checkCycle, etToLang,
+                                                      holeP, langToET, newDiaBranch, newDiaLeaf,
+                                                      pattern DiaBranch, pattern DiaLeaf,
+                                                      pattern MkNode)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
 import NotionalMachines.Meta.Steppable    (eval, step)
 
+
+pattern NodeVar    :: String -> Int -> Node
+pattern NodeLambda :: String -> Int -> Node
+pattern NodeApp    :: Int -> Node
 
 pattern NodeVar    name i <- MkNode i _       [NameUse name] where
         NodeVar    name i =  MkNode i Nothing [NameUse name]

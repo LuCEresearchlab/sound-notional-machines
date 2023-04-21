@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures #-}
+{-# OPTIONS_GHC -Wall #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 {-# LANGUAGE FlexibleContexts      #-}
@@ -44,31 +44,57 @@ import NotionalMachines.Utils                              (eitherToMaybe, mapMa
                                                             stateToTuple)
 import Text.Read                                           (readMaybe)
 
+pattern MDVar    :: String    -> DTerm l
+pattern MDApp    :: DTerm l   -> DTerm l -> DTerm l
+pattern MDLambda :: String    -> String  -> DTerm l -> DTerm l
+-- Unit
+pattern MDUnit   :: DTerm l
+-- Sequence
+pattern MDSeq    :: DTerm l   -> DTerm l -> DTerm l
+-- References
+pattern MDRef    :: DTerm l   -> DTerm l
+pattern MDDeref  :: DTerm l   -> DTerm l
+pattern MDAssign :: DTerm l   -> DTerm l -> DTerm l
+-- Compound data
+pattern MDTuple  :: Eq l =>
+                    [DTerm l] -> DTerm l
+pattern MDProj   :: String    -> DTerm l -> DTerm l
+-- Booleans
+pattern MDTru    :: DTerm l
+pattern MDFls    :: DTerm l
+pattern MDIf     :: DTerm l   -> DTerm l -> DTerm l -> DTerm l
+-- Arithmetic Expressions
+pattern MDZero   :: DTerm l
+pattern MDSucc   :: DTerm l   -> DTerm l
+pattern MDNat    :: String    -> DTerm l
+pattern MDPred   :: DTerm l   -> DTerm l
+pattern MDIsZero :: DTerm l   -> DTerm l
+
 pattern MDVar name          = Branch [Leaf name]
 pattern MDLambda name typ t = Branch [Leaf "(\\", Leaf name, Leaf " : ", Leaf typ, Leaf ". ", t, Leaf ")"]
-pattern MDApp t1 t2         = Branch [t1, Leaf " ", t2]
+pattern MDApp         t1 t2 = Branch [t1, Leaf " ", t2]
 -- Unit
 pattern MDUnit              = Branch [Leaf "unit"]
 -- Sequence
-pattern MDSeq t1 t2         = Branch [t1, Leaf "; ", t2]
+pattern MDSeq         t1 t2 = Branch [t1, Leaf "; ", t2]
 -- References
-pattern MDRef t             = Branch [Leaf "ref", Leaf " ", t]
-pattern MDDeref t           = Branch [Leaf "!", t]
-pattern MDAssign t1 t2      = Branch [t1, Leaf " := ", t2]
+pattern MDRef             t = Branch [Leaf "ref", Leaf " ", t]
+pattern MDDeref           t = Branch [Leaf "!", t]
+pattern MDAssign      t1 t2 = Branch [t1, Leaf " := ", t2]
 -- Compound data
-pattern MDTuple ts         <- Branch (tupleElems -> Just ts) where
-        MDTuple ts          = Branch $ [Leaf "{"] ++ intersperse (Leaf CommaSymb) ts ++ [Leaf "}"]
-pattern MDProj i t          = Branch [t, Leaf ".", Leaf i]
+pattern MDTuple         ts <- Branch (tupleElems -> Just ts) where
+        MDTuple          ts = Branch $ [Leaf "{"] ++ intersperse (Leaf CommaSymb) ts ++ [Leaf "}"]
+pattern MDProj          i t = Branch [t, Leaf ".", Leaf i]
 -- Booleans
 pattern MDTru               = Branch [Leaf "true"]
 pattern MDFls               = Branch [Leaf "false"]
-pattern MDIf t1 t2 t3       = Branch [Leaf "if", Leaf " ", t1, Leaf " ", t2, Leaf " ", t3]
+pattern MDIf       t1 t2 t3 = Branch [Leaf "if", Leaf " ", t1, Leaf " ", t2, Leaf " ", t3]
 -- Arithmetic Expressions
 pattern MDZero              = Branch [Leaf "0"]
-pattern MDSucc t            = Branch [Leaf "succ",   Leaf " ", t]
+pattern MDSucc            t = Branch [Leaf "succ",   Leaf " ", t]
 pattern MDNat n             = Branch [Leaf "$nat",   Leaf " ", Leaf n]
-pattern MDPred t            = Branch [Leaf "pred",   Leaf " ", t]
-pattern MDIsZero t          = Branch [Leaf "iszero", Leaf " ", t]
+pattern MDPred            t = Branch [Leaf "pred",   Leaf " ", t]
+pattern MDIsZero          t = Branch [Leaf "iszero", Leaf " ", t]
 
 tupleElems :: Eq l => [DTerm l] -> Maybe [DTerm l]
 tupleElems = \case
@@ -85,6 +111,7 @@ tupleElems = \case
           (x:Leaf CommaSymb:xs) -> (x :) <$> commaSep xs
           _                     -> Nothing
 
+pattern CommaSymb :: String
 pattern CommaSymb = ", "
 
 termToDTerm :: Term -> DTerm Location
