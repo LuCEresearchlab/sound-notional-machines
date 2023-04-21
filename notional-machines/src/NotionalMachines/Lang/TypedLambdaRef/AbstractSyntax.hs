@@ -3,8 +3,8 @@
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TupleSections         #-}
 
 module NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (
   Term(..),
@@ -53,10 +53,11 @@ import           Data.Maybe     (fromMaybe)
 
 
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (Error (..), maybeToEither, stateToStateT, typeOfEq, mismatch, maybeAt, mapFirstM)
+import NotionalMachines.Utils          (Error (..), mapFirstM, maybeAt, maybeToEither, mismatch,
+                                        stateToStateT, typeOfEq)
 
-import Prettyprinter (Doc, Pretty, align, concatWith, hardline, hsep, parens, pretty,
-                                  (<+>), lbrace, rbrace, comma, encloseSep)
+import Prettyprinter (Doc, Pretty, align, comma, concatWith, encloseSep, hardline, hsep, lbrace,
+                      parens, pretty, rbrace, (<+>))
 
 
 --------------------
@@ -73,34 +74,34 @@ data Type = TyFun Type Type
           | TyNat
           | TyVar Name
           | TyTuple [Type]
-  deriving (Eq, Show, Read)
+  deriving (Eq, Read, Show)
 
 type TypCtx = [(Name, Type)]
 
 -- type TyStore = Map Location Type
 
-data Term = -- Lambdas
-            Var Name
+data Term -- Lambdas
+          = Var Name
           | Lambda Name Type Term
           | Closure NameEnv Name Term
           | App Term Term
-            -- Unit
+          -- Unit
           | Unit
-            -- Sequence
+          -- Sequence
           | Seq Term Term
-            -- References
+          -- References
           | Ref Term
           | Deref Term
           | Assign Term Term
           | Loc Location
-            -- Compound data
+          -- Compound data
           | Tuple [Term]
           | Proj Integer Term
-            -- Booleans
+          -- Booleans
           | Tru
           | Fls
           | If Term Term Term
-            -- Arithmetic Expressions
+          -- Arithmetic Expressions
           | Zero
           | Succ Term
           | Pred Term
@@ -276,7 +277,8 @@ proj i vs = lift $ maybeToEither er (maybeAt vs i)
 ----------------------
 -- step ala racket
 ----------------------
-data StateRacket = StateRacket NameEnv (Store Location) deriving (Show, Eq)
+data StateRacket = StateRacket NameEnv (Store Location)
+  deriving (Eq, Show)
 
 emptyStateAlaRacket :: StateRacket
 emptyStateAlaRacket = StateRacket Map.empty Map.empty
@@ -373,7 +375,7 @@ step' = \case
   IsZero Zero                     -> return Tru                                 -- E-IsZeroZero
   IsZero (Succ v) | isNumVal v    -> return Fls                                 -- E-IsZeroSucc
   IsZero t                        -> IsZero <$> rec t                           -- E-IsZero
-  t                               -> return t 
+  t                               -> return t
   where rec = step'
 
 -- | Return @e@ with all free occurences of @x@ substituted by @v@a.

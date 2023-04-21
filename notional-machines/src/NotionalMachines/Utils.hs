@@ -1,16 +1,16 @@
 {-# OPTIONS_GHC -Wall #-}
 
 {-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE TypeFamilies      #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TupleSections #-}
 
 module NotionalMachines.Utils where
 
 import Data.Colour.RGBSpace (uncurryRGB)
 
-import Hedgehog ( Gen, MonadGen )
+import           Hedgehog       (Gen, MonadGen)
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
@@ -18,12 +18,12 @@ import Control.Monad            (forM, (<=<))
 import Control.Monad.State.Lazy (State, StateT (StateT), runState, runStateT, state)
 import Control.Monad.Trans      (liftIO)
 
-import Data.Bifunctor (second)
-import Data.List      (intercalate, uncons, intersperse)
-import Data.List.Split (splitOn, chunksOf)
-import           Data.Map (Map)
-import qualified Data.Map as Map
-import Data.Data (Typeable)
+import           Data.Bifunctor  (second)
+import           Data.Data       (Typeable)
+import           Data.List       (intercalate, intersperse, uncons)
+import           Data.List.Split (chunksOf, splitOn)
+import           Data.Map        (Map)
+import qualified Data.Map        as Map
 
 import System.Console.Repline (CompleterStyle (Word), ExitDecision (Exit), HaskelineT,
                                ReplOpts (..), evalReplOpts)
@@ -34,12 +34,13 @@ import qualified Text.Parsec        as Parsec (ParseError)
 import           Text.Pretty.Simple (CheckColorTty (..), defaultOutputOptionsDarkBg,
                                      outputOptionsCompact, pPrintOpt)
 
-import Diagrams.Prelude hiding (uncons, dot, trace)
-import Diagrams.TwoD.Text (Text)
-import Diagrams.Backend.SVG (renderSVG, SVG)
-import qualified Diagrams.Backend.Rasterific as Rasterific ( B )
-import Diagrams.Backend.Rasterific.CmdLine ()
-import Diagrams.Backend.CmdLine (DiagramOpts(..), DiagramLoopOpts (..), mainRender)
+import           Diagrams.Backend.CmdLine            (DiagramLoopOpts (..), DiagramOpts (..),
+                                                      mainRender)
+import qualified Diagrams.Backend.Rasterific         as Rasterific (B)
+import           Diagrams.Backend.Rasterific.CmdLine ()
+import           Diagrams.Backend.SVG                (SVG, renderSVG)
+import           Diagrams.Prelude                    hiding (dot, trace, uncons)
+import           Diagrams.TwoD.Text                  (Text)
 
 ---- Error types ----
 
@@ -199,12 +200,11 @@ taplBookMsg :: String -> String
 taplBookMsg bookCh = "The syntax of the language follows TAPL Ch." ++ bookCh
 
 
-data LangPipeline term typ err trace =
-  LangPipeline { _parse   :: String -> Either err term
-               , _eval    :: term -> Either err term
-               , _mTypeof :: Maybe (term -> Either err typ)
-               , _trace   :: term -> Either err trace
-               }
+data LangPipeline term typ err trace = LangPipeline { _parse   :: String -> Either err term
+                                                    , _eval    :: term -> Either err term
+                                                    , _mTypeof :: Maybe (term -> Either err typ)
+                                                    , _trace   :: term -> Either err trace
+                                                    }
 
 data TypedTerm ty t = TypedTerm ty t
   deriving (Foldable, Functor, Traversable)

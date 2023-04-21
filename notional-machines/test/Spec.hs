@@ -9,8 +9,8 @@ import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 
 import Test.Tasty
-import Test.Tasty.HUnit
 import Test.Tasty.Hedgehog
+import Test.Tasty.HUnit
 
 import           Data.Either   (isRight)
 import           Data.Foldable (toList)
@@ -18,11 +18,11 @@ import           Data.List     (intersect)
 import           Data.Maybe    (fromJust)
 import qualified Data.Set      as Set
 
-import Control.Monad ((<=<), liftM2)
+import Control.Monad            (liftM2, (<=<))
 import Control.Monad.State.Lazy (runStateT)
 
-import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
 import qualified NotionalMachines.Lang.TypedArith.Generators              as TypedArithGen
+import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
 import qualified NotionalMachines.Lang.TypedLambdaArith.Main              as TypedLambda
 import qualified NotionalMachines.Lang.UntypedArith.Generators            as ArithGen
 import qualified NotionalMachines.Lang.UntypedArith.Main                  as Arith
@@ -36,16 +36,13 @@ import qualified NotionalMachines.Lang.TypedLambdaRef.Main           as LambdaRe
 -- import qualified NotionalMachines.Lang.TypedLambdaRefExpressionTutor as LambdaRefET
 import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as LambdaRefGen
 
-import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
-import           NotionalMachines.Machine.AlligatorEggs.Main
-import           NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
-import           NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..),
-                                                                      ExpTutorDiagram (..),
-                                                                      Node (..),
-                                                                      NodeContentElem (..),
-                                                                      Plug (..))
-import           NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..),
-                                                                      updateUids)
+import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
+import NotionalMachines.Machine.AlligatorEggs.Main
+import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
+import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTutorDiagram (..),
+                                                            Node (..), NodeContentElem (..),
+                                                            Plug (..))
+import NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..), updateUids)
 
 import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (annotateTypeBisim,
                                                                                                  typeOfBisim)
@@ -62,8 +59,8 @@ import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import qualified NotionalMachines.Meta.Injective    as Inj
 import           NotionalMachines.Meta.Steppable    (eval, evalM)
 
-import NotionalMachines.Utils
-import qualified Data.Map as Map
+import qualified Data.Map               as Map
+import           NotionalMachines.Utils
 
 ----------------------
 ----- Generators -----
@@ -274,7 +271,7 @@ typLambdaTest = testGroup "Typed Lambda Calculus" [
         , testCase "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x) : Bool -> Bool" $ assertEqual ""
             (Right $ TypedLambda.TyFun TypedLambda.TyBool TypedLambda.TyBool) -- expected
             (TypedLambda.typeof =<< TypedLambda.parse "if true then (\\x:Bool.x) else (\\x:Bool->Bool.x) (\\x:Bool.x)")
-        , evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true)      x) (succ 0)" "succ (0) : Nat"
+        , evalTo "(\\x:Nat. ((\\z:Nat. (\\zz:Nat->Nat. zz)) x) ((\\x:Bool. (\\w:Bool. (\\y:Nat. y)) x) true) x) (succ 0)" "succ (0) : Nat"
             TypedLambda.replEval
       ]
   ]

@@ -31,13 +31,14 @@ module NotionalMachines.Lang.TypedArith.Main (
 
 import Data.Bifunctor (first)
 
-import Prettyprinter (Pretty, pretty, (<+>), hsep)
+import Prettyprinter (Pretty, hsep, pretty, (<+>))
 
 import           NotionalMachines.Lang.UntypedArith.Main hiding (parse, repl)
 import qualified NotionalMachines.Lang.UntypedArith.Main as Untyped
 import           NotionalMachines.Meta.Steppable         (SteppableM, eval, step, stepM, trace)
 import           NotionalMachines.Utils                  (Error (..), LangPipeline (LangPipeline),
-                                                          mkLangRepl, taplBookMsg, typeOfEq, mismatch)
+                                                          mismatch, mkLangRepl, taplBookMsg,
+                                                          typeOfEq)
 
 data Type = TyBool | TyNat deriving (Eq, Show)
 
@@ -71,15 +72,15 @@ type TypedTerm = (TyTerm, Maybe Type)
 emptyTypedTerm :: TyTerm -> TypedTerm
 emptyTypedTerm t = (t, Nothing)
 
-data TyTerm = -- Booleans
-               TyTru
-             | TyFls
-             | TyIf TypedTerm TypedTerm TypedTerm
-               -- Arithmetic Expressions
-             | TyZero
-             | TySucc TypedTerm
-             | TyPred TypedTerm
-             | TyIsZero TypedTerm
+data TyTerm -- Booleans
+            = TyTru
+            | TyFls
+            | TyIf TypedTerm TypedTerm TypedTerm
+            -- Arithmetic Expressions
+            | TyZero
+            | TySucc TypedTerm
+            | TyPred TypedTerm
+            | TyIsZero TypedTerm
   deriving (Eq, Show)
 
 typedTerm :: Term -> TypedTerm
@@ -139,7 +140,7 @@ typeof1 (e, _) = case e of
 typeofEnd :: Term -> Either Error Type
 typeofEnd = go . typedTerm
   where go :: TypedTerm -> Either Error Type
-        go (_, Just typ) = return typ
+        go (_, Just typ)  = return typ
         go t@(_, Nothing) = go =<< typeof1 t
 
 ----------------

@@ -12,7 +12,8 @@ Import a few packages:
 >>> import NotionalMachines.Lang.UntypedLambda.Main as UL
 >>> import NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs as ULAl
 
-Render an image with Alligator for the lambda term `\s.\z.s(s z)` in a file called `alligators.svg` with 400 pixels of width
+Render an image with Alligator for the lambda term `\s.\z.s(s z)` in a file
+called `alligators.svg` with 400 pixels of width
 >>> either print (renderAlligators "alligators.svg" 400 . ULAl.langToNm) $ UL.parse "\\s.\\z.s(s z)"
 
 -}
@@ -21,12 +22,13 @@ module NotionalMachines.Machine.AlligatorEggs.Diagram where
 
 import Data.String (fromString)
 
-import Diagrams.Prelude (Diagram, (#), centerX, (===), alignT, mkWidth, centerXY, extrudeTop, rotateBy, hcat, sized)
 import Diagrams.Backend.SVG (B)
+import Diagrams.Prelude     (Diagram, alignT, centerX, centerXY, extrudeTop, hcat, mkWidth,
+                             rotateBy, sized, (#), (===))
 import Diagrams.SVG.ReadSVG (readSVGLBS)
 
 import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..), Color, colorHexa)
-import NotionalMachines.Utils (replace)
+import NotionalMachines.Utils                      (replace)
 
 -- | Returns the diagram of an alligator family.
 toDiagram :: Double -> [AlligatorFamilyF Color] -> IO (Diagram B)
@@ -40,8 +42,8 @@ toDiagram' :: Double -> [AlligatorFamilyF Color] -> IO [Diagram B]
 toDiagram' maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (maxWidth * 0.9)
   where
     go :: Double -> AlligatorFamilyF Color -> IO [Diagram B]
-    go w (Egg c) = (\e -> [e] # sized (mkWidth (w * 0.9))) <$> egg (colorHexa c)
-    go w (OldAlligator as') = coverWith w oldAlligator as'
+    go w (Egg c)                 = (\e -> [e] # sized (mkWidth (w * 0.9))) <$> egg (colorHexa c)
+    go w (OldAlligator as')      = coverWith w oldAlligator as'
     go w (HungryAlligator c as') = coverWith w (hungryAlligator (colorHexa c)) as'
 
     coverWith w alligator as' = do proteges <- toDiagram' w as'
@@ -52,8 +54,10 @@ toDiagram' maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (ma
 
     -- | Returns the width of each alligator family.
     -- The widths are calculated so that:
-    -- - the sum of the widths of the families is equal to the width of the alligator that is protecting them.
+    -- - the sum of the widths of the families is equal to the width of the
+    --   alligator that is protecting them.
     -- - the height of an egg is equal to the height of an alligator.
+    --
     -- The full explanation is in the comments at the end of this file.
     widths :: Double -> [AlligatorFamilyF c] -> [(Double, AlligatorFamilyF c)]
     widths w _as = map (\a -> (width a, a)) _as

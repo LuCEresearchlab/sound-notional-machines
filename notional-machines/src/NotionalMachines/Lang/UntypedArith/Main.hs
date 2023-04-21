@@ -46,14 +46,14 @@ import           Text.ParserCombinators.Parsec (ParseError, Parser, between, cha
 import Prettyprinter (Pretty, hsep, pretty, (<+>))
 
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval, prettyToString,
-                                        taplBookMsg)
+import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
+                                        prettyToString, taplBookMsg)
 
-data Term = -- Booleans
-            Tru
+data Term -- Booleans
+          = Tru
           | Fls
           | If Term Term Term
-            -- Arithmetic Expressions
+          -- Arithmetic Expressions
           | Zero
           | Succ Term
           | Pred Term

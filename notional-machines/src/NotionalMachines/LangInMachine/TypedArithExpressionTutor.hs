@@ -1,35 +1,32 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
 
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms       #-}
-{-# LANGUAGE TypeSynonymInstances  #-}
-{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeSynonymInstances  #-}
 
 module NotionalMachines.LangInMachine.TypedArithExpressionTutor where
 
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (State, StateT (..), lift, liftM3)
 
-import Data.Set                  (Set)
+import Data.Set (Set)
 
-import NotionalMachines.Lang.TypedArith.Main
-    ( typeof,
-      Type(TyNat, TyBool),
-      typeof1,
-      TypedTerm,
-      TyTerm(TyIsZero, TyTru, TyFls, TyIf, TyZero, TySucc, TyPred) )
+import           NotionalMachines.Lang.TypedArith.Main         (TyTerm (TyFls, TyIf, TyIsZero, TyPred, TySucc, TyTru, TyZero),
+                                                                Type (TyBool, TyNat), TypedTerm,
+                                                                typeof, typeof1)
 import qualified NotionalMachines.Lang.TypedArith.Main         as TypedArith (Type)
-import NotionalMachines.Lang.UntypedArith.Main (Term)
+import           NotionalMachines.Lang.UntypedArith.Main       (Term)
 import           NotionalMachines.Machine.ExpressionTutor.Main hiding (Type)
-import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type(..))
+import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type (..))
 
 import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
-import NotionalMachines.Utils (eitherToMaybe)
+import NotionalMachines.Utils             (eitherToMaybe)
 
 ------------------------
 -- Lang Types to NM Type representation and back
@@ -42,7 +39,7 @@ tyToNM = ET.MkTy . \case TyBool -> "Bool"
 tyNMToTy :: ET.Type -> Maybe TypedArith.Type
 tyNMToTy = \case ET.MkTy "Bool" -> return TyBool
                  ET.MkTy "Int"  -> return TyNat
-                 _ -> Nothing
+                 _              -> Nothing
 
 -- Ask for the type of a diagram not annotated with types
 typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)

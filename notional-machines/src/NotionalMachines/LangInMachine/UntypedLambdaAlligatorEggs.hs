@@ -4,24 +4,24 @@ module NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs where
 
 import Control.Monad ((<=<))
 
-import NotionalMachines.Lang.UntypedLambda.Main    (Exp (..), parse)
+import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
-import NotionalMachines.Machine.AlligatorEggs.Diagram (toDiagram)
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (toAscii)
-import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamily,
-                                                    AlligatorFamilyF (..), Color,
-                                                    deBruijnAlligators, nameToColor)
+import NotionalMachines.Machine.AlligatorEggs.Diagram     (toDiagram)
+import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamily, AlligatorFamilyF (..),
+                                                           Color, deBruijnAlligators, nameToColor)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
-import NotionalMachines.Meta.Steppable    (eval, evalM, Steppable (trace))
+import NotionalMachines.Meta.Steppable    (Steppable (trace), eval, evalM)
 
-import NotionalMachines.Utils ( mkLangReplOpts, LangPipeline(LangPipeline), renderDiagram, diaSeq, mkCmd )
+import NotionalMachines.Utils (LangPipeline (LangPipeline), diaSeq, mkCmd, mkLangReplOpts,
+                               renderDiagram)
 
 import Text.Parsec (ParseError)
 
-import Prettyprinter (Pretty, pretty, vsep)
-import Diagrams.Prelude (white, bgFrame, Diagram)
-import Diagrams.Backend.SVG ( SVG )
+import Diagrams.Backend.SVG (SVG)
+import Diagrams.Prelude     (Diagram, bgFrame, white)
+import Prettyprinter        (Pretty, pretty, vsep)
 
 -------------------------
 -- Lang to NM and back --

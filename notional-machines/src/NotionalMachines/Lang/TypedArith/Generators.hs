@@ -2,9 +2,9 @@
 
 module NotionalMachines.Lang.TypedArith.Generators where
 
-import           Hedgehog     (MonadGen)
+import Hedgehog (MonadGen)
 
-import NotionalMachines.Lang.TypedArith.Main (TypedTerm, typedTerm)
+import NotionalMachines.Lang.TypedArith.Main         (TypedTerm, typedTerm)
 import NotionalMachines.Lang.UntypedArith.Generators (genTerm)
 
 

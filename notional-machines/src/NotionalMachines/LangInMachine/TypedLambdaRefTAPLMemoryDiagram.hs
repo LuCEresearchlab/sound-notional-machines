@@ -1,18 +1,18 @@
 {-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE PatternSynonyms #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE ViewPatterns          #-}
 
 module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
 
+import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT)
-import Control.Monad ((<=<))
 
 import Data.List (intersperse)
 
@@ -20,22 +20,29 @@ import qualified Data.Map as Map
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Prelude (Diagram, vsep, bgFrame, white, hrule, width, Measured, local, (#), centerX, lwO, centerXY, alignBR, rect, height, text, fontSize)
 import Diagrams.Backend.Rasterific.CmdLine (B)
+import Diagrams.Prelude                    (Diagram, Measured, alignBR, bgFrame, centerX, centerXY,
+                                            fontSize, height, hrule, local, lwO, rect, text, vsep,
+                                            white, width, (#))
 
-import NotionalMachines.Lang.TypedLambdaRef.Main (langPipeline, MachineStateAlaRacket(..), Trace(..), traceAlaRacket)
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
-                                                            Term (..), StateRacket (StateRacket), isNumVal, peanoToDec, typecheck)
-import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (TAPLMemoryDiagram (..), DTerm (..), DLocation (DLoc))
-import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (toDiagram, termToTreeDiagram)
+                                                            StateRacket (StateRacket), Term (..),
+                                                            isNumVal, peanoToDec, typecheck)
+import NotionalMachines.Lang.TypedLambdaRef.Main           (MachineStateAlaRacket (..), Trace (..),
+                                                            langPipeline, traceAlaRacket)
+import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (termToTreeDiagram, toDiagram)
+import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (DLocation (DLoc), DTerm (..),
+                                                            TAPLMemoryDiagram (..))
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
-import NotionalMachines.Meta.Steppable (stepM)
-import NotionalMachines.Meta.Injective (Injective (..))
+import NotionalMachines.Meta.Injective    (Injective (..))
+import NotionalMachines.Meta.Steppable    (stepM)
 
-import NotionalMachines.Utils (eitherToMaybe, stateToTuple, mapMapM, mkCmd, mkLangReplOpts, renderD, prettyToString)
-import Text.Read (readMaybe)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parseType)
+import NotionalMachines.Utils                              (eitherToMaybe, mapMapM, mkCmd,
+                                                            mkLangReplOpts, prettyToString, renderD,
+                                                            stateToTuple)
+import Text.Read                                           (readMaybe)
 
 pattern MDVar name          = Branch [Leaf name]
 pattern MDLambda name typ t = Branch [Leaf "(\\", Leaf name, Leaf " : ", Leaf typ, Leaf ". ", t, Leaf ")"]
@@ -65,18 +72,18 @@ pattern MDIsZero t          = Branch [Leaf "iszero", Leaf " ", t]
 
 tupleElems :: Eq l => [DTerm l] -> Maybe [DTerm l]
 tupleElems = \case
-  []                   -> Nothing
-  [Leaf "{", Leaf "}"] -> Just []
-  [Leaf "{", _]        -> Nothing
+  []                                    -> Nothing
+  [Leaf "{", Leaf "}"]                  -> Just []
+  [Leaf "{", _]                         -> Nothing
   ((Leaf "{"):xs) | last xs == Leaf "}" -> commaSep (init xs)
-  _                    -> Nothing
+  _                                     -> Nothing
   where commaSep = \case
-          []              -> Just []
+          []                    -> Just []
           [Leaf CommaSymb]      -> Nothing
-          [x]             -> Just [x]
-          [_, _]          -> Nothing
+          [x]                   -> Just [x]
+          [_, _]                -> Nothing
           (x:Leaf CommaSymb:xs) -> (x :) <$> commaSep xs
-          _               -> Nothing
+          _                     -> Nothing
 
 pattern CommaSymb = ", "
 
@@ -139,7 +146,7 @@ dTermToTerm = \case
   MDLambda name typ t -> Lambda name <$> eitherToMaybe (parseType typ) <*> rec t
   MDApp t1 t2         -> App <$> rec t1 <*> rec t2
   MDVar name          -> return $ Var name
-  _ -> Nothing
+  _                   -> Nothing
   where rec = dTermToTerm
 
         decToPeano :: Integer -> Maybe Term
@@ -205,7 +212,7 @@ renderTrace filePath w = either (print . pretty) (render . traceDiagram) . trace
                 dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram termToTreeDiagram 1 . langToNM) s) ss
                 -- dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram 10 . langToNM) s) ss
 
-                -- diaSeq :: [Diagram B] -> Diagram B 
+                -- diaSeq :: [Diagram B] -> Diagram B
                 -- diaSeq ds = vsep 1 $ intersperse (hrule (maxWidth ds) # lwO 1) ds
                 maxWidth = maximum . map width
         render :: Diagram B -> IO ()

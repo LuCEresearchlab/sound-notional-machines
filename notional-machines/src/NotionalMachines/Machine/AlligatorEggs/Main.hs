@@ -8,24 +8,25 @@
 
 module NotionalMachines.Machine.AlligatorEggs.Main where
 
-import qualified Data.Colour as C (Colour)
-import           Data.Colour.RGBSpace.HSV (RGB, hsv, hue)
-import           Data.Colour.SRGB (sRGB24show)
-import           Data.Colour.Names (black)
+import qualified Data.Colour                  as C (Colour)
+import           Data.Colour.Names            (black)
 import           Data.Colour.Palette.ColorSet (infiniteWebColors)
+import           Data.Colour.RGBSpace.HSV     (RGB, hsv, hue)
+import           Data.Colour.SRGB             (sRGB24show)
 
 import Control.Monad.State.Lazy (State, evalState, get, put)
 
 import Data.Maybe (fromJust)
 
-import           Data.List (unfoldr, elemIndex)
+import           Data.List (elemIndex, unfoldr)
 import           Data.Map  (Map)
 import qualified Data.Map  as Map
 
 import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
 import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator,
                                                                               oldAlligator)
-import           NotionalMachines.Meta.Steppable                    (SteppableM, evalM, stepM, Steppable (step))
+import           NotionalMachines.Meta.Steppable                    (Steppable (step), SteppableM,
+                                                                     evalM, stepM)
 
 
 ------------------------------------------------------------------
@@ -169,7 +170,7 @@ evolve = applyRules [oldAgeRule, colorRule, eatingRule]
 -- | Given a list of functions, apply each one in sequence until one of them
 -- returns a different value.
 applyRules :: Eq a => [a -> a] -> a -> a
-applyRules [] a = a
+applyRules [] a     = a
 applyRules (f:fs) a = if f a == a then applyRules fs a else f a
 
 -- The eating rule says that if there are some families side-by-side, the
@@ -430,7 +431,7 @@ anot = HungryAlligator (nameToColor "a") [Egg (nameToColor "a"), aq, aq]
 --       commutation proof:                                                                                                           FAIL (0.12s)
 --           ✗ commutation proof failed at test/Spec.hs:137:7
 --             after 193 tests and 15 shrinks.
---           
+--
 --                 ┏━━ test/Spec.hs ━━━
 --             134 ┃ isEquivalentTo :: (Eq a, Show a, Show e) => Gen e -> (e -> a) -> (e -> a) -> Property
 --             135 ┃ isEquivalentTo g f f' = prop $ do
@@ -449,10 +450,10 @@ anot = HungryAlligator (nameToColor "a") [Egg (nameToColor "a"), aq, aq]
 --                 ┃   ^^^^^^^^^^^^
 --                 ┃   │ￔ� ━━━ Exception (ErrorCall) ━━━
 --                 ┃   │ￔ� Prelude.!!: negative index
---           
+--
 --             This failure can be reproduced by running:
 --             > recheck (Size 92) (Seed 9259115493789069110 4342968287765638441) commutation proof
---           
+--
 --         Use '--hedgehog-replay "Size 92 Seed 9259115493789069110 4342968287765638441"' to reproduce.
---         
+--
 --         Use -p '/Alligators.commutation proof/' to rerun this test only.

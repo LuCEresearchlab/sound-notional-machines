@@ -1,10 +1,10 @@
 {-# OPTIONS_GHC -Wall #-}
 
 {-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE TypeFamilies        #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TypeFamilies        #-}
 {-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (
@@ -14,21 +14,32 @@ module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (
   , exampleSymmTree
   ) where
 
-import Control.Monad.State.Lazy ( runState, withState, MonadState(get), State )
+import Control.Monad.State.Lazy (MonadState (get), State, runState, withState)
 
-import Data.Maybe (catMaybes, fromMaybe)
-import Data.Tree (Tree (Node))
-import           Data.Map (Map)
-import qualified Data.Map as Map
+import           Data.Map   (Map)
+import qualified Data.Map   as Map
+import           Data.Maybe (catMaybes, fromMaybe)
+import           Data.Tree  (Tree (Node))
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Prelude (Diagram, IsName, Angle, Trail, V2, (#), applyAll, connectPerim', straightShaft, fullTurn, connectOutside', with, (&), arrowShaft, (.~), headLength, local, normalized, headGap, shaftStyle, (%~), lwO, Applicative (liftA2), opacity, hsep, composeAligned, alignT, centerX, hrule, width, vsep, named, hcat, alignB, circle, fc, black, rect, lw, scale, height, centerXY, roundedRect, white, vcat, (|||), (@@), rad, tau, arc, xDir, turn, pad, (~~), extentY, green, text, extentX, ArrowOpts, TypeableFloat)
-import Diagrams.TwoD.Layout.Tree (renderTree, symmLayout', slHSep, slVSep, slHeight, slWidth)
-import Diagrams.Backend.Rasterific.CmdLine ( B )
-import Diagrams.Backend.Rasterific.Text ( texterific )
+import Diagrams.Backend.Rasterific.CmdLine (B)
+import Diagrams.Backend.Rasterific.Text    (texterific)
+import Diagrams.Prelude                    (Angle, Applicative (liftA2), ArrowOpts, Diagram, IsName,
+                                            Trail, TypeableFloat, V2, alignB, alignT, applyAll, arc,
+                                            arrowShaft, black, centerX, centerXY, circle,
+                                            composeAligned, connectOutside', connectPerim', extentX,
+                                            extentY, fc, fullTurn, green, hcat, headGap, headLength,
+                                            height, hrule, hsep, local, lw, lwO, named, normalized,
+                                            opacity, pad, rad, rect, roundedRect, scale, shaftStyle,
+                                            straightShaft, tau, text, turn, vcat, vsep, white,
+                                            width, with, xDir, (#), (%~), (&), (.~), (@@), (|||),
+                                            (~~))
+import Diagrams.TwoD.Layout.Tree           (renderTree, slHSep, slHeight, slVSep, slWidth,
+                                            symmLayout')
 
-import NotionalMachines.Machine.TAPLMemoryDiagram.Main (TAPLMemoryDiagram(..), DTerm(..), DLocation(..))
+import NotionalMachines.Machine.TAPLMemoryDiagram.Main (DLocation (..), DTerm (..),
+                                                        TAPLMemoryDiagram (..))
 
 ---------------
 -- Tree Heap diagram
@@ -38,9 +49,10 @@ instance IsName a => IsName (DLocation a)
 
 type Name = String
 
-data ArrowInfo l = ArrowInfo { arrowOrigin :: Int,
-                               arrowDestination :: DLocation l,
-                               arrowConnector :: Connector l }
+data ArrowInfo l = ArrowInfo { arrowOrigin      :: Int
+                             , arrowDestination :: DLocation l
+                             , arrowConnector   :: Connector l
+                             }
 
 ---
 
@@ -139,7 +151,7 @@ termToTextDiagram ts c (TLoc loc)    = alignB . textCentered ts <$> locDia c loc
 data NodeContentElem l = Val String
                        | LLoc (DLocation l)
                        | Hole
-                       deriving (Eq, Show)
+  deriving (Eq, Show)
 
 type NodeContent l = [NodeContentElem l]
 
@@ -184,7 +196,7 @@ locDia = locDiaState point
     locDiaState :: Diagram B -> Connector l -> DLocation l -> State [ArrowInfo l] (Diagram B)
     locDiaState d conn l = do newId <- fmap nextId get
                               withState (ArrowInfo newId l conn :) (return (refOrigin newId))
-      where nextId [] = 0
+      where nextId []                                = 0
             nextId (ArrowInfo { arrowOrigin = i }:_) = succ i
             refOrigin newId = d # named newId
 

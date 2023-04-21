@@ -10,7 +10,8 @@ import qualified Hedgehog.Range as Range
 
 import NotionalMachines.Lang.TypedLambdaRef.Main (Term (..), Type (..))
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Store, Location, emptyStateAlaRacket, StateRacket)
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Location, StateRacket, Store,
+                                                            emptyStateAlaRacket)
 import NotionalMachines.Utils                              (genName)
 
 

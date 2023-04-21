@@ -8,8 +8,8 @@ module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
 
 import Data.Bifunctor (first)
 
-import           Text.ParserCombinators.Parsec       hiding (parse)
 import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
+import           Text.ParserCombinators.Parsec       hiding (parse)
 import qualified Text.ParserCombinators.Parsec.Expr  as Ex
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 

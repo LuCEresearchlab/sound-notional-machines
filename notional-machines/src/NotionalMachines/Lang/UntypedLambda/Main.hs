@@ -5,9 +5,9 @@
 
 module NotionalMachines.Lang.UntypedLambda.Main where
 
+import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
 import           Text.ParserCombinators.Parsec       (Parser, between, char, eof, letter, many1,
                                                       sepBy1, spaces, try, (<|>))
-import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
 import           Text.ParserCombinators.Parsec.Error (ParseError)
 
 import Prettyprinter (Pretty, backslash, dot, parens, pretty, (<+>))

@@ -4,7 +4,6 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings     #-}
-{-# LANGUAGE ViewPatterns          #-}
 
 {-|
 Description : Simply Typed Lambda Calculus with Booleans and Natural numbers based on TAPL Ch.9
@@ -32,8 +31,8 @@ module NotionalMachines.Lang.TypedLambdaArith.Main (
   repl,
   replEval) where
 
-import           Text.ParserCombinators.Parsec       hiding (parse)
 import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
+import           Text.ParserCombinators.Parsec       hiding (parse)
 import qualified Text.ParserCombinators.Parsec.Expr  as Ex
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
@@ -44,7 +43,8 @@ import Data.List      ((\\))
 
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
 import NotionalMachines.Utils          (Error (..), LangPipeline (LangPipeline), maybeToEither,
-                                        mkLangRepl, prettyToString, taplBookMsg, mkReplEval, typeOfEq, mismatch)
+                                        mismatch, mkLangRepl, mkReplEval, prettyToString,
+                                        taplBookMsg, typeOfEq)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions
@@ -56,15 +56,15 @@ data Type = TyFun Type Type
 
 type TypCtx = [(Name, Type)]
 
-data Term = -- lambdas
-            Var Name
+data Term -- lambdas
+          = Var Name
           | Lambda Name Type Term
           | App Term Term
-            -- Booleans
+          -- Booleans
           | Tru
           | Fls
           | If Term Term Term
-            -- Arithmetic Expressions
+          -- Arithmetic Expressions
           | Zero
           | Succ Term
           | Pred Term
