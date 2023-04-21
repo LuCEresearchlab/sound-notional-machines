@@ -1,13 +1,2 @@
 cradle:
   stack:
-    - path: "./src"
-      component: "notional-machines:lib"
-
-    - path: "./app/Main.hs"
-      component: "notional-machines:exe:notional-machines-exe"
-
-    - path: "./app/Paths_notional_machines.hs"
-      component: "notional-machines:exe:notional-machines-exe"
-
-    - path: "./test"
-      component: "notional-machines:test:notional-machines-test"
