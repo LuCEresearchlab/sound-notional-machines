@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.34.4.
+-- This file has been generated from package.yaml by hpack version 0.35.1.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: faa48d4d11c83c082f8d2686c059be5454c5bf5ff35b56e5895675bc9a21f24b
+-- hash: b50bbed6cc9fdcff4b84e59fdbde12cbd1853799c4d956e1cc740a29c59f6398
 
 name:           notional-machines
 version:        0.1.0.0
@@ -77,6 +77,7 @@ library
     , diagrams-svg
     , hedgehog
     , mtl
+    , optparse-applicative
     , palette
     , parsec
     , pretty-simple
@@ -106,6 +107,7 @@ executable notional-machines-exe
     , hedgehog
     , mtl
     , notional-machines
+    , optparse-applicative
     , palette
     , parsec
     , pretty-simple
@@ -136,6 +138,7 @@ test-suite notional-machines-test
     , hedgehog
     , mtl
     , notional-machines
+    , optparse-applicative
     , palette
     , parsec
     , pretty-simple

@@ -53,7 +53,7 @@ langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
 -- | Start a REPL for tha Alligator Eggs notional machine.
 -- It has both ascii art and svg rendering as concrete representations.
 -- The svg output goes to a file given as argument scaled to be rendered with @w@ pixels.
-repl :: FilePath -> Double -> IO ()
+repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("ascii",       mkAsciiTraceCmd . fmap return . str2Alligator)
     , ("asciiTrace",  mkAsciiTraceCmd . str2AlligatorTrace)
@@ -78,4 +78,4 @@ repl fileName w = mkLangReplOpts
         renderAlligators = render <=< toDiagram 1
 
         render :: Diagram SVG -> IO ()
-        render = renderDiagram fileName w . bgFrame 0.05 white
+        render = renderDiagram fileName (fromIntegral w) . bgFrame 0.05 white

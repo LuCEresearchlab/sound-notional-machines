@@ -38,6 +38,7 @@ dependencies:
 - bytestring
 - raw-strings-qq
 - split
+- optparse-applicative
 
 library:
   source-dirs: src
