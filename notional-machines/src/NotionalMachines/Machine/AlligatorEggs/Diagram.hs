@@ -27,7 +27,8 @@ import Diagrams.Prelude     (Diagram, alignT, centerX, centerXY, extrudeTop, hca
                              rotateBy, sized, (#), (===))
 import Diagrams.SVG.ReadSVG (readSVGLBS)
 
-import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..), Color, colorHexa)
+import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..))
+import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color, colorHexa)
 import NotionalMachines.Utils                      (replace)
 
 -- | Returns the diagram of an alligator family.

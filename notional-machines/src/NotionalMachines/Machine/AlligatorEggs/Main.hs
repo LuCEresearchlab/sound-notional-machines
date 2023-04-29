@@ -6,21 +6,42 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 
-module NotionalMachines.Machine.AlligatorEggs.Main where
+module NotionalMachines.Machine.AlligatorEggs.Main (
 
-import qualified Data.Colour                  as C (Colour)
-import           Data.Colour.Names            (black)
-import           Data.Colour.Palette.ColorSet (infiniteWebColors)
-import           Data.Colour.RGBSpace.HSV     (RGB, hsv, hue)
-import           Data.Colour.SRGB             (sRGB24show)
+      AlligatorFamilyF (..)
+    , AlligatorFamily
+    , evolve
+    , recolor
+    , deBruijnAlligators
+
+    , guess
+
+    -- Exmples
+    , aid
+    -- church booleans
+    , atru
+    , afls
+    , aand
+    , aor
+    -- church numbers
+    , azero
+    , aone
+    , atwo
+    , athree
+    -- Y-combinator
+    , ay
+    -- term with unknowns
+    , aq
+    , anot
+    ) where
 
 import Control.Monad.State.Lazy (State, evalState, get, put)
 
-import Data.Maybe (fromJust)
+import           Data.Map (Map)
+import qualified Data.Map as Map
 
-import           Data.List (elemIndex, unfoldr)
-import           Data.Map  (Map)
-import qualified Data.Map  as Map
+import Data.Colour.Names                                  (black)
+import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color (..))
 
 import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
 import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator,
@@ -28,119 +49,6 @@ import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (eg
 import           NotionalMachines.Meta.Steppable                    (Steppable (step), SteppableM,
                                                                      evalM, stepM)
 
-
-------------------------------------------------------------------
--- Map from variable name to colour (and back) via a mapping from name to Int (and back)
-------------------------------------------------------------------
--- Fundamentaly, the space of names is infinite, and the space of Colour Double
--- is not because Double is finite. Nevertheless, the conceptual point of the
--- mapping from Untyped Lambda Calculus and Alligator Eggs still stands (module
--- that limitation) so we want to find a mapping of names to colours that is
--- useful.
---
--- ps.: This would be easy with automatic backward function generation =====
-
---------------------------
--- Map from name to Int
---------------------------
-nameToInt :: String -> Int
-nameToInt = changeBase letterBase . map charToInt
-intToName :: Int -> String
-intToName = map intToChar . changeBaseInv letterBase
-
-charToInt :: Char -> Int
-charToInt = (\i -> i - fromEnum 'a') . fromEnum
-intToChar :: Int -> Char
-intToChar = toEnum . (\i -> i + fromEnum 'a')
-
-changeBase :: Int -> [Int] -> Int
-changeBase base = sum . zipWith (\i n -> n * base^i) [0::Integer ..]
-changeBaseInv :: Int -> Int -> [Int]
-changeBaseInv base = (\l -> if null l then [0] else l) . f
-    where f = unfoldr (\b -> if b == 0 then Nothing else Just (b `mod` base, b `div` base))
-
-letterBase :: Int
-letterBase = 26 -- letters are numbers in base 26
-
-
---------------------------
--- Map from Int to Color (v1)
---------------------------
-
--- colorToNat :: C.Colour Double -> Int
--- colorToNat = hueToInt defaultSpacing . rgbToHue . toSRGB
--- natToColor :: Int -> C.Colour Double
--- natToColor = uncurryRGB sRGB . hueToRGB . intToHue defaultSpacing
-
-hueToRGB :: Double -> RGB Double
-hueToRGB h = hsv h 1 1
-rgbToHue :: RGB Double -> Double
-rgbToHue = hue
-
-nameToHue :: String -> Double
-nameToHue = intToHue defaultSpacing . nameToInt
-hueToName :: Double -> String
-hueToName = intToName . hueToInt defaultSpacing
-
-intToHue :: Int -> Int -> Double
-intToHue spc x = fromIntegral (x `mod` spc) / fromIntegral spc * 360 + additive
-  where additive = fromIntegral (x `div` spc)
-  -- where additive = (360/fromIntegral spc) / fromIntegral (2^(x `div` spc))
-hueToInt :: Int -> Double -> Int
-hueToInt spc x = h x + defaultSpacing * (round x - round ((360 :: Double) / fromIntegral spc) * h x)
-  where h y = round (fromIntegral defaultSpacing * (y / 360))
-
-defaultSpacing :: Int
-defaultSpacing = 6 -- space between one colour and the next
-
---------------------------
--- Another approach to map from Int to Color (v2)
---------------------------
--- The focus here is to generate colors that are convenient for visualization,
--- with good contrast and generally subjectvely pleasant to look at.
-
-colorToNat :: C.Colour Double -> Int
-colorToNat c = fromJust $ elemIndex c convenientColors
-natToColor :: Int -> C.Colour Double
-natToColor i = convenientColors !! i
-
-takePeriod :: Int -> [b] -> [b]
-takePeriod p l = map (\i -> l !! (i*p)) [0..]
-
--- This list is infinie so indexing into it is guaranteed
-convenientColors :: [C.Colour Double]
-convenientColors = takePeriod 13 $ tail infiniteWebColors
-------------------------------------------------------------------
-------------------------------------------------------------------
-
---------------------------
--- Colors
---------------------------
--- Wrapping around colors convenient to map to/from names and with Enum and Ord
--- instances that make color substitution and recoloring simpler.
-
-newtype Color = MkColor { colorContent :: C.Colour Double }
-  deriving (Eq, Read)
-
-instance Enum Color where
-  toEnum = MkColor . natToColor
-  fromEnum = colorToNat . colorContent
-
-instance Ord Color where
-  compare (MkColor c1) (MkColor c2) = compare (colorToNat c1) (colorToNat c2)
-
-instance Show Color where
-  show = colorHexa
-
-nameToColor :: String -> Color
-nameToColor = MkColor . natToColor . nameToInt
-
-colorToName :: Color -> String
-colorToName = intToName . colorToNat . colorContent
-
-colorHexa :: Color -> String
-colorHexa = sRGB24show . colorContent
---------------------------
 
 --------------------------
 -- Alligator Eggs
@@ -287,9 +195,9 @@ deBruijnAlligators = fmap (go (-1) 0 Map.empty)
 --------------------------------------------------------
 instance AsAsciiAlligators [AlligatorFamilyF Color] where
   toAscii = foldMap $ \case
-    HungryAlligator c proteges -> Ascii.hungryAlligator (colorToName c) (toAscii proteges)
-    OldAlligator proteges      -> Ascii.oldAlligator (toAscii proteges)
-    Egg c                      -> Ascii.egg (colorToName c)
+    HungryAlligator (MkColorFromName n) proteges -> Ascii.hungryAlligator n (toAscii proteges)
+    OldAlligator proteges                        -> Ascii.oldAlligator (toAscii proteges)
+    Egg (MkColorFromName n)                      -> Ascii.egg n
 
 
 -- Analysis:
@@ -370,60 +278,60 @@ instance AsAsciiAlligators [AlligatorFamilyF Color] where
 -----------------------
 
 aid :: AlligatorFamily
-aid = HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]
+aid = HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]
 
 -- church booleans
 atru :: AlligatorFamily
-atru = HungryAlligator (nameToColor "a") [HungryAlligator (nameToColor "b") [Egg (nameToColor "a")]]
+atru = HungryAlligator (MkColorFromName "a") [HungryAlligator (MkColorFromName "b") [Egg (MkColorFromName "a")]]
 afls :: AlligatorFamily
-afls = HungryAlligator (nameToColor "a") [HungryAlligator (nameToColor "b") [Egg (nameToColor "b")]]
+afls = HungryAlligator (MkColorFromName "a") [HungryAlligator (MkColorFromName "b") [Egg (MkColorFromName "b")]]
 aand :: AlligatorFamily
-aand = HungryAlligator (nameToColor "p") [
-         HungryAlligator (nameToColor "q") [
-           Egg (nameToColor "p"), Egg (nameToColor "q"), HungryAlligator (nameToColor "x") [
-                                                  HungryAlligator (nameToColor "y") [
-                                                    Egg (nameToColor "y")]]]]
+aand = HungryAlligator (MkColorFromName "p") [
+         HungryAlligator (MkColorFromName "q") [
+           Egg (MkColorFromName "p"), Egg (MkColorFromName "q"), HungryAlligator (MkColorFromName "x") [
+                                                  HungryAlligator (MkColorFromName "y") [
+                                                    Egg (MkColorFromName "y")]]]]
 aor :: AlligatorFamily
-aor = HungryAlligator (nameToColor "p") [
-        HungryAlligator (nameToColor "q") [
-          Egg (nameToColor "p"), HungryAlligator (nameToColor "x") [
-                             HungryAlligator (nameToColor "y") [
-                               Egg (nameToColor "x")]]           , Egg (nameToColor "q")]]
+aor = HungryAlligator (MkColorFromName "p") [
+        HungryAlligator (MkColorFromName "q") [
+          Egg (MkColorFromName "p"), HungryAlligator (MkColorFromName "x") [
+                             HungryAlligator (MkColorFromName "y") [
+                               Egg (MkColorFromName "x")]]           , Egg (MkColorFromName "q")]]
 
 -- church numbers
 azero :: AlligatorFamily
-azero = HungryAlligator (nameToColor "s") [HungryAlligator (nameToColor "z") [Egg (nameToColor "z")]]
+azero = HungryAlligator (MkColorFromName "s") [HungryAlligator (MkColorFromName "z") [Egg (MkColorFromName "z")]]
 aone :: AlligatorFamily
-aone = HungryAlligator (nameToColor "s") [
-         HungryAlligator (nameToColor "z") [
-           Egg (nameToColor "s"), Egg (nameToColor "z")]]
+aone = HungryAlligator (MkColorFromName "s") [
+         HungryAlligator (MkColorFromName "z") [
+           Egg (MkColorFromName "s"), Egg (MkColorFromName "z")]]
 atwo :: AlligatorFamily
-atwo = HungryAlligator (nameToColor "s") [
-         HungryAlligator (nameToColor "z") [
-           Egg (nameToColor "s"), OldAlligator [
-                              Egg (nameToColor "s"), Egg (nameToColor "z")]]]
+atwo = HungryAlligator (MkColorFromName "s") [
+         HungryAlligator (MkColorFromName "z") [
+           Egg (MkColorFromName "s"), OldAlligator [
+                              Egg (MkColorFromName "s"), Egg (MkColorFromName "z")]]]
 athree :: AlligatorFamily
-athree = HungryAlligator (nameToColor "s") [
-           HungryAlligator (nameToColor "z") [
-             Egg (nameToColor "s"), OldAlligator [
-                                Egg (nameToColor "s"), OldAlligator [
-                                                   Egg (nameToColor "s"), Egg (nameToColor "z")]]]]
+athree = HungryAlligator (MkColorFromName "s") [
+           HungryAlligator (MkColorFromName "z") [
+             Egg (MkColorFromName "s"), OldAlligator [
+                                Egg (MkColorFromName "s"), OldAlligator [
+                                                   Egg (MkColorFromName "s"), Egg (MkColorFromName "z")]]]]
 
 -- Y-combinator
 ay :: AlligatorFamily
-ay = HungryAlligator (nameToColor "g") [
-       HungryAlligator (nameToColor "x") [
-         Egg (nameToColor "g"), OldAlligator [
-                            Egg (nameToColor "x"), Egg (nameToColor "x")]],
-       HungryAlligator (nameToColor "x") [
-         Egg (nameToColor "g"), OldAlligator [
-                            Egg (nameToColor "x"), Egg (nameToColor "x")]]]
+ay = HungryAlligator (MkColorFromName "g") [
+       HungryAlligator (MkColorFromName "x") [
+         Egg (MkColorFromName "g"), OldAlligator [
+                            Egg (MkColorFromName "x"), Egg (MkColorFromName "x")]],
+       HungryAlligator (MkColorFromName "x") [
+         Egg (MkColorFromName "g"), OldAlligator [
+                            Egg (MkColorFromName "x"), Egg (MkColorFromName "x")]]]
 
 -- term with unknowns
 aq :: AlligatorFamily
-aq = HungryAlligator (nameToColor "b") [HungryAlligator (nameToColor "c") [Egg jokerColor]]
+aq = HungryAlligator (MkColorFromName "b") [HungryAlligator (MkColorFromName "c") [Egg jokerColor]]
 anot :: AlligatorFamily
-anot = HungryAlligator (nameToColor "a") [Egg (nameToColor "a"), aq, aq]
+anot = HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a"), aq, aq]
 
 
 

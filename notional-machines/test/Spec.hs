@@ -38,6 +38,7 @@ import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as LambdaRefGen
 
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
 import NotionalMachines.Machine.AlligatorEggs.Main
+import NotionalMachines.Machine.AlligatorEggs.ColorAsName
 import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
 import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTutorDiagram (..),
                                                             Node (..), NodeContentElem (..),
@@ -83,7 +84,7 @@ genReductExp =
 -------- Alligators ----------
 
 genColor :: MonadGen m => m Color
-genColor = nameToColor <$> Gen.list (Range.singleton 1) (Gen.element ['a'..'z'])
+genColor = MkColorFromName <$> Gen.list (Range.singleton 1) (Gen.element ['a'..'z'])
 
 
 ---------------------------
@@ -169,7 +170,7 @@ gamePlayExample = prop $ do
   c1 <- forAll genColor
   c2 <- forAll genColor
   let rightGuess = guess [anot] [([atru], [afls]), ([afls], [atru])] [c1, c2]
-  let rightColors = [c1, c2] == [nameToColor "c", nameToColor "b"]
+  let rightColors = [c1, c2] == [MkColorFromName "c", MkColorFromName "b"]
   (rightColors && rightGuess || not rightColors && not rightGuess) === True
 
 ---------------------------
@@ -447,7 +448,7 @@ alligatorTest = testGroup "Alligators" [
       in [
           testCase "id" $ assertEqual ""
             [HungryAlligator 0 [Egg 0]] -- expected
-            (deBruijnAlligators [HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]])
+            (deBruijnAlligators [HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]])
         , testCase "c0" $ assertEqual ""
             (Just "(\\0.(\\0.0))") -- expected
             (f "\\s.\\z.z")
@@ -468,14 +469,14 @@ alligatorTest = testGroup "Alligators" [
       let f = fmap Lambda.unparse . (=<<) (nmToLang' colorToName . evolve . A.langToNm) . eitherToMaybe . Lambda.parse
       in [
           testCase "lonely old alligator" $ assertEqual ""
-            [HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]] -- expected
+            [HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]] -- expected
             (evolve [OldAlligator [],
-                     HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]])
+                     HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]])
         , testCase "old alligator in the left" $ assertEqual ""
-            [ HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]
-            , HungryAlligator (nameToColor "a") [Egg (nameToColor "a")] ] -- expected
-            (evolve [ OldAlligator [HungryAlligator (nameToColor "a") [Egg (nameToColor "a")]]
-                    , HungryAlligator (nameToColor "a") [Egg (nameToColor "a")] ])
+            [ HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]
+            , HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")] ] -- expected
+            (evolve [ OldAlligator [HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]]
+                    , HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")] ])
         , testCase "old alligator in the right" $ assertEqual ""
             (Just "(\\a.a) c") -- expected
             (f "(\\a.a) ((\\b.b) c)")
@@ -487,6 +488,8 @@ alligatorTest = testGroup "Alligators" [
        isEquivalentTo LambdaGen.genExp (show . toAscii . A.langToNm) (show . toAscii)
   ]
     where
+      colorToName :: Color -> String
+      colorToName (MkColorFromName name) = name
       nmToLang' :: (a -> String) -> [AlligatorFamilyF a] -> Maybe Lambda.Exp
       nmToLang' toName = alligator2exp . fmap family2exp
         where family2exp (HungryAlligator c proteges) = Lambda.Lambda (toName c) <$> nmToLang' toName proteges
