@@ -133,7 +133,6 @@ toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) 
 
 termToTextDiagram :: Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B)
 termToTextDiagram ts _ (Leaf v)    = (return . txt ts . show . pretty) v
-termToTextDiagram ts _ (Branch [Leaf "$nat", Leaf " ", Leaf n]) = (return . txt ts . show . pretty) n
 termToTextDiagram ts c (Branch xs) = hcat <$> mapM (termToTextDiagram ts c) xs
 termToTextDiagram ts c (TLoc loc)  = alignB . textCentered ts <$> locDia c loc
   where
@@ -161,7 +160,6 @@ termToTreeDiagram size conn = fmap (lwO 1) . renderT . termToTreeData
     termToTreeData :: DTerm l -> Tree [NodeContentElem l]
     termToTreeData = \case t@(Leaf _)   -> Node [termToNodeContent t] []
                            t@(TLoc _)   -> Node [termToNodeContent t] []
-                           Branch [Leaf "$nat", Leaf " ", Leaf n] -> Node [Val n] []
                            Branch terms -> Node (map termToNodeContent terms) [termToTreeData t | t@(Branch _) <- terms]
       where
         termToNodeContent :: DTerm l -> NodeContentElem l

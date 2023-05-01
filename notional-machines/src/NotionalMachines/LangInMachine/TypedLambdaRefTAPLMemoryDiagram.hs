@@ -9,7 +9,12 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE ViewPatterns          #-}
 
-module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram where
+module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram (
+    bisim
+  , nmToLang
+  , langToNM
+  , repl
+  ) where
 
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT)
@@ -38,63 +43,68 @@ import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Injective    (Injective (..))
 import NotionalMachines.Meta.Steppable    (stepM)
 
+import Data.Char                                           (isNumber)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parseType)
 import NotionalMachines.Utils                              (eitherToMaybe, mapMapM, mkCmd,
-                                                            mkLangReplOpts, prettyToString, renderD,
-                                                            stateToTuple)
+                                                            mkLangReplOpts, prettyToString,
+                                                            renderDiagramRaster, stateToTuple)
 import Text.Read                                           (readMaybe)
 
-pattern MDVar    :: String    -> DTerm l
-pattern MDApp    :: DTerm l   -> DTerm l -> DTerm l
-pattern MDLambda :: String    -> String  -> DTerm l -> DTerm l
+pattern MDVarOrNum :: String    -> DTerm l
+pattern MDApp      :: DTerm l   -> DTerm l -> DTerm l
+pattern MDLambda   :: String    -> String  -> DTerm l -> DTerm l
 -- Unit
-pattern MDUnit   :: DTerm l
+pattern MDUnit     :: DTerm l
 -- Sequence
-pattern MDSeq    :: DTerm l   -> DTerm l -> DTerm l
+pattern MDSeq      :: DTerm l   -> DTerm l -> DTerm l
 -- References
-pattern MDRef    :: DTerm l   -> DTerm l
-pattern MDDeref  :: DTerm l   -> DTerm l
-pattern MDAssign :: DTerm l   -> DTerm l -> DTerm l
+pattern MDRef      :: DTerm l   -> DTerm l
+pattern MDDeref    :: DTerm l   -> DTerm l
+pattern MDAssign   :: DTerm l   -> DTerm l -> DTerm l
 -- Compound data
-pattern MDTuple  :: Eq l =>
+pattern MDTuple    :: Eq l =>
                     [DTerm l] -> DTerm l
-pattern MDProj   :: String    -> DTerm l -> DTerm l
+pattern MDProj     :: String    -> DTerm l -> DTerm l
 -- Booleans
-pattern MDTru    :: DTerm l
-pattern MDFls    :: DTerm l
-pattern MDIf     :: DTerm l   -> DTerm l -> DTerm l -> DTerm l
+pattern MDTru      :: DTerm l
+pattern MDFls      :: DTerm l
+pattern MDIf       :: DTerm l   -> DTerm l -> DTerm l -> DTerm l
 -- Arithmetic Expressions
-pattern MDZero   :: DTerm l
-pattern MDSucc   :: DTerm l   -> DTerm l
-pattern MDNat    :: String    -> DTerm l
-pattern MDPred   :: DTerm l   -> DTerm l
-pattern MDIsZero :: DTerm l   -> DTerm l
+pattern MDZero     :: DTerm l
+pattern MDSucc     :: DTerm l   -> DTerm l
+pattern MDPred     :: DTerm l   -> DTerm l
+pattern MDIsZero   :: DTerm l   -> DTerm l
 
-pattern MDVar name          = Branch [Leaf name]
+pattern MDVarOrNum s        = Branch [Leaf s]
 pattern MDLambda name typ t = Branch [Leaf "(\\", Leaf name, Leaf " : ", Leaf typ, Leaf ". ", t, Leaf ")"]
-pattern MDApp         t1 t2 = Branch [t1, Leaf " ", t2]
+pattern MDApp         t1 t2 = Branch [t1, Space, t2]
 -- Unit
 pattern MDUnit              = Branch [Leaf "unit"]
 -- Sequence
-pattern MDSeq         t1 t2 = Branch [t1, Leaf "; ", t2]
+pattern MDSeq         t1 t2 = Branch [t1, Leaf ";", Space, t2]
 -- References
-pattern MDRef             t = Branch [Leaf "ref", Leaf " ", t]
+pattern MDRef             t = Branch [Leaf "ref", Space, t]
 pattern MDDeref           t = Branch [Leaf "!", t]
-pattern MDAssign      t1 t2 = Branch [t1, Leaf " := ", t2]
+pattern MDAssign      t1 t2 = Branch [t1, Space, Leaf ":=", Space, t2]
 -- Compound data
 pattern MDTuple         ts <- Branch (tupleElems -> Just ts) where
-        MDTuple          ts = Branch $ [Leaf "{"] ++ intersperse (Leaf CommaSymb) ts ++ [Leaf "}"]
+        MDTuple          ts = Branch $ [Leaf "{"] ++ intersperse Comma ts ++ [Leaf "}"]
 pattern MDProj          i t = Branch [t, Leaf ".", Leaf i]
 -- Booleans
 pattern MDTru               = Branch [Leaf "true"]
 pattern MDFls               = Branch [Leaf "false"]
-pattern MDIf       t1 t2 t3 = Branch [Leaf "if", Leaf " ", t1, Leaf " ", t2, Leaf " ", t3]
+pattern MDIf       t1 t2 t3 = Branch [Leaf "if",   Space, t1, Space,
+                                      Leaf "then", Space, t2, Space,
+                                      Leaf "else", Space, t3]
 -- Arithmetic Expressions
 pattern MDZero              = Branch [Leaf "0"]
-pattern MDSucc            t = Branch [Leaf "succ",   Leaf " ", t]
-pattern MDNat n             = Branch [Leaf "$nat",   Leaf " ", Leaf n]
-pattern MDPred            t = Branch [Leaf "pred",   Leaf " ", t]
-pattern MDIsZero          t = Branch [Leaf "iszero", Leaf " ", t]
+pattern MDSucc            t = Branch [Leaf "succ",   Space, t]
+pattern MDPred            t = Branch [Leaf "pred",   Space, t]
+pattern MDIsZero          t = Branch [Leaf "iszero", Space, t]
+
+pattern Comma, Space :: DTerm l
+pattern Comma = Leaf ", "
+pattern Space = Leaf " "
 
 tupleElems :: Eq l => [DTerm l] -> Maybe [DTerm l]
 tupleElems = \case
@@ -104,20 +114,17 @@ tupleElems = \case
   ((Leaf "{"):xs) | last xs == Leaf "}" -> commaSep (init xs)
   _                                     -> Nothing
   where commaSep = \case
-          []                    -> Just []
-          [Leaf CommaSymb]      -> Nothing
-          [x]                   -> Just [x]
-          [_, _]                -> Nothing
-          (x:Leaf CommaSymb:xs) -> (x :) <$> commaSep xs
-          _                     -> Nothing
-
-pattern CommaSymb :: String
-pattern CommaSymb = ", "
+          []           -> Just []
+          [Comma]      -> Nothing
+          [x]          -> Just [x]
+          [_, _]       -> Nothing
+          (x:Comma:xs) -> (x :) <$> commaSep xs
+          _            -> Nothing
 
 termToDTerm :: Term -> DTerm Location
 termToDTerm = \case
   -- Lambdas
-  Var name            -> MDVar name
+  Var name            -> MDVarOrNum name
   Lambda name typ t   -> MDLambda name (prettyToString typ) (rec t)
   Closure {}          -> error "Ala Wadler not covered"
   App t1 t2           -> MDApp (rec t1) (rec t2)
@@ -139,7 +146,7 @@ termToDTerm = \case
   If t1 t2 t3         -> MDIf (rec t1) (rec t2) (rec t3)
   -- Arithmetic Expr  sions
   Zero                -> MDZero
-  Succ t | isNumVal t -> (MDNat . show . peanoToDec . Succ) t
+  Succ t | isNumVal t -> (MDVarOrNum . show . peanoToDec . Succ) t
   Succ t | otherwise  -> MDSucc (rec t)
   Pred t              -> MDPred (rec t)
   IsZero t            -> MDIsZero (rec t)
@@ -165,14 +172,15 @@ dTermToTerm = \case
   MDIf t1 t2 t3       -> If <$> rec t1 <*> rec t2 <*> rec t3
   -- Arithmetic Expressions
   MDZero              -> return Zero
-  MDNat n             -> decToPeano =<< readMaybe n
   MDSucc t            -> Succ <$> rec t
   MDPred t            -> Pred <$> rec t
   MDIsZero t          -> IsZero <$> rec t
   -- Lambdas
   MDLambda name typ t -> Lambda name <$> eitherToMaybe (parseType typ) <*> rec t
   MDApp t1 t2         -> App <$> rec t1 <*> rec t2
-  MDVar name          -> return $ Var name
+  MDVarOrNum s@(x:_)
+        | isNumber x  -> decToPeano =<< readMaybe s
+        | otherwise   -> return $ Var s
   _                   -> Nothing
   where rec = dTermToTerm
 
@@ -182,9 +190,10 @@ dTermToTerm = \case
         decToPeano _         = Nothing -- error $ "internal error: negative numbers are not supported: " ++ show n
 
 langToNM :: (Term, StateRacket) -> TAPLMemoryDiagram Location
-langToNM (term, StateRacket env store) = TAPLMemoryDiagram (termToDTerm term)
-                                                           (Map.map termToDTerm env)
-                                                           (Map.map termToDTerm (Map.mapKeys DLoc store))
+langToNM (term, StateRacket env store) =
+  TAPLMemoryDiagram (termToDTerm term)
+                    (Map.map termToDTerm env)
+                    (Map.map termToDTerm (Map.mapKeys DLoc store))
 
 nmToLang :: TAPLMemoryDiagram Location -> Maybe (Term, StateRacket)
 nmToLang (TAPLMemoryDiagram dTerm dEnv dStore) =
@@ -231,21 +240,22 @@ renderTrace :: FilePath -> Int -> String -> IO ()
 renderTrace filePath w = either (print . pretty) (render . traceDiagram) . traceAlaRacket
   where
         traceDiagram :: Trace MachineStateAlaRacket -> Diagram B
-        traceDiagram = vsep 1.5
-                     . zipWith (addIndex 1.5 (local 0.5)) [0..]
-                     . (\ds -> map (\d -> vsep 1.5 [d # centerX, hrule (maxWidth ds) # lwO 1]) ds)
-                     . dias
+        traceDiagram = diaSeq . dias
           where dias :: Trace MachineStateAlaRacket -> [Diagram B]
                 dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram termToTreeDiagram 1 . langToNM) s) ss
-                -- dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram 10 . langToNM) s) ss
 
-                -- diaSeq :: [Diagram B] -> Diagram B
-                -- diaSeq ds = vsep 1 $ intersperse (hrule (maxWidth ds) # lwO 1) ds
-                maxWidth = maximum . map width
         render :: Diagram B -> IO ()
-        render = renderD filePath w . bgFrame 1 white
+        render = renderDiagramRaster filePath w . bgFrame 1 white
 
-addIndex :: Double -> Measured Double Double -> Integer -> Diagram B -> Diagram B
-addIndex spc fontS i d = d # centerXY <> (innerRect # alignBR <> idx i) # centerXY
-  where innerRect = rect (width d - spc) (height d - spc) # lwO 0
-        idx j = text (show j) # fontSize fontS
+diaSeq :: [Diagram B] -> Diagram B
+-- diaSeq ds = vsep 1 $ intersperse (hrule (maxWidth ds) # lwO 1) ds
+diaSeq = vsep 1.5
+       . zipWith (addIndex 1.5 (local 0.5)) [0..]
+       . (\ds -> map (\d -> vsep 1.5 [d # centerX, hrule (maxWidth ds) # lwO 1]) ds)
+  where maxWidth = maximum . map width
+
+        addIndex :: Double -> Measured Double Double -> Integer -> Diagram B -> Diagram B
+        addIndex spc fontS i d = d # centerXY <> (innerRect # alignBR <> idx i) # centerXY
+          where innerRect = rect (width d - spc) (height d - spc) # lwO 0
+                idx j = text (show j) # fontSize fontS
+
