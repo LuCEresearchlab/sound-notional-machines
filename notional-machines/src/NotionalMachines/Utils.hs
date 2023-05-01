@@ -147,13 +147,13 @@ diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds)) 
         addIndex perc i d = d <> (rectPerc perc d # alignBR <> idx i) # centerXY
           where idx j = rectPerc (1-perc) d <> text (show j) # fontSizeL ((1-perc) * height d)
 
-renderDiagram :: (Show n, Typeable n, RealFloat n) =>
+renderDiagramSVG :: (Show n, Typeable n, RealFloat n) =>
                  FilePath -> n -> QDiagram SVG V2 n Any -> IO ()
-renderDiagram fileName w = renderSVG fileName (mkWidth w)
+renderDiagramSVG fileName w = renderSVG fileName (mkWidth w)
 
 -- Rendering with Rasterific
-renderD :: String -> Int -> Diagram Rasterific.B -> IO ()
-renderD fileName w = mainRender dft
+renderDiagramRaster :: FilePath -> Int -> Diagram Rasterific.B -> IO ()
+renderDiagramRaster fileName w = mainRender dft
   where dft = (DiagramOpts (Just w) Nothing fileName, DiagramLoopOpts False Nothing 0)
 
 ------- Generators utils ----------

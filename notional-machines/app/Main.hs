@@ -57,7 +57,7 @@ outputFilePathParser = option (Just <$> str)
   ( long "output"
  <> short 'o'
  <> metavar "FILE"
- <> help "Output file path for the notional machine diagram (SVG format)"
+ <> help "Output file path for the notional machine diagram"
  <> value Nothing )
 
 diagramWidthParser :: Parser (Maybe Int)
@@ -83,8 +83,8 @@ supportedCombinations = Just $ vsep
     "All languages have REPLs but not all combinations of language and notional machine.")
   , ""
   , "Supported combinations of language and notional machine:"
-  , "  - UntypedLambda + Alligator"
-  , "  - TypedLambdaRef + TAPLMemoryDiagram"
+  , "  - UntypedLambda  + Alligator (SVG format)"
+  , "  - TypedLambdaRef + TAPLMemoryDiagram (PNG format)"
   ]
 
 main :: IO ()

@@ -7,16 +7,16 @@ import Control.Monad ((<=<))
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (toAscii)
+import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color (..))
 import NotionalMachines.Machine.AlligatorEggs.Diagram     (toDiagram)
 import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamily, AlligatorFamilyF (..),
                                                            deBruijnAlligators)
-import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color (..))
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Steppable    (Steppable (trace), eval, evalM)
 
 import NotionalMachines.Utils (LangPipeline (LangPipeline), diaSeq, mkCmd, mkLangReplOpts,
-                               renderDiagram)
+                               renderDiagramSVG)
 
 import Text.Parsec (ParseError)
 
@@ -79,4 +79,4 @@ repl fileName w = mkLangReplOpts
         renderAlligators = render <=< toDiagram 1
 
         render :: Diagram SVG -> IO ()
-        render = renderDiagram fileName (fromIntegral w) . bgFrame 0.05 white
+        render = renderDiagramSVG fileName (fromIntegral w) . bgFrame 0.05 white
