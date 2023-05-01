@@ -45,7 +45,7 @@ fixpoint g = fix (\rec x -> if g x == x then x else rec (g x))
 fixpointM :: (Eq a, Monad m) => (a -> m a) -> a -> m a
 fixpointM g = fix (\rec x -> g x >>= \gx -> if gx == x then return x else rec gx)
 
--- | Returns a list of repeated applications of @f@ to @x@ stopping when the
+-- | Returns a list of repeated applications of @g@ to @x@ stopping when the
 -- fixpoint is reached.
 allPoints :: Eq a => (a -> a) -> a -> [a]
 allPoints g x = if g x == x then [x] else x : allPoints g (g x)

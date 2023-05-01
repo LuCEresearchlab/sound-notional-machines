@@ -5,7 +5,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE TypeFamilies        #-}
-{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (
     toDiagram
@@ -29,7 +28,7 @@ import Diagrams.Prelude                    (Angle, Applicative (liftA2), ArrowOp
                                             Trail, TypeableFloat, V2, alignB, alignT, applyAll, arc,
                                             arrowShaft, black, centerX, centerXY, circle,
                                             composeAligned, connectOutside', connectPerim', extentX,
-                                            extentY, fc, fullTurn, green, hcat, headGap, headLength,
+                                            extentY, fc, fullTurn, hcat, headGap, headLength,
                                             height, hrule, hsep, local, lw, lwO, named, normalized,
                                             opacity, pad, rad, rect, roundedRect, scale, shaftStyle,
                                             straightShaft, tau, text, turn, vcat, vsep, white,
@@ -133,10 +132,10 @@ toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) 
             --                                        , txt (ts * 0.3) "Store" ]
 
 termToTextDiagram :: Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B)
-termToTextDiagram ts _ (Leaf v)    = return $ (txt ts . show . pretty) v
-termToTextDiagram ts _ (Branch [Leaf "$nat", Leaf " ", Leaf n]) = return $ (txt ts . show . pretty) n
+termToTextDiagram ts _ (Leaf v)    = (return . txt ts . show . pretty) v
+termToTextDiagram ts _ (Branch [Leaf "$nat", Leaf " ", Leaf n]) = (return . txt ts . show . pretty) n
 termToTextDiagram ts c (Branch xs) = hcat <$> mapM (termToTextDiagram ts c) xs
-termToTextDiagram ts c (TLoc loc)    = alignB . textCentered ts <$> locDia c loc
+termToTextDiagram ts c (TLoc loc)  = alignB . textCentered ts <$> locDia c loc
   where
     textCentered :: Double -> Diagram B -> Diagram B
     textCentered size d = d <> rect size (txtHeight size) # lw 0
@@ -156,7 +155,7 @@ data NodeContentElem l = Val String
 type NodeContent l = [NodeContentElem l]
 
 termToTreeDiagram :: forall l. (IsName l) => Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B)
-termToTreeDiagram size conn = fmap (lwO 1) . renderT size . termToTreeData
+termToTreeDiagram size conn = fmap (lwO 1) . renderT . termToTreeData
   where
 
     termToTreeData :: DTerm l -> Tree [NodeContentElem l]
@@ -170,8 +169,8 @@ termToTreeDiagram size conn = fmap (lwO 1) . renderT size . termToTreeData
         termToNodeContent (TLoc l)   = LLoc l
         termToNodeContent (Branch _) = Hole
 
-    renderT :: Double -> Tree [NodeContentElem l] -> State [ArrowInfo l] (Diagram B)
-    renderT size = fmap (centerXY . pad size . drawTree) . mapM drawNode
+    renderT :: Tree [NodeContentElem l] -> State [ArrowInfo l] (Diagram B)
+    renderT = fmap (centerXY . pad size . drawTree) . mapM drawNode
       where
         drawTree :: Tree (Diagram B) -> Diagram B
         drawTree = renderTree id (~~)
@@ -202,6 +201,7 @@ locDia = locDiaState point
 
 -------
 
+t1 :: Tree Char
 t1 = Node 'A' [Node 'B' (map lf "CDE"), Node 'F' [Node 'G' (map lf "HIJKLM"), Node 'N' (map lf "OPQR")]]
   where lf x = Node x []
 
