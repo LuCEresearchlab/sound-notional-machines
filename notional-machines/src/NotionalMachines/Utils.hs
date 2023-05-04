@@ -128,13 +128,6 @@ showRGB = sRGB24show . uncurryRGB sRGB
 framed :: (Enveloped d, Transformable d, TrailLike d, Monoid d, V d ~ V2) => d -> d
 framed d = d <> boundingRect d
 
-framedRound :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-framedRound d = d # centerXY <> roundedRect w h r
-  where
-    w = width d
-    h = height d
-    r = 0.5
-
 diaSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
           Int -> Double -> Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any
 diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds)) ds)

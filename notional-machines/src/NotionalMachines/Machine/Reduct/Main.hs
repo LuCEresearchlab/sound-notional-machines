@@ -1,7 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE DeriveFoldable    #-}
-{-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 
 module NotionalMachines.Machine.Reduct.Main where

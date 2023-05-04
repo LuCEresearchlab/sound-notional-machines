@@ -135,13 +135,6 @@ termToTextDiagram :: Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Di
 termToTextDiagram ts _ (Leaf v)    = (return . txt ts . show . pretty) v
 termToTextDiagram ts c (Branch xs) = hcat <$> mapM (termToTextDiagram ts c) xs
 termToTextDiagram ts c (TLoc loc)  = alignB . textCentered ts <$> locDia c loc
-  where
-    textCentered :: Double -> Diagram B -> Diagram B
-    textCentered size d = d <> rect size (txtHeight size) # lw 0
-      where
-        txtHeight :: Double -> Double
-        txtHeight scaleFactor = height $ txt scaleFactor "a"
-
 
 -------
 -------
@@ -241,6 +234,12 @@ exampleSymmTree =
 -- "boxed" text (with dimentions)
 txt :: Double -> String -> Diagram B
 txt scaleFactor t = texterific t # scale scaleFactor
+
+textCentered :: Double -> Diagram B -> Diagram B
+textCentered size d = d <> rect size (txtHeight size) # lw 0
+
+txtHeight :: Double -> Double
+txtHeight scaleFactor = height $ txt scaleFactor "a"
 
 boxed :: Double -> Double -> Diagram B -> Diagram B
 boxed w h d = d # centerXY <> rect w h # lwO 1
