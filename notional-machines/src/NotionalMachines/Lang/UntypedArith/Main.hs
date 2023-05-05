@@ -45,9 +45,11 @@ import           Text.ParserCombinators.Parsec (ParseError, Parser, between, cha
 
 import Prettyprinter (Pretty, hsep, pretty, (<+>))
 
+import NotionalMachines.Lang.Error     ()
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
-                                        prettyToString, taplBookMsg)
+
+import NotionalMachines.Util.REPL (LangPipeline (..), mkLangRepl, mkReplEval, taplBookMsg)
+import NotionalMachines.Util.Util (prettyToString)
 
 data Term -- Booleans
           = Tru

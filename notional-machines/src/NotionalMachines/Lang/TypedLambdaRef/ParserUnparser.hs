@@ -14,8 +14,9 @@ import qualified Text.ParserCombinators.Parsec.Expr  as Ex
 import qualified Text.ParserCombinators.Parsec.Token as Tok
 
 
+import NotionalMachines.Lang.Error                         (Error (..))
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Term (..), Type (..))
-import NotionalMachines.Utils                              (Error (..), prettyToString)
+import NotionalMachines.Util.Util                          (prettyToString)
 
 
 --------------------

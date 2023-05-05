@@ -41,10 +41,10 @@ import Prettyprinter (Pretty, hsep, parens, pretty, (<+>))
 import Data.Bifunctor (first)
 import Data.List      ((\\))
 
+import NotionalMachines.Lang.Error     (Error (..), mismatch, typeOfEq)
 import NotionalMachines.Meta.Steppable (Steppable, eval, step, trace)
-import NotionalMachines.Utils          (Error (..), LangPipeline (LangPipeline), maybeToEither,
-                                        mismatch, mkLangRepl, mkReplEval, prettyToString,
-                                        taplBookMsg, typeOfEq)
+import NotionalMachines.Util.REPL      (LangPipeline (..), mkLangRepl, mkReplEval, taplBookMsg)
+import NotionalMachines.Util.Util      (maybeToEither, prettyToString)
 
 --------------------
 -- Simply Typed Lambda Calculus + Booleans and Arithmetic Expressions

@@ -14,9 +14,11 @@ import Prettyprinter (Pretty, backslash, dot, parens, pretty, (<+>))
 
 import Data.List ((\\))
 
+import NotionalMachines.Lang.Error     ()
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, eval, step, stepM, trace)
-import NotionalMachines.Utils          (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
-                                        prettyToString, taplBookMsg)
+import NotionalMachines.Util.REPL      (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
+                                        taplBookMsg)
+import NotionalMachines.Util.Util      (prettyToString)
 
 --------------------
 -- Bisimulation

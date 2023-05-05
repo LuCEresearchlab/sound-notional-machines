@@ -19,22 +19,23 @@ module NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram (
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT)
 
-import Data.List (intersperse)
+import           Data.Char (isNumber)
+import           Data.List (intersperse)
+import qualified Data.Map  as Map
 
-import qualified Data.Map as Map
+import Text.Read (readMaybe)
 
 import Prettyprinter (Pretty (pretty))
 
 import Diagrams.Backend.Rasterific.CmdLine (B)
-import Diagrams.Prelude                    (Diagram, Measured, alignBR, bgFrame, centerX, centerXY,
-                                            fontSize, height, hrule, local, lwO, rect, text, vsep,
-                                            white, width, (#))
+import Diagrams.Prelude                    (Diagram, bgFrame, white)
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
                                                             StateRacket (StateRacket), Term (..),
                                                             isNumVal, peanoToDec, typecheck)
 import NotionalMachines.Lang.TypedLambdaRef.Main           (MachineStateAlaRacket (..), Trace (..),
                                                             langPipeline, traceAlaRacket)
+import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parseType)
 import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (termToTreeDiagram, toDiagram)
 import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (DLocation (DLoc), DTerm (..),
                                                             TAPLMemoryDiagram (..))
@@ -43,12 +44,10 @@ import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Injective    (Injective (..))
 import NotionalMachines.Meta.Steppable    (stepM)
 
-import Data.Char                                           (isNumber)
-import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parseType)
-import NotionalMachines.Utils                              (eitherToMaybe, mapMapM, mkCmd,
-                                                            mkLangReplOpts, prettyToString,
-                                                            renderDiagramRaster, stateToTuple)
-import Text.Read                                           (readMaybe)
+import NotionalMachines.Util.Diagrams (renderDiagramRaster, vDiaSeq)
+import NotionalMachines.Util.REPL     (mkCmd, mkLangReplOpts)
+import NotionalMachines.Util.Util     (eitherToMaybe, mapMapM, prettyToString, stateToTuple)
+
 
 pattern MDVarOrNum :: String    -> DTerm l
 pattern MDApp      :: DTerm l   -> DTerm l -> DTerm l
@@ -240,22 +239,10 @@ renderTrace :: FilePath -> Int -> String -> IO ()
 renderTrace filePath w = either (print . pretty) (render . traceDiagram) . traceAlaRacket
   where
         traceDiagram :: Trace MachineStateAlaRacket -> Diagram B
-        traceDiagram = diaSeq . dias
+        traceDiagram = vDiaSeq 1.5 0.5 . dias
           where dias :: Trace MachineStateAlaRacket -> [Diagram B]
                 dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram termToTreeDiagram 1 . langToNM) s) ss
 
         render :: Diagram B -> IO ()
         render = renderDiagramRaster filePath w . bgFrame 1 white
-
-diaSeq :: [Diagram B] -> Diagram B
--- diaSeq ds = vsep 1 $ intersperse (hrule (maxWidth ds) # lwO 1) ds
-diaSeq = vsep 1.5
-       . zipWith (addIndex 1.5 (local 0.5)) [0..]
-       . (\ds -> map (\d -> vsep 1.5 [d # centerX, hrule (maxWidth ds) # lwO 1]) ds)
-  where maxWidth = maximum . map width
-
-        addIndex :: Double -> Measured Double Double -> Integer -> Diagram B -> Diagram B
-        addIndex spc fontS i d = d # centerXY <> (innerRect # alignBR <> idx i) # centerXY
-          where innerRect = rect (width d - spc) (height d - spc) # lwO 0
-                idx j = text (show j) # fontSize fontS
 

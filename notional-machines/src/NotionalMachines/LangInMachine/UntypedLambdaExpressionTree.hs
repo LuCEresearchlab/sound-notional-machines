@@ -15,26 +15,22 @@ module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree (
     , renderTrace
     ) where
 
-import NotionalMachines.Lang.UntypedLambda.Main     (Exp (..), parse)
-import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..), toAscii)
+import Prettyprinter (Pretty (pretty), vsep)
+import Text.Parsec   (ParseError)
+
+import Diagrams.Backend.Rasterific (B)
+import Diagrams.Prelude            (Diagram, bgFrame, white)
+
+import NotionalMachines.Lang.UntypedLambda.Main        (Exp (..), parse)
+import NotionalMachines.Machine.ExpressionTree.Diagram (toDiagram)
+import NotionalMachines.Machine.ExpressionTree.Main    (ExpAsTree (..), toAscii)
 
 import NotionalMachines.Meta.Bijective    (Bijective, fromNM, toNM)
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, stepNM)
 import NotionalMachines.Meta.Steppable    (Steppable, eval, step, trace)
 
-import           Diagrams.Backend.Rasterific                     (B)
-import           Diagrams.Prelude                                (Diagram, Measured, alignBR,
-                                                                  bgFrame, centerX, centerXY,
-                                                                  fontSize, height, hrule, local,
-                                                                  lwO, rect, text, white, width,
-                                                                  (#))
-import qualified Diagrams.Prelude                                as D (vsep)
-import           NotionalMachines.Machine.ExpressionTree.Diagram (toDiagram)
-import           NotionalMachines.Utils                          (LangPipeline (..), mkCmd,
-                                                                  mkLangReplOpts,
-                                                                  renderDiagramRaster)
-import           Prettyprinter                                   (Pretty (pretty), vsep)
-import           Text.Parsec                                     (ParseError)
+import NotionalMachines.Util.Diagrams (renderDiagramRaster, vDiaSeq)
+import NotionalMachines.Util.REPL     (LangPipeline (..), mkCmd, mkLangReplOpts)
 
 langToNM :: Exp -> ExpAsTree
 langToNM (Var name)      = Box name
@@ -113,24 +109,11 @@ mkAsciiTraceCmd :: Either ParseError [ExpAsTree] -> IO ()
 mkAsciiTraceCmd = mkCmd . fmap (Trace . map toAscii)
 
 renderNMSeq :: String -> Int -> [ExpAsTree] -> IO ()
-renderNMSeq fileName w = renderDiagram fileName w . diaSeq . map (toDiagram 1)
+renderNMSeq fileName w = renderDiagram fileName w . vDiaSeq 1.5 0.5 . map (toDiagram 1)
 
 renderNM :: String -> Int -> ExpAsTree -> IO ()
 renderNM fileName w = renderDiagram fileName w . toDiagram 1
 
 renderDiagram :: String -> Int -> Diagram B -> IO ()
 renderDiagram fileName w = renderDiagramRaster fileName w . bgFrame 0.05 white
-
-
-diaSeq :: [Diagram B] -> Diagram B
--- diaSeq ds = vsep 1 $ intersperse (hrule (maxWidth ds) # lwO 1) ds
-diaSeq = D.vsep 1.5
-       . zipWith (addIndex 1.5 (local 0.5)) [0..]
-       . (\ds -> map (\d -> D.vsep 1.5 [d # centerX, hrule (maxWidth ds) # lwO 1]) ds)
-  where maxWidth = maximum . map width
-
-        addIndex :: Double -> Measured Double Double -> Integer -> Diagram B -> Diagram B
-        addIndex spc fontS i d = d # centerXY <> (innerRect # alignBR <> idx i) # centerXY
-          where innerRect = rect (width d - spc) (height d - spc) # lwO 0
-                idx j = text (show j) # fontSize fontS
 

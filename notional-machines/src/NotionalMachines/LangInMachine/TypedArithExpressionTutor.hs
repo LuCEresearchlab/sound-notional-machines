@@ -26,7 +26,7 @@ import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
-import NotionalMachines.Utils             (eitherToMaybe)
+import NotionalMachines.Util.Util             (eitherToMaybe)
 
 ------------------------
 -- Lang Types to NM Type representation and back

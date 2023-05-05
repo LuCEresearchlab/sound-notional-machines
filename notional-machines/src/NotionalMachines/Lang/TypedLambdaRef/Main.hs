@@ -38,6 +38,8 @@ module NotionalMachines.Lang.TypedLambdaRef.Main (
 import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
 
+import Prettyprinter (Pretty (pretty), align, line, list, vsep)
+
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, NameEnv,
                                                             StateRacket (StateRacket), Store,
                                                             Term (..), Type (..),
@@ -47,11 +49,9 @@ import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, Nam
                                                             typecheck, typeof)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (SteppableM, traceM)
-import NotionalMachines.Utils                              (LangPipeline (LangPipeline), _eval,
+import NotionalMachines.Util.REPL                          (LangPipeline (LangPipeline), _eval,
                                                             mkCmd, mkLangReplOpts, mkReplEval,
                                                             taplBookMsg)
-import Prettyprinter                                       (Pretty (pretty), align, line, list,
-                                                            vsep)
 
 -------------------
 -- REPL

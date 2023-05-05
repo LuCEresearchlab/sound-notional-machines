@@ -51,14 +51,12 @@ import           Data.Map       (Map)
 import qualified Data.Map       as Map
 import           Data.Maybe     (fromMaybe)
 
-
-import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Utils          (Error (..), mapFirstM, maybeAt, maybeToEither, mismatch,
-                                        stateToStateT, typeOfEq)
-
 import Prettyprinter (Doc, Pretty, align, comma, concatWith, encloseSep, hardline, hsep, lbrace,
                       parens, pretty, rbrace, (<+>))
 
+import NotionalMachines.Lang.Error     (Error (..), mismatch, typeOfEq)
+import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
+import NotionalMachines.Util.Util      (mapFirstM, maybeAt, maybeToEither, stateToStateT)
 
 --------------------
 -- Simply Typed Lambda Calculus

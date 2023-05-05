@@ -12,7 +12,7 @@ import NotionalMachines.Lang.TypedLambdaRef.Main (Term (..), Type (..))
 
 import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Location, StateRacket, Store,
                                                             emptyStateAlaRacket)
-import NotionalMachines.Utils                              (genName)
+import NotionalMachines.Util.Generators                    (genName)
 
 
 genTerm :: MonadGen m => m Term

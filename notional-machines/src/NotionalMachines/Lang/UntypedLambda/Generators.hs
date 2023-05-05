@@ -7,7 +7,7 @@ import qualified Hedgehog.Gen as Gen
 
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), freeVs)
 
-import NotionalMachines.Utils (genName)
+import NotionalMachines.Util.Generators (genName)
 
 
 genExp :: MonadGen m => m Exp

@@ -12,14 +12,15 @@ import Test.Tasty
 import Test.Tasty.Hedgehog
 import Test.Tasty.HUnit
 
+import Control.Monad            (liftM2, (<=<))
+import Control.Monad.State.Lazy (runStateT)
+
 import           Data.Either   (isRight)
 import           Data.Foldable (toList)
 import           Data.List     (intersect)
+import qualified Data.Map      as Map
 import           Data.Maybe    (fromJust)
 import qualified Data.Set      as Set
-
-import Control.Monad            (liftM2, (<=<))
-import Control.Monad.State.Lazy (runStateT)
 
 import qualified NotionalMachines.Lang.TypedArith.Generators              as TypedArithGen
 import qualified NotionalMachines.Lang.TypedArith.Main                    as TypedArith
@@ -37,8 +38,8 @@ import qualified NotionalMachines.Lang.TypedLambdaRef.Main           as LambdaRe
 import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as LambdaRefGen
 
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
-import NotionalMachines.Machine.AlligatorEggs.Main
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName
+import NotionalMachines.Machine.AlligatorEggs.Main
 import NotionalMachines.Machine.ExpressionTutor.Generators (genExpTutorDiagram)
 import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTutorDiagram (..),
                                                             Node (..), NodeContentElem (..),
@@ -51,7 +52,8 @@ import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram 
 import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (bisim,
                                                                                       langToNm)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim,
+                                                                                          renderTrace)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
 
@@ -60,8 +62,8 @@ import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import qualified NotionalMachines.Meta.Injective    as Inj
 import           NotionalMachines.Meta.Steppable    (eval, evalM)
 
-import qualified Data.Map               as Map
-import           NotionalMachines.Utils
+import NotionalMachines.Util.Generators (genName)
+import NotionalMachines.Util.Util       (eitherToMaybe, stateToStateT, stateToTuple)
 
 ----------------------
 ----- Generators -----

@@ -29,7 +29,7 @@ import Diagrams.SVG.ReadSVG (readSVGLBS)
 
 import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..))
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color, colorHexa)
-import NotionalMachines.Utils                      (replace)
+import NotionalMachines.Util.Util                      (replace)
 
 -- | Returns the diagram of an alligator family.
 toDiagram :: Double -> [AlligatorFamilyF Color] -> IO (Diagram B)

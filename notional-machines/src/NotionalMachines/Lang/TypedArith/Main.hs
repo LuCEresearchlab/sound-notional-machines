@@ -33,14 +33,17 @@ import Data.Bifunctor (first)
 
 import Prettyprinter (Pretty, hsep, pretty, (<+>))
 
+import           NotionalMachines.Lang.Error             (Error (..), mismatch, typeOfEq)
 import           NotionalMachines.Lang.UntypedArith.Main hiding (parse, repl)
 import qualified NotionalMachines.Lang.UntypedArith.Main as Untyped
-import           NotionalMachines.Meta.Steppable         (SteppableM, eval, step, stepM, trace)
-import           NotionalMachines.Utils                  (Error (..), LangPipeline (LangPipeline),
-                                                          mismatch, mkLangRepl, taplBookMsg,
-                                                          typeOfEq)
 
-data Type = TyBool | TyNat deriving (Eq, Show)
+import NotionalMachines.Meta.Steppable (SteppableM, eval, step, stepM, trace)
+
+import NotionalMachines.Util.REPL (LangPipeline (LangPipeline), mkLangRepl, taplBookMsg)
+
+
+data Type = TyBool | TyNat
+  deriving (Eq, Show)
 
 instance Pretty Type where
   pretty = \case

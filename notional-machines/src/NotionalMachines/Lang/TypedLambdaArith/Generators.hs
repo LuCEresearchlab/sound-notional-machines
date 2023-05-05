@@ -6,8 +6,7 @@ import           Hedgehog     (MonadGen)
 import qualified Hedgehog.Gen as Gen
 
 import NotionalMachines.Lang.TypedLambdaArith.Main (Term (..), Type (..))
-
-import NotionalMachines.Utils (genName)
+import NotionalMachines.Util.Generators            (genName)
 
 
 genTerm :: MonadGen m => m Term

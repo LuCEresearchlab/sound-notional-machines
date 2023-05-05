@@ -37,7 +37,7 @@ import qualified Data.Set as Set
 
 import Data.List (mapAccumL)
 
-import NotionalMachines.Utils (maybeHead)
+import NotionalMachines.Util.Util (maybeHead)
 
 
 --------------------

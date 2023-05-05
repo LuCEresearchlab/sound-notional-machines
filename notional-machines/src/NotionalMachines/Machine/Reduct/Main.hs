@@ -9,7 +9,7 @@ import Control.Monad.State.Lazy
 import Data.List (delete)
 
 import Data.Maybe             (mapMaybe)
-import NotionalMachines.Utils (maybeHead)
+import NotionalMachines.Util.Util (maybeHead)
 
 --------------------
 -- Bisimulation
