@@ -279,6 +279,37 @@ instance {-# OVERLAPPING #-} Pretty [AlligatorFamilies] where
 
 --      Use '--hedgehog-replay "Size 7 Seed 11253128347395396264 14482578956410378323"' to reproduce.
 
+-- Alligators
+--   commutation proof:                                                                                                      FAIL (0.13s)
+--       ✗ <interactive> failed at test/Spec.hs:140:7
+--         after 91 tests and 17 shrinks.
+
+--             ┏━━ test/Spec.hs ━━━
+--         137 ┃ isEquivalentTo :: (Eq a, Show a, Show e) => Gen e -> (e -> a) -> (e -> a) -> Property
+--         138 ┃ isEquivalentTo g f f' = prop $ do
+--         139 ┃   e <- forAll g
+--             ┃   │ App
+--             ┃   │   (Lambda
+--             ┃   │      "a"
+--             ┃   │      (App
+--             ┃   │         (Lambda
+--             ┃   │            "a"
+--             ┃   │            (App
+--             ┃   │               (Lambda "b" (Var "a")) (Lambda "a" (App (Var "a") (Var "a")))))
+--             ┃   │         (Lambda "a" (Var "a"))))
+--             ┃   │   (Lambda "a" (Var "a"))
+--         140 ┃   f e === f' e
+--             ┃   ^^^^^^^^^^^^
+--             ┃   │ ━━━ Exception (ErrorCall) ━━━
+--             ┃   │ Prelude.!!: negative index
+
+--         This failure can be reproduced by running:
+--         > recheck (Size 90) (Seed 16474581959021879836 6437395912746137625) <property>
+
+--     Use '--pattern "$NF ~ /commutation proof/" --hedgehog-replay "Size 90 Seed 16474581959021879836 6437395912746137625"' to reproduce from the command-line.
+
+--     Use -p '/Alligators.commutation proof/' to rerun this test only.
+
 
 
 -----------------------
