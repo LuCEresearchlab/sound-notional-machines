@@ -10,12 +10,14 @@ import qualified Text.Parsec   as Parsec (ParseError)
 data Error = ParseError Parsec.ParseError
            | TypeError String
            | RuntimeError String
+           | InternalError String
   deriving (Eq, Show)
 
 instance Pretty Error where
     pretty (ParseError parsecError) =    "Parse error" <+> pretty (show parsecError)
     pretty (TypeError m)            =    "Type error:" <+> pretty m
     pretty (RuntimeError m)         = "Runtime error:" <+> pretty m
+    pretty (InternalError m)        = "Internal error:" <+> pretty m
 
 instance Pretty Parsec.ParseError where
     pretty = pretty . show

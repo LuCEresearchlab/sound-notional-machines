@@ -6,6 +6,7 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PatternSynonyms       #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE ViewPatterns          #-}
 
@@ -25,28 +26,26 @@ import qualified Data.Map  as Map
 
 import Text.Read (readMaybe)
 
-import Prettyprinter (Pretty (pretty))
-
-import Diagrams.Backend.Rasterific.CmdLine (B)
-import Diagrams.Prelude                    (Diagram, bgFrame, white)
-
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location,
+import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error (..), Location,
                                                             StateRacket (StateRacket), Term (..),
-                                                            isNumVal, peanoToDec, typecheck)
-import NotionalMachines.Lang.TypedLambdaRef.Main           (MachineStateAlaRacket (..), Trace (..),
-                                                            langPipeline, traceAlaRacket)
+                                                            emptyStateAlaRacket, isNumVal,
+                                                            peanoToDec, typecheck)
+import NotionalMachines.Lang.TypedLambdaRef.Main           (langPipeline, parse, traceAlaRacket)
 import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parseType)
-import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram  (termToTreeDiagram, toDiagram)
-import NotionalMachines.Machine.TAPLMemoryDiagram.Main     (DLocation (DLoc), DTerm (..),
-                                                            TAPLMemoryDiagram (..))
 
-import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
+import NotionalMachines.Machine.TAPLMemoryDiagram.Main (DLocation (DLoc), DTerm (..),
+                                                        TAPLMemoryDiagram (..))
+
+import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (renderDiagram)
+
+import NotionalMachines.Meta.Bisimulation (Bisimulation (..), mkInjBisimM, mkStepMInjNM)
+import NotionalMachines.Meta.Diagramable  (Diagramable (..))
 import NotionalMachines.Meta.Injective    (Injective (..))
-import NotionalMachines.Meta.Steppable    (stepM)
+import NotionalMachines.Meta.LangToNM     (LangToNM (..))
+import NotionalMachines.Meta.Steppable    (SteppableM (traceM), stepM)
 
-import NotionalMachines.Util.Diagrams (renderDiagramRaster, vDiaSeq)
-import NotionalMachines.Util.REPL     (mkCmd, mkLangReplOpts)
-import NotionalMachines.Util.Util     (eitherToMaybe, mapMapM, prettyToString, stateToTuple)
+import NotionalMachines.Util.REPL (mkCmd, mkLangReplOpts)
+import NotionalMachines.Util.Util (mapMapM, maybeToEither, prettyToString, stateToTuple)
 
 
 pattern MDVarOrNum :: String    -> DTerm l
@@ -86,7 +85,7 @@ pattern MDRef             t = Branch [Leaf "ref", Space, t]
 pattern MDDeref           t = Branch [Leaf "!", t]
 pattern MDAssign      t1 t2 = Branch [t1, Space, Leaf ":=", Space, t2]
 -- Compound data
-pattern MDTuple         ts <- Branch (tupleElems -> Just ts) where
+pattern MDTuple         ts <- Branch (tupleElems -> Right ts) where
         MDTuple          ts = Branch $ [Leaf "{"] ++ intersperse Comma ts ++ [Leaf "}"]
 pattern MDProj          i t = Branch [t, Leaf ".", Leaf i]
 -- Booleans
@@ -105,20 +104,20 @@ pattern Comma, Space :: DTerm l
 pattern Comma = Leaf ", "
 pattern Space = Leaf " "
 
-tupleElems :: Eq l => [DTerm l] -> Maybe [DTerm l]
+tupleElems :: Eq l => [DTerm l] -> Either Error [DTerm l]
 tupleElems = \case
-  []                                    -> Nothing
-  [Leaf "{", Leaf "}"]                  -> Just []
-  [Leaf "{", _]                         -> Nothing
+  []                                    -> Left $ InternalError "Illegal NM structure"
+  [Leaf "{", Leaf "}"]                  -> Right []
+  [Leaf "{", _]                         -> Left $ InternalError "Illegal NM structure"
   ((Leaf "{"):xs) | last xs == Leaf "}" -> commaSep (init xs)
-  _                                     -> Nothing
+  _                                     -> Left $ InternalError "Illegal NM structure"
   where commaSep = \case
-          []           -> Just []
-          [Comma]      -> Nothing
-          [x]          -> Just [x]
-          [_, _]       -> Nothing
+          []           -> Right []
+          [Comma]      -> Left $ InternalError "Illegal NM structure"
+          [x]          -> Right [x]
+          [_, _]       -> Left $ InternalError "Illegal NM structure"
           (x:Comma:xs) -> (x :) <$> commaSep xs
-          _            -> Nothing
+          _            -> Left $ InternalError "Illegal NM structure"
 
 termToDTerm :: Term -> DTerm Location
 termToDTerm = \case
@@ -151,7 +150,7 @@ termToDTerm = \case
   IsZero t            -> MDIsZero (rec t)
   where rec = termToDTerm
 
-dTermToTerm :: DTerm Location -> Maybe Term
+dTermToTerm :: DTerm Location -> Either Error Term
 dTermToTerm = \case
   -- Unit
   MDUnit              -> return Unit
@@ -164,7 +163,7 @@ dTermToTerm = \case
   TLoc (DLoc l)       -> return $ Loc l
   -- Compound data
   MDTuple ts          -> Tuple <$> mapM rec ts
-  MDProj i t          -> Proj <$> readMaybe i <*> rec t
+  MDProj i t          -> Proj <$> maybeToEither (InternalError "Illegal NM structure") (readMaybe i) <*> rec t
   -- Booleans
   MDTru               -> return Tru
   MDFls               -> return Fls
@@ -175,18 +174,18 @@ dTermToTerm = \case
   MDPred t            -> Pred <$> rec t
   MDIsZero t          -> IsZero <$> rec t
   -- Lambdas
-  MDLambda name typ t -> Lambda name <$> eitherToMaybe (parseType typ) <*> rec t
+  MDLambda name typ t -> Lambda name <$> parseType typ <*> rec t
   MDApp t1 t2         -> App <$> rec t1 <*> rec t2
   MDVarOrNum s@(x:_)
-        | isNumber x  -> decToPeano =<< readMaybe s
+        | isNumber x  -> decToPeano =<< maybeToEither (InternalError "Illegal NM structure") (readMaybe s)
         | otherwise   -> return $ Var s
-  _                   -> Nothing
+  _                   -> Left $ InternalError "Illegal NM structure"
   where rec = dTermToTerm
 
-        decToPeano :: Integer -> Maybe Term
-        decToPeano 0         = Just Zero
+        decToPeano :: Integer -> Either Error Term
+        decToPeano 0         = Right Zero
         decToPeano n | n > 0 = Succ <$> decToPeano (n - 1)
-        decToPeano _         = Nothing -- error $ "internal error: negative numbers are not supported: " ++ show n
+        decToPeano n         = Left . InternalError $ "negative numbers are not supported: " ++ show n
 
 langToNM :: (Term, StateRacket) -> TAPLMemoryDiagram Location
 langToNM (term, StateRacket env store) =
@@ -194,29 +193,31 @@ langToNM (term, StateRacket env store) =
                     (Map.map termToDTerm env)
                     (Map.map termToDTerm (Map.mapKeys DLoc store))
 
-nmToLang :: TAPLMemoryDiagram Location -> Maybe (Term, StateRacket)
+nmToLang :: TAPLMemoryDiagram Location -> Either Error (Term, StateRacket)
 nmToLang (TAPLMemoryDiagram dTerm dEnv dStore) =
   do term <- dTermToTerm dTerm
      env <- mapMapM dTermToTerm dEnv
      store <- mapMapM dTermToTerm (Map.mapKeys (\(DLoc l) -> l) dStore)
      return (term, StateRacket env store)
 
-instance Injective (Term, StateRacket) (TAPLMemoryDiagram Location) where
+instance LangToNM (Term, StateRacket) (TAPLMemoryDiagram Location) where
   toNM   = langToNM
+
+instance Injective (Term, StateRacket) (TAPLMemoryDiagram Location) (Either Error) where
   fromNM = nmToLang
 
+instance SteppableM (TAPLMemoryDiagram Location) (Either Error) where
+  stepM = mkStepMInjNM _stepM
 
 bisim :: Bisimulation (Term, StateRacket)
-                      (Maybe (Term, StateRacket))
+                      (Either Error (Term, StateRacket))
                       (TAPLMemoryDiagram Location)
-                      (Maybe (TAPLMemoryDiagram Location))
-bisim = MkBisim { fLang  = step
-                , fNM    = fmap toNM . step <=< fromNM
-                , alphaA = toNM
-                , alphaB = fmap toNM }
-  where step :: (Term, StateRacket) -> Maybe (Term, StateRacket)
-        step x = eitherToMaybe $ stateToTuple s x <* typecheck (fst x)
-        s = stepM :: Term -> StateT StateRacket (Either Error) Term
+                      (Either Error (TAPLMemoryDiagram Location))
+bisim = mkInjBisimM _stepM
+
+_stepM :: (Term, StateRacket) -> Either Error (Term, StateRacket)
+_stepM x = stateToTuple s x <* typecheck (fst x)
+    where s = stepM :: Term -> StateT StateRacket (Either Error) Term
 
 
 -------------------------
@@ -236,13 +237,13 @@ repl fileName w = mkLangReplOpts
   where helpMsg = "Play with the TAPL Memory Diagram notional machine for Lambda Calculus with References"
 
 renderTrace :: FilePath -> Int -> String -> IO ()
-renderTrace filePath w = either (print . pretty) (render . traceDiagram) . traceAlaRacket
-  where
-        traceDiagram :: Trace MachineStateAlaRacket -> Diagram B
-        traceDiagram = vDiaSeq 1.5 0.5 . dias
-          where dias :: Trace MachineStateAlaRacket -> [Diagram B]
-                dias (Trace ss) = map (\(MachineStateAlaRacket s) -> (toDiagram termToTreeDiagram 1 . langToNM) s) ss
+renderTrace fileName w = either print (renderDiagram fileName w <=< toDiagramSeq) . (trace' <=< str2NM)
 
-        render :: Diagram B -> IO ()
-        render = renderDiagramRaster filePath w . bgFrame 1 white
+trace' :: TAPLMemoryDiagram Location -> Either Error [TAPLMemoryDiagram Location]
+trace' = sequence . traceM
+
+----- Helpers -----
+
+str2NM :: String -> Either Error (TAPLMemoryDiagram Location)
+str2NM = fmap (langToNM . (, emptyStateAlaRacket)) . parse
 

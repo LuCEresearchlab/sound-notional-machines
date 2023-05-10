@@ -24,7 +24,8 @@ import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), Node
                                                       pattern MkNode)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
-import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
+import NotionalMachines.Meta.Injective    (Injective, fromNM)
+import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (eval, step)
 
 
@@ -60,8 +61,10 @@ etToLambda = etToLang go
       _                                      -> lift Nothing -- "incorrect diagram"
 
 
-instance Injective Exp ExpTutorDiagram where
+instance LangToNM Exp ExpTutorDiagram where
   toNM   = lambdaToET
+
+instance Injective Exp ExpTutorDiagram Maybe where
   fromNM = etToLambda
 
 bisim :: Bisimulation Exp Exp ExpTutorDiagram (Maybe ExpTutorDiagram)

@@ -9,7 +9,6 @@
 
 module NotionalMachines.LangInMachine.TypedArithExpressionTutor where
 
-import Control.Monad            ((<=<))
 import Control.Monad.State.Lazy (State, StateT (..), lift, liftM3)
 
 import Data.Set (Set)
@@ -24,9 +23,11 @@ import qualified NotionalMachines.Machine.ExpressionTutor.Main as ET (Type (..))
 
 import NotionalMachines.LangInMachine.UntypedArithExpressionTutor ()
 
-import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
-import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
-import NotionalMachines.Util.Util             (eitherToMaybe)
+import NotionalMachines.Meta.Bisimulation (Bisimulation (..), mkInjBisimM)
+import NotionalMachines.Meta.Injective    (Injective, fromNM)
+import NotionalMachines.Meta.LangToNM     (LangToNM (..))
+
+import NotionalMachines.Util.Util (eitherToMaybe)
 
 ------------------------
 -- Lang Types to NM Type representation and back
@@ -41,12 +42,12 @@ tyNMToTy = \case ET.MkTy "Bool" -> return TyBool
                  ET.MkTy "Int"  -> return TyNat
                  _              -> Nothing
 
+instance LangToNM TypedArith.Type ET.Type where
+  toNM = tyToNM
+
 -- Ask for the type of a diagram not annotated with types
 typeOfBisim :: Bisimulation Term (Maybe TypedArith.Type) ExpTutorDiagram (Maybe ET.Type)
-typeOfBisim = MkBisim { fLang  = _fLang
-                      , fNM    = fmap tyToNM . _fLang <=< fromNM
-                      , alphaA = toNM
-                      , alphaB = fmap tyToNM }
+typeOfBisim = mkInjBisimM _fLang
   where _fLang :: Term -> Maybe TypedArith.Type
         _fLang = eitherToMaybe . typeof
 
@@ -100,15 +101,15 @@ nmToLang = etToLang go
       DiaBranch (NodeIsZero ty _) [t]          -> (, tyNMToTy =<< ty) . TyIsZero <$> go t
       _ -> lift Nothing -- "incorrect diagram"
 
-instance Injective TypedTerm ExpTutorDiagram where
+
+instance LangToNM TypedTerm ExpTutorDiagram where
   toNM = langToNM
+
+instance Injective TypedTerm ExpTutorDiagram Maybe where
   fromNM = nmToLang
 
 -- Annotate diagram with types
 annotateTypeBisim :: Bisimulation TypedTerm (Maybe TypedTerm) ExpTutorDiagram (Maybe ExpTutorDiagram)
-annotateTypeBisim = MkBisim { fLang  = _fLang
-                            , fNM    = fmap langToNM . (=<<) _fLang . fromNM
-                            , alphaA = toNM
-                            , alphaB = fmap langToNM }
+annotateTypeBisim = mkInjBisimM _fLang
   where _fLang :: TypedTerm -> Maybe TypedTerm
         _fLang = eitherToMaybe . typeof1

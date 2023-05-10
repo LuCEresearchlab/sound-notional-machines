@@ -1,11 +1,12 @@
 {-# OPTIONS_GHC -Wall -Wno-orphans #-}
 
 {-# LANGUAGE FlexibleContexts      #-}
+
+{-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree (
       bisim
-    , langToNM
     , nmToLang
 
     , repl
@@ -15,22 +16,22 @@ module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree (
     , renderTrace
     ) where
 
-import Prettyprinter (Pretty (pretty), vsep)
-import Text.Parsec   (ParseError)
+import Control.Monad ((<=<))
 
-import Diagrams.Backend.Rasterific (B)
-import Diagrams.Prelude            (Diagram, bgFrame, white)
+import Text.Parsec (ParseError)
 
-import NotionalMachines.Lang.UntypedLambda.Main        (Exp (..), parse)
-import NotionalMachines.Machine.ExpressionTree.Diagram (toDiagram)
-import NotionalMachines.Machine.ExpressionTree.Main    (ExpAsTree (..), toAscii)
+import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
-import NotionalMachines.Meta.Bijective    (Bijective, fromNM, toNM)
-import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, stepNM)
+import NotionalMachines.Machine.ExpressionTree.Diagram (renderDiagram)
+import NotionalMachines.Machine.ExpressionTree.Main    (ExpAsTree (..))
+
+import NotionalMachines.Meta.Bijective    (Bijective, fromNM)
+import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, mkStepBijNM)
+import NotionalMachines.Meta.Diagramable  (Diagramable (..))
+import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (Steppable, eval, step, trace)
 
-import NotionalMachines.Util.Diagrams (renderDiagramRaster, vDiaSeq)
-import NotionalMachines.Util.REPL     (LangPipeline (..), mkCmd, mkLangReplOpts)
+import NotionalMachines.Util.REPL (LangPipeline (..), mkCmd, mkLangReplOpts)
 
 langToNM :: Exp -> ExpAsTree
 langToNM (Var name)      = Box name
@@ -42,12 +43,14 @@ nmToLang (Box name)         = Var name
 nmToLang (LambdaBox name e) = Lambda name (nmToLang e)
 nmToLang (BinaryBox e1 e2)  = App (nmToLang e1) (nmToLang e2)
 
+instance LangToNM Exp ExpAsTree where
+  toNM = langToNM
+
 instance Bijective Exp ExpAsTree where
-  toNM   = langToNM
   fromNM = nmToLang
 
 instance Steppable ExpAsTree where
-  step = stepNM step
+  step = mkStepBijNM step
 
 bisim :: Bisimulation Exp Exp ExpAsTree ExpAsTree
 bisim = mkBijBisim
@@ -69,13 +72,10 @@ bisim = mkBijBisim
 
 
 
-newtype Trace s = Trace [s]
-instance Pretty s => Pretty (Trace s) where
-  pretty (Trace ss) = vsep $ map pretty ss
-
 langPipeline :: LangPipeline Exp () ParseError [Exp]
 langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
 
+-- TODO: Reduce code duplication between this and the other repls
 repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("ascii",       ascii)
@@ -86,34 +86,19 @@ repl fileName w = mkLangReplOpts
   where helpMsg = "Play with the Expression as Tree notional machine for Untyped Lambda Calculus"
 
 ascii :: String -> IO ()
-ascii =       mkAsciiTraceCmd . fmap return . str2NM
+ascii =       mkCmd . fmap (: []) . str2NM
 
 asciiTrace :: String -> IO ()
-asciiTrace =  mkAsciiTraceCmd . str2NMTrace
+asciiTrace =  mkCmd . fmap trace  . str2NM
 
-render :: String -> Int -> String -> IO ()
-render fileName w =      either print (renderNM fileName w) . str2NM
+render :: FilePath -> Int -> String -> IO ()
+render fileName w =      either print (renderDiagram fileName w <=< toDiagram) . str2NM
 
-renderTrace :: String -> Int -> String -> IO ()
-renderTrace fileName w = either print (renderNMSeq fileName w) . str2NMTrace
+renderTrace :: FilePath -> Int -> String -> IO ()
+renderTrace fileName w = either print ((renderDiagram fileName w <=< toDiagramSeq) . trace) . str2NM
 
 ----- Helpers -----
 
 str2NM :: String -> Either ParseError ExpAsTree
 str2NM = fmap langToNM . parse
-
-str2NMTrace :: String -> Either ParseError [ExpAsTree]
-str2NMTrace = fmap trace . str2NM
-
-mkAsciiTraceCmd :: Either ParseError [ExpAsTree] -> IO ()
-mkAsciiTraceCmd = mkCmd . fmap (Trace . map toAscii)
-
-renderNMSeq :: String -> Int -> [ExpAsTree] -> IO ()
-renderNMSeq fileName w = renderDiagram fileName w . vDiaSeq 1.5 0.5 . map (toDiagram 1)
-
-renderNM :: String -> Int -> ExpAsTree -> IO ()
-renderNM fileName w = renderDiagram fileName w . toDiagram 1
-
-renderDiagram :: String -> Int -> Diagram B -> IO ()
-renderDiagram fileName w = renderDiagramRaster fileName w . bgFrame 0.05 white
 

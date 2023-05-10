@@ -4,8 +4,9 @@
 
 module NotionalMachines.Meta.Bijective where
 
-class Bijective a b | a -> b, b -> a where
-  toNM   :: a -> b
-  fromNM :: b -> a
+import NotionalMachines.Meta.LangToNM (LangToNM)
+
+class LangToNM lang nm => Bijective lang nm | lang -> nm, nm -> lang where
+  fromNM :: nm -> lang
 
 

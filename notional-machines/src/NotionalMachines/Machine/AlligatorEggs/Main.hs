@@ -40,14 +40,17 @@ import Control.Monad.State.Lazy (State, evalState, get, put)
 import           Data.Map (Map)
 import qualified Data.Map as Map
 
-import Data.Colour.Names                                  (black)
+import Data.Colour.Names (black)
+
+import Prettyprinter (Pretty, pretty, vsep)
+
+import NotionalMachines.Meta.Steppable (Steppable (step), SteppableM, evalM, stepM)
+
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color (..))
 
 import           NotionalMachines.Machine.AlligatorEggs.AsciiSyntax (AsAsciiAlligators, toAscii)
 import qualified NotionalMachines.Machine.AlligatorEggs.AsciiSyntax as Ascii (egg, hungryAlligator,
                                                                               oldAlligator)
-import           NotionalMachines.Meta.Steppable                    (Steppable (step), SteppableM,
-                                                                     evalM, stepM)
 
 
 --------------------------
@@ -193,12 +196,17 @@ deBruijnAlligators = fmap (go (-1) 0 Map.empty)
 --------------------------------------------------------
 -- Ascii Alligators representation of AlligatorFamily --
 --------------------------------------------------------
-instance AsAsciiAlligators [AlligatorFamilyF Color] where
+instance AsAsciiAlligators AlligatorFamilies where
   toAscii = foldMap $ \case
     HungryAlligator (MkColorFromName n) proteges -> Ascii.hungryAlligator n (toAscii proteges)
     OldAlligator proteges                        -> Ascii.oldAlligator (toAscii proteges)
     Egg (MkColorFromName n)                      -> Ascii.egg n
 
+instance {-# OVERLAPPING #-} Pretty AlligatorFamilies where
+  pretty = pretty . toAscii
+
+instance {-# OVERLAPPING #-} Pretty [AlligatorFamilies] where
+  pretty = vsep . map pretty
 
 -- Analysis:
 --

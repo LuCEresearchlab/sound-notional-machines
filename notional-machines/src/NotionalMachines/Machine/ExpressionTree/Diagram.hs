@@ -1,28 +1,42 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module NotionalMachines.Machine.ExpressionTree.Diagram where
 
-import Data.Maybe (fromMaybe)
-import Data.Tree  (Tree (Node))
+import Control.Monad.State (State, gets, modify, runState)
 
-import Diagrams.Backend.Rasterific      (B)
+import Data.Bifunctor (bimap, first, second)
+import Data.Maybe     (fromMaybe)
+import Data.Tree      (Tree (Node))
+
+import Diagrams.Backend.Rasterific      (B, Rasterific)
 import Diagrams.Backend.Rasterific.Text (texterific)
-import Diagrams.Prelude                 (Angle, Diagram, IsName, applyAll, centerXY, circle,
-                                         connectPerim, extentX, extentY, fc, hcat, height, lwO,
+import Diagrams.Prelude                 (Angle, Diagram, IsName, applyAll, bgFrame, centerXY,
+                                         circle, connectPerim, extentX, extentY, fc, hcat, height,
                                          named, pad, rad, rect, roundedRect, scale, tau, text,
                                          white, width, with, (#), (&), (.~), (@@), (~~))
 import Diagrams.TwoD.Layout.Tree        (renderTree, renderTree', slHSep, slHeight, slVSep, slWidth,
                                          symmLayout')
 
-import Control.Monad.State                          (State, gets, modify, runState)
-import Data.Bifunctor                               (bimap, first, second)
 import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..))
+import NotionalMachines.Meta.Diagramable            (Diagramable (..), toDiagramSeq')
+import NotionalMachines.Util.Diagrams               (renderDiagramRaster, vDiaSeq)
 
 
-toDiagram2 :: Double -> ExpAsTree -> Diagram B
-toDiagram2 size = renderT . go
+instance Diagramable ExpAsTree Rasterific where
+  toDiagram = return . toDiagram' 1
+  toDiagramSeq = toDiagramSeq' (vDiaSeq 1.5 0.5)
+
+renderDiagram :: FilePath -> Int -> Diagram B -> IO ()
+renderDiagram = renderDiagramRaster
+
+bg :: Diagram B -> Diagram B
+bg = bgFrame 0.05 white
+
+toDiagram'' :: Double -> ExpAsTree -> Diagram B
+toDiagram'' size = bg . renderT . go
   where
     go :: ExpAsTree -> Tree (Diagram B)
     go = \case
@@ -41,8 +55,8 @@ toDiagram2 size = renderT . go
                                      & slHeight .~ addGap (0.5 * size) . fromMaybe (0,0) . extentY)
             where addGap gap = bimap (\x -> x - gap) (+ gap)
 
-toDiagram :: Double -> ExpAsTree -> Diagram B
-toDiagram size = renderT . flip runState (0, []) . go
+toDiagram' :: Double -> ExpAsTree -> Diagram B
+toDiagram' size = bg . renderT . flip runState (0, []) . go
   where
     go :: ExpAsTree -> State (Int, [(String, String)]) (Tree (Int, Diagram B))
     go = \case

@@ -1,5 +1,8 @@
 {-# OPTIONS_GHC -Wall #-}
-{-# LANGUAGE LambdaCase #-}
+
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 {-|
 Description : Render Alligator Eggs using @diagrams@.
@@ -22,32 +25,44 @@ module NotionalMachines.Machine.AlligatorEggs.Diagram where
 
 import Data.String (fromString)
 
-import Diagrams.Backend.SVG (B)
-import Diagrams.Prelude     (Diagram, alignT, centerX, centerXY, extrudeTop, hcat, mkWidth,
-                             rotateBy, sized, (#), (===))
+import Diagrams.Backend.SVG (B, SVG)
+import Diagrams.Prelude     (Diagram, alignT, bgFrame, centerX, centerXY, extrudeTop, hcat, mkWidth,
+                             rotateBy, sized, white, (#), (===))
 import Diagrams.SVG.ReadSVG (readSVGLBS)
 
-import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF (..))
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color, colorHexa)
-import NotionalMachines.Util.Util                      (replace)
+import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamilyF (..))
+import NotionalMachines.Meta.Diagramable                  (Diagramable (..), toDiagramSeq')
+import NotionalMachines.Util.Diagrams                     (diaSeq, renderDiagramSVG)
+import NotionalMachines.Util.Util                         (replace)
+
+instance Diagramable [AlligatorFamilyF Color] SVG where
+  toDiagram = toDiagram' 1
+  toDiagramSeq = toDiagramSeq' (diaSeq 6 0.9 0.5)
+
+renderDiagram :: FilePath -> Int -> Diagram B -> IO ()
+renderDiagram = renderDiagramSVG
+
+bg :: Diagram B -> Diagram B
+bg = bgFrame 0.05 white
 
 -- | Returns the diagram of an alligator family.
-toDiagram :: Double -> [AlligatorFamilyF Color] -> IO (Diagram B)
-toDiagram width = fmap mconcat . toDiagram' width
+toDiagram' :: Double -> [AlligatorFamilyF Color] -> IO (Diagram B)
+toDiagram' width = fmap (bg . mconcat) . _toDiagram width
 
 -- | Returns the diagram of an alligator family as a list to allow for
 -- post processing (e.g. to add a frame around each element,
 -- which can be done by calling `map framed` before `mconcat`).
 -- (See https://diagrams.github.io/doc/manual.html#delayed-composition)
-toDiagram' :: Double -> [AlligatorFamilyF Color] -> IO [Diagram B]
-toDiagram' maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (maxWidth * 0.9)
+_toDiagram :: Double -> [AlligatorFamilyF Color] -> IO [Diagram B]
+_toDiagram maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (maxWidth * 0.9)
   where
     go :: Double -> AlligatorFamilyF Color -> IO [Diagram B]
     go w (Egg c)                 = (\e -> [e] # sized (mkWidth (w * 0.9))) <$> egg (colorHexa c)
     go w (OldAlligator as')      = coverWith w oldAlligator as'
     go w (HungryAlligator c as') = coverWith w (hungryAlligator (colorHexa c)) as'
 
-    coverWith w alligator as' = do proteges <- toDiagram' w as'
+    coverWith w alligator as' = do proteges <- _toDiagram w as'
                                    al <- alligator
                                    return $ [al] # sized (mkWidth w) # centerX
                                              ===

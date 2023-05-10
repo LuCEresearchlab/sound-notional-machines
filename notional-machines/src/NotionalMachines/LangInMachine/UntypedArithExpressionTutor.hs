@@ -13,9 +13,10 @@ import Data.Set (Set)
 import NotionalMachines.Lang.UntypedArith.Main       (Term (..))
 import NotionalMachines.Machine.ExpressionTutor.Main
 
-import NotionalMachines.Meta.Bisimulation
-import NotionalMachines.Meta.Injective
-import NotionalMachines.Meta.Steppable
+import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
+import NotionalMachines.Meta.Injective    (Injective (..))
+import NotionalMachines.Meta.LangToNM     (LangToNM (..))
+import NotionalMachines.Meta.Steppable    (Steppable (..))
 
 pattern NodeTrue   i =  MkNode i Nothing [C "true"]
 pattern NodeFalse  i =  MkNode i Nothing [C "false"]
@@ -56,8 +57,10 @@ etToArith = etToLang go
       DiaBranch NodeIsZero {} [t]      -> IsZero <$> go t
       _ -> lift Nothing -- "incorrect diagram"
 
-instance Injective Term ExpTutorDiagram where
+instance LangToNM Term ExpTutorDiagram where
   toNM   = arithToET
+
+instance Injective Term ExpTutorDiagram Maybe where
   fromNM = etToArith
 
 bisim :: Bisimulation Term Term ExpTutorDiagram (Maybe ExpTutorDiagram)

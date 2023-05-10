@@ -52,14 +52,14 @@ import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram 
 import qualified NotionalMachines.LangInMachine.UntypedArithExpressionTutor     as ArithET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as A (bisim,
                                                                                       langToNm)
-import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim,
-                                                                                          renderTrace)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
 
 import qualified NotionalMachines.Meta.Bijective    as Bij
 import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import qualified NotionalMachines.Meta.Injective    as Inj
+import           NotionalMachines.Meta.LangToNM     (toNM)
 import           NotionalMachines.Meta.Steppable    (eval, evalM)
 
 import NotionalMachines.Util.Generators (genName)
@@ -375,19 +375,19 @@ expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
     testGroup "ET with Untyped Lambda" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ExpTutorDiagram)
+          isLeftInverseOf LambdaGen.genExp (Inj.fromNM :: ExpTutorDiagram -> Maybe Lambda.Exp) (toNM :: Lambda.Exp -> ExpTutorDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes LambdaGen.genExp LambdaET.bisim
     ],
     testGroup "ET with Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf ArithGen.genTerm Inj.fromNM (Inj.toNM :: Arith.Term -> ExpTutorDiagram)
+          isLeftInverseOf ArithGen.genTerm (Inj.fromNM :: ExpTutorDiagram -> Maybe Arith.Term) (toNM :: Arith.Term -> ExpTutorDiagram)
       , testProperty "commutation proof" $
           bisimulationCommutes ArithGen.genTerm ArithET.bisim
     ],
     testGroup "ET with Typed Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
-          isLeftInverseOf TypedArithGen.genTypedTerm Inj.fromNM (Inj.toNM :: TypedArith.TypedTerm -> ExpTutorDiagram)
+          isLeftInverseOf TypedArithGen.genTypedTerm (Inj.fromNM :: ExpTutorDiagram -> Maybe TypedArith.TypedTerm) (toNM :: TypedArith.TypedTerm -> ExpTutorDiagram)
       , testProperty "commutation proof for typeof bisim (ask for type of term)" $
           bisimulationCommutes ArithGen.genTerm TypedArithET.typeOfBisim
       , testProperty "commutation proof for type annotated diagram" $
@@ -420,7 +420,7 @@ expressionTutorTest = testGroup "Expressiontutor" [
 expTreeTest :: TestTree
 expTreeTest = testGroup "Expression Trees" [
       testProperty "nmToLang is inverse of langToNm" $
-        isEquivalentTo LambdaGen.genExp (Bij.fromNM . Bij.toNM) id
+        isEquivalentTo LambdaGen.genExp (Bij.fromNM . toNM) id
     , testProperty "commutation proof" $
         bisimulationCommutes LambdaGen.genExp ETree.bisim
   ]
@@ -428,7 +428,7 @@ expTreeTest = testGroup "Expression Trees" [
 reductTest :: TestTree
 reductTest = testGroup "Reduct" [
       testProperty "nmToLang is left inverse of langToNm" $
-        isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> ReductExp)
+        isLeftInverseOf LambdaGen.genExp (Inj.fromNM :: ReductExp -> Maybe Lambda.Exp) (toNM :: Lambda.Exp -> ReductExp)
     , testProperty "commutation proof" $
         bisimulationCommutes LambdaGen.genExp R.bisim
     , testProperty "reduct trees have unique ids"
@@ -438,7 +438,7 @@ reductTest = testGroup "Reduct" [
 alligatorTest :: TestTree
 alligatorTest = testGroup "Alligators" [
       -- testProperty "nmToLang is left inverse of langToNm" $
-      --   isLeftInverseOf LambdaGen.genExp Inj.fromNM (Inj.toNM :: Lambda.Exp -> AlligatorFamilies)
+      --   isLeftInverseOf LambdaGen.genExp Inj.fromNM (toNM :: Lambda.Exp -> AlligatorFamilies)
       testProperty "commutation proof" $
         bisimulationCommutes LambdaGen.genCombinator A.bisim
     , testProperty "color rule"

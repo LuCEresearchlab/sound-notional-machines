@@ -1,16 +1,18 @@
 {-# OPTIONS_GHC -Wall #-}
 
-{-# LANGUAGE FlexibleContexts    #-}
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
-{-# LANGUAGE TypeFamilies        #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LambdaCase            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (
-    toDiagram
+    toDiagram'
   , termToTreeDiagram
   , termToTextDiagram
   , exampleSymmTree
+  , renderDiagram
   ) where
 
 import Control.Monad.State.Lazy (MonadState (get), State, runState, withState)
@@ -22,11 +24,11 @@ import           Data.Tree  (Tree (Node))
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Backend.Rasterific.CmdLine (B)
+import Diagrams.Backend.Rasterific.CmdLine (B, Rasterific)
 import Diagrams.Backend.Rasterific.Text    (texterific)
 import Diagrams.Prelude                    (Angle, Applicative (liftA2), ArrowOpts, Diagram, IsName,
                                             Trail, TypeableFloat, V2, alignB, alignT, applyAll, arc,
-                                            arrowShaft, black, centerX, centerXY, circle,
+                                            arrowShaft, bgFrame, black, centerX, centerXY, circle,
                                             composeAligned, connectOutside', connectPerim', extentX,
                                             extentY, fc, fullTurn, hcat, headGap, headLength,
                                             height, hrule, hsep, local, lw, lwO, named, normalized,
@@ -39,10 +41,20 @@ import Diagrams.TwoD.Layout.Tree           (renderTree, slHSep, slHeight, slVSep
 
 import NotionalMachines.Machine.TAPLMemoryDiagram.Main (DLocation (..), DTerm (..),
                                                         TAPLMemoryDiagram (..))
+import NotionalMachines.Meta.Diagramable               (Diagramable (..), toDiagramSeq')
+import NotionalMachines.Util.Diagrams                  (renderDiagramRaster, vDiaSeq)
 
 ---------------
 -- Tree Heap diagram
 ---------------
+
+instance IsName l => Diagramable (TAPLMemoryDiagram l) Rasterific where
+  toDiagram = return . toDiagram' termToTreeDiagram 1
+  toDiagramSeq = toDiagramSeq' (vDiaSeq 1.5 0.5)
+
+renderDiagram :: FilePath -> Int -> Diagram B -> IO ()
+renderDiagram = renderDiagramRaster
+
 
 instance IsName a => IsName (DLocation a)
 
@@ -81,12 +93,15 @@ arrowConfig ts shaft = with & arrowShaft .~ shaft
 
 ---
 
-toDiagram :: forall l. (IsName l) => (Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B))
+bg :: Diagram B -> Diagram B
+bg = bgFrame 0.05 white
+
+toDiagram' :: forall l. (IsName l) => (Double -> Connector l -> DTerm l -> State [ArrowInfo l] (Diagram B))
                                   -> Double
                                   -> TAPLMemoryDiagram l
                                   -> Diagram B
-toDiagram termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) []
-                                  in d # applyAll (map connect arrowLocs)
+toDiagram' termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia) []
+                                  in d # applyAll (map connect arrowLocs) # bg
   where
     connect :: ArrowInfo l -> Diagram B -> Diagram B
     connect (ArrowInfo l1 l2 connector) = connector l1 l2

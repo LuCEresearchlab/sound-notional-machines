@@ -5,7 +5,6 @@
 
 module NotionalMachines.Util.Diagrams where
 
-import Data.Data (Typeable)
 
 import Data.List       (intersperse)
 import Data.List.Split (chunksOf)
@@ -43,9 +42,8 @@ vDiaSeq spc fontS = vsep spc
           where innerRect = rect (width d - _spc) (height d - _spc) # lwO 0
                 idx j = text (show j) # fontSizeL _fontS
 
-renderDiagramSVG :: (Show n, Typeable n, RealFloat n) =>
-                 FilePath -> n -> QDiagram SVG V2 n Any -> IO ()
-renderDiagramSVG fileName w = renderSVG fileName (mkWidth w)
+renderDiagramSVG :: FilePath -> Int -> QDiagram SVG V2 Double Any -> IO ()
+renderDiagramSVG fileName w = renderSVG fileName (mkWidth (fromIntegral w))
 
 -- Rendering with Rasterific
 renderDiagramRaster :: FilePath -> Int -> Diagram Rasterific.B -> IO ()

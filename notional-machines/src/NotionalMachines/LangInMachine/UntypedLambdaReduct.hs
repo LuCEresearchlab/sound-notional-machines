@@ -8,8 +8,9 @@ module NotionalMachines.LangInMachine.UntypedLambdaReduct where
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..))
 import NotionalMachines.Machine.Reduct.Main     (ReductExp, ReductExpF (..), updateUids)
 
-import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim, stepMNM)
-import NotionalMachines.Meta.Injective    (Injective, fromNM, toNM)
+import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim, mkStepInjNM)
+import NotionalMachines.Meta.Injective    (Injective, fromNM)
+import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (SteppableM, step, stepM)
 
 
@@ -39,12 +40,14 @@ langToNm p = updateUids 0 (go p 0)
 --
 --    A' --f'--> B'
 
-instance Injective Exp ReductExp where
+instance LangToNM Exp ReductExp where
   toNM   = langToNm
+
+instance Injective Exp ReductExp Maybe where
   fromNM = nmToLang
 
 instance SteppableM ReductExp Maybe where
-  stepM = stepMNM (step :: Exp -> Exp)
+  stepM = mkStepInjNM (step :: Exp -> Exp)
 
 bisim :: Bisimulation Exp Exp ReductExp (Maybe ReductExp)
 bisim = mkInjBisim step

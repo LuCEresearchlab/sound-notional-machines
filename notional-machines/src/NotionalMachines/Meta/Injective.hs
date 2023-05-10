@@ -4,7 +4,8 @@
 
 module NotionalMachines.Meta.Injective where
 
-class Injective a b where
-  toNM   :: a -> b
-  fromNM :: b -> Maybe a
+import NotionalMachines.Meta.LangToNM (LangToNM)
+
+class (LangToNM lang nm, Monad m) => Injective lang nm m where
+  fromNM :: nm -> m lang
 

@@ -1,11 +1,16 @@
 {-# OPTIONS_GHC -Wall #-}
 
+{-# LANGUAGE FlexibleContexts #-}
+
 module NotionalMachines.Meta.Bisimulation where
+
+import Control.Monad ((<=<))
 
 import           NotionalMachines.Meta.Bijective (Bijective)
 import qualified NotionalMachines.Meta.Bijective as Bij
 import           NotionalMachines.Meta.Injective (Injective)
 import qualified NotionalMachines.Meta.Injective as Inj
+import           NotionalMachines.Meta.LangToNM  (LangToNM (..))
 import           NotionalMachines.Meta.Steppable (Steppable, step)
 
 --------------------------
@@ -40,21 +45,30 @@ data Bisimulation a' b' a b = MkBisim { fLang  :: a' -> b'
 
 mkBijBisim :: (Bijective l n, Steppable l) => Bisimulation l l n n
 mkBijBisim = MkBisim { fLang  = step
-                     , fNM    = stepNM step
-                     , alphaA = Bij.toNM
-                     , alphaB = Bij.toNM }
+                     , fNM    = mkStepBijNM step
+                     , alphaA = toNM
+                     , alphaB = toNM }
 
-mkInjBisim :: (Injective l n) => (l -> l) -> Bisimulation l l n (Maybe n)
+mkInjBisim :: (Injective l1 n1 m, LangToNM l2 n2) => (l1 -> l2) -> Bisimulation l1 l2 n1 (m n2)
 mkInjBisim f = MkBisim { fLang  = f
-                       , fNM    = stepMNM f
-                       , alphaA = Inj.toNM
-                       , alphaB = pure . Inj.toNM }
+                       , fNM    = mkStepInjNM f
+                       , alphaA = toNM
+                       , alphaB = pure . toNM }
 
-stepNM :: Bijective l n => (l -> l) -> n -> n
-stepNM f = Bij.toNM . f . Bij.fromNM
+mkInjBisimM :: (Injective l1 n1 m, LangToNM l2 n2) => (l1 -> m l2) -> Bisimulation l1 (m l2) n1 (m n2)
+mkInjBisimM f = MkBisim { fLang  = f
+                        , fNM    = mkStepMInjNM f
+                        , alphaA = toNM
+                        , alphaB = fmap toNM }
 
-stepMNM :: Injective l n => (l -> l) -> n -> Maybe n
-stepMNM f = fmap (Inj.toNM . f) . Inj.fromNM
+mkStepBijNM :: Bijective l n => (l -> l) -> n -> n
+mkStepBijNM f = toNM . f . Bij.fromNM
+
+mkStepInjNM :: (Injective l1 n1 m, LangToNM l2 n2) => (l1 -> l2) -> n1 -> m n2
+mkStepInjNM f = fmap (toNM . f) . Inj.fromNM
+
+mkStepMInjNM :: (Injective l1 n1 m, LangToNM l2 n2) => (l1 -> m l2) -> n1 -> m n2
+mkStepMInjNM f = fmap toNM . f <=< Inj.fromNM
 
 -- instance Steppable Exp
 -- instance Bijective Exp ExpAsTree
