@@ -14,9 +14,9 @@ import Data.Tree      (Tree (Node))
 import Diagrams.Backend.Rasterific      (B, Rasterific)
 import Diagrams.Backend.Rasterific.Text (texterific)
 import Diagrams.Prelude                 (Angle, Diagram, IsName, applyAll, bgFrame, centerXY,
-                                         circle, connectPerim, extentX, extentY, fc, hcat, height,
-                                         named, pad, rad, rect, roundedRect, scale, tau, text,
-                                         white, width, with, (#), (&), (.~), (@@), (~~))
+                                         circle, connectPerim, extentX, extentY, fc, gray, hcat,
+                                         height, lc, named, pad, rad, rect, roundedRect, scale, tau,
+                                         text, white, width, with, (#), (&), (.~), (@@), (~~))
 import Diagrams.TwoD.Layout.Tree        (renderTree, renderTree', slHSep, slHeight, slVSep, slWidth,
                                          symmLayout')
 
@@ -24,27 +24,34 @@ import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..))
 import NotionalMachines.Meta.Diagramable            (Diagramable (..), toDiagramSeq')
 import NotionalMachines.Util.Diagrams               (renderDiagramRaster, vDiaSeq)
 
+newtype ExpAsTreeBubble = ExpAsTreeBubble { unExpAsTreeBubble :: ExpAsTree }
+instance Diagramable ExpAsTreeBubble Rasterific where
+  toDiagram = return . toDiagramBubble 1 . unExpAsTreeBubble
+  toDiagramSeq = toDiagramSeq' (vDiaSeq 1.5 0.5)
 
-instance Diagramable ExpAsTree Rasterific where
-  toDiagram = return . toDiagram' 1
+newtype ExpAsTreeBoxes = ExpAsTreeBoxes { unExpAsTreeBoxes :: ExpAsTree }
+instance Diagramable ExpAsTreeBoxes Rasterific where
+  toDiagram = return . toDiagramBoxes 1 . unExpAsTreeBoxes
   toDiagramSeq = toDiagramSeq' (vDiaSeq 1.5 0.5)
 
 renderDiagram :: FilePath -> Int -> Diagram B -> IO ()
 renderDiagram = renderDiagramRaster
 
 bg :: Diagram B -> Diagram B
-bg = bgFrame 0.05 white
+bg = bgFrame 1 white
 
-toDiagram'' :: Double -> ExpAsTree -> Diagram B
-toDiagram'' size = bg . renderT . go
+toDiagramBubble :: Double -> ExpAsTree -> Diagram B
+toDiagramBubble size = bg . renderT . go
   where
     go :: ExpAsTree -> Tree (Diagram B)
     go = \case
       Box n           -> Node (framed n) []
       BinaryBox e1 e2 -> Node (framed "App" # centerXY) [go e1, go e2]
-      LambdaBox n e   -> Node (hcat [framed "Lambda", framed n] # centerXY) [go e]
-      where framed t = framedRoundText padding 0.9 size (txt size t)
+      LambdaBox n e   -> Node (surround $ hcat [txt size "λ " # centerXY, nameDef n] # centerXY) [go e]
+      where framed t = surround (txt size t)
+            surround = framedRoundText padding 0.9 size
             padding = 2 * txtHeight size
+            nameDef t = framedText (0.5 * padding) size (txt size t # fc white) # fc gray # lc gray
 
     renderT :: Tree (Diagram B) -> Diagram B
     renderT = drawTree
@@ -55,8 +62,8 @@ toDiagram'' size = bg . renderT . go
                                      & slHeight .~ addGap (0.5 * size) . fromMaybe (0,0) . extentY)
             where addGap gap = bimap (\x -> x - gap) (+ gap)
 
-toDiagram' :: Double -> ExpAsTree -> Diagram B
-toDiagram' size = bg . renderT . flip runState (0, []) . go
+toDiagramBoxes :: Double -> ExpAsTree -> Diagram B
+toDiagramBoxes size = bg . renderT . flip runState (0, []) . go
   where
     go :: ExpAsTree -> State (Int, [(String, String)]) (Tree (Int, Diagram B))
     go = \case
@@ -108,7 +115,7 @@ txt :: Double -> String -> Diagram B
 txt scaleFactor t = texterific t # scale scaleFactor
 
 framedText :: Double -> Double -> Diagram B -> Diagram B
-framedText spaceSize txtScaleFactor d = d # centerXY <> rect w h # fc white
+framedText spaceSize txtScaleFactor d = d # centerXY <> rect w h
   where w = spaceSize + width  d
         h = spaceSize + txtHeight txtScaleFactor
 

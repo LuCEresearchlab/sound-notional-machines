@@ -22,7 +22,8 @@ import Text.Parsec (ParseError)
 
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
-import NotionalMachines.Machine.ExpressionTree.Diagram (renderDiagram)
+import NotionalMachines.Machine.ExpressionTree.Diagram (ExpAsTreeBoxes (..), ExpAsTreeBubble (..),
+                                                        renderDiagram)
 import NotionalMachines.Machine.ExpressionTree.Main    (ExpAsTree (..))
 
 import NotionalMachines.Meta.Bijective    (Bijective, fromNM)
@@ -31,7 +32,8 @@ import NotionalMachines.Meta.Diagramable  (Diagramable (..))
 import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (Steppable, eval, step, trace)
 
-import NotionalMachines.Util.REPL (LangPipeline (..), mkCmd, mkLangReplOpts)
+import Diagrams.Backend.Rasterific (B)
+import NotionalMachines.Util.REPL  (LangPipeline (..), mkCmd, mkLangReplOpts)
 
 langToNM :: Exp -> ExpAsTree
 langToNM (Var name)      = Box name
@@ -80,8 +82,10 @@ repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("ascii",       ascii)
     , ("asciiTrace",  asciiTrace)
-    , ("render",      render fileName w)
-    , ("renderTrace", renderTrace fileName w)
+    , ("renderBubble",      render      fileName w ExpAsTreeBubble)
+    , ("renderBubbleTrace", renderTrace fileName w ExpAsTreeBubble)
+    , ("renderBoxes",       render      fileName w ExpAsTreeBoxes)
+    , ("renderBoxesTrace",  renderTrace fileName w ExpAsTreeBoxes)
     ] "ExpressionTree>" helpMsg langPipeline
   where helpMsg = "Play with the Expression as Tree notional machine for Untyped Lambda Calculus"
 
@@ -91,11 +95,12 @@ ascii =       mkCmd . fmap (: []) . str2NM
 asciiTrace :: String -> IO ()
 asciiTrace =  mkCmd . fmap trace  . str2NM
 
-render :: FilePath -> Int -> String -> IO ()
-render fileName w =      either print (renderDiagram fileName w <=< toDiagram) . str2NM
+-- render :: Diagramable c b => FilePath -> Int -> (ExpAsTree -> c) -> String -> IO ()
+render :: Diagramable c B => FilePath -> Int -> (ExpAsTree -> c) -> String -> IO ()
+render fileName w wrapper =      either print (renderDiagram fileName w <=< toDiagram . wrapper) . str2NM
 
-renderTrace :: FilePath -> Int -> String -> IO ()
-renderTrace fileName w = either print ((renderDiagram fileName w <=< toDiagramSeq) . trace) . str2NM
+renderTrace :: Diagramable c B => FilePath -> Int -> (ExpAsTree -> c) -> String -> IO ()
+renderTrace fileName w wrapper = either print (renderDiagram fileName w <=< toDiagramSeq . map wrapper . trace) . str2NM
 
 ----- Helpers -----
 
