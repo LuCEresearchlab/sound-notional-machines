@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -Wall -Wno-missing-pattern-synonym-signatures -Wno-orphans #-}
+{-# OPTIONS_GHC -Wall #-}
 
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -17,6 +17,14 @@ import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
 import NotionalMachines.Meta.Injective    (Injective (..))
 import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (Steppable (..))
+
+pattern NodeTrue   :: Int -> Node
+pattern NodeFalse  :: Int -> Node
+pattern NodeIf     :: Int -> Node
+pattern NodeZero   :: Int -> Node
+pattern NodeSucc   :: Int -> Node
+pattern NodePred   :: Int -> Node
+pattern NodeIsZero :: Int -> Node
 
 pattern NodeTrue   i =  MkNode i Nothing [C "true"]
 pattern NodeFalse  i =  MkNode i Nothing [C "false"]
