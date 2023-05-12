@@ -10,6 +10,7 @@ import qualified NotionalMachines.Lang.UntypedArith.Main                        
 import qualified NotionalMachines.Lang.UntypedLambda.Main                       as UL
 import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as TLRT
 import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      as ULA
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ULET
 import           Options.Applicative
 import           Options.Applicative.Help.Pretty                                (Doc, fillSep,
                                                                                  string, vsep)
@@ -17,7 +18,7 @@ import           Options.Applicative.Help.Pretty                                
 data Language = UntypedArith | UntypedLambda | TypedArith | TypedLambdaArith | TypedLambdaRef
   deriving (Bounded, Enum, Eq, Read, Show)
 
-data NotionalMachine = Alligator | TAPLMemoryDiagram
+data NotionalMachine = ExpTree | Alligator | TAPLMemoryDiagram
   deriving (Bounded, Enum, Eq, Read, Show)
 
 data Options = Options { optLanguage        :: Language
@@ -83,8 +84,9 @@ supportedCombinations = Just $ vsep
     "All languages have REPLs but not all combinations of language and notional machine.")
   , ""
   , "Supported combinations of language and notional machine:"
-  , "  - UntypedLambda  + Alligator (SVG format)"
-  , "  - TypedLambdaRef + TAPLMemoryDiagram (PNG format)"
+  , "  - UntypedLambda  + ExpTree (.png, .tif, .bmp, .jpg and .pdf supported)"
+  , "  - UntypedLambda  + Alligator (.svg supported)"
+  , "  - TypedLambdaRef + TAPLMemoryDiagram (.png, .tif, .bmp, .jpg and .pdf supported)"
   ]
 
 main :: IO ()
@@ -99,22 +101,21 @@ main = do
     UntypedLambda ->
         case optNotionalMachine options of
           Nothing        -> UL.repl
-          Just Alligator ->
-              case (optOutputFilePath options, optDiagramWidth options) of
-                (Just outputFile, Just width) -> ULA.repl outputFile width
-                _                             -> putStrLn msgFileInfoMandatory
+          Just Alligator -> handleDiagramOptions options ULA.repl
+          Just ExpTree   -> handleDiagramOptions options ULET.repl
           _              -> putStrLn msgInvalidCombination
     TypedArith       -> TA.repl
     TypedLambdaArith -> TLA.repl
     TypedLambdaRef   ->
         case optNotionalMachine options of
           Nothing                -> TLR.repl
-          Just TAPLMemoryDiagram ->
-              case (optOutputFilePath options, optDiagramWidth options) of
-                (Just outputFile, Just width) -> TLRT.repl outputFile width
-                _                             -> putStrLn msgFileInfoMandatory
+          Just TAPLMemoryDiagram -> handleDiagramOptions options TLRT.repl
           _                      -> putStrLn msgInvalidCombination
 
   where
+      handleDiagramOptions options repl =
+              case (optOutputFilePath options, optDiagramWidth options) of
+                (Just outputFile, Just width) -> repl outputFile width
+                _                             -> putStrLn msgFileInfoMandatory
       msgFileInfoMandatory = "Please provide output file path and diagram width."
       msgInvalidCombination = "Invalid combination of language and notional machine."
