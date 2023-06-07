@@ -10,8 +10,6 @@ import Control.Monad.State.Lazy (State, StateT (..), lift)
 
 import Data.Set (Set)
 
-import Text.ParserCombinators.Parsec (ParseError)
-
 import qualified Hedgehog.Gen as Gen
 
 import NotionalMachines.Lang.UntypedLambda.Generators (genCombinator, genExp)
@@ -23,6 +21,7 @@ import NotionalMachines.Machine.ExpressionTutor.Main (ExpTutorDiagram (..), Node
                                                       pattern DiaBranch, pattern DiaLeaf,
                                                       pattern MkNode)
 
+import NotionalMachines.Lang.Error        (Error)
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkInjBisim)
 import NotionalMachines.Meta.Injective    (Injective, fromNM)
 import NotionalMachines.Meta.LangToNM     (LangToNM (..))
@@ -83,7 +82,7 @@ bisim = mkInjBisim step
 genLambda :: IO String
 genLambda = unparse <$> Gen.sample genExp
 
-solveParseActivity :: String -> Either ParseError ExpTutorDiagram
+solveParseActivity :: String -> Either Error ExpTutorDiagram
 solveParseActivity = fmap toNM . parse
 
 
@@ -101,7 +100,7 @@ solveUnparseActivity = fmap unparse . fromNM
 generateEvalActivity :: IO String
 generateEvalActivity = unparse <$> Gen.sample genCombinator
 
-solveEvalActivity :: String -> Either ParseError ExpTutorDiagram
+solveEvalActivity :: String -> Either Error ExpTutorDiagram
 solveEvalActivity = fmap (toNM . eval) . parse
 
 

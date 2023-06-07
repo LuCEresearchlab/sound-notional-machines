@@ -32,8 +32,9 @@ dependencies:
 - diagrams-lib
 - diagrams-svg
 - diagrams-rasterific
+- diagrams-cairo
 - diagrams-contrib
-- diagrams-input
+- diagrams-input == 0.1.0.1
 - palette
 - bytestring
 - raw-strings-qq

@@ -5,16 +5,16 @@
 
 module NotionalMachines.Lang.UntypedLambda.Main where
 
-import qualified Text.ParserCombinators.Parsec       as Parsec (parse)
-import           Text.ParserCombinators.Parsec       (Parser, between, char, eof, letter, many1,
-                                                      sepBy1, spaces, try, (<|>))
-import           Text.ParserCombinators.Parsec.Error (ParseError)
+import qualified Text.ParserCombinators.Parsec as Parsec (parse)
+import           Text.ParserCombinators.Parsec (Parser, between, char, eof, letter, many1, sepBy1,
+                                                spaces, try, (<|>))
 
 import Prettyprinter (Pretty, backslash, dot, parens, pretty, (<+>))
 
-import Data.List ((\\))
+import Data.Bifunctor (first)
+import Data.List      ((\\))
 
-import NotionalMachines.Lang.Error     ()
+import NotionalMachines.Lang.Error     (Error (..))
 import NotionalMachines.Meta.Steppable (Steppable, SteppableM, eval, step, stepM, trace)
 import NotionalMachines.Util.REPL      (LangPipeline (LangPipeline), mkLangRepl, mkReplEval,
                                         taplBookMsg)
@@ -101,8 +101,8 @@ instance SteppableM Exp Maybe where
 --------------------
 -- Parsing and unparsing
 --------------------
-parse :: String -> Either ParseError Exp
-parse = Parsec.parse (pExp <* eof) ""
+parse :: String -> Either Error Exp
+parse = first ParseError . Parsec.parse (pExp <* eof) ""
 
 pExp :: Parser Exp
 pExp = try pLambda
@@ -137,7 +137,7 @@ tru    = "(\\t.\\f.t)"
 fls    = "(\\t.\\f.f)"
 sAnd   = "\\b.\\c.b c " ++ fls
 
-eId, eTrue, eFalse, eAnd, eOr, eZero, eOne, eTwo, eThree, eScc, eOmega, eY, eFix :: Either ParseError Exp
+eId, eTrue, eFalse, eAnd, eOr, eZero, eOne, eTwo, eThree, eScc, eOmega, eY, eFix :: Either Error Exp
 
 eId = parse "\\x.x"
 
@@ -163,10 +163,10 @@ eFix   = parse "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))"
 -- REPL
 --------------------
 
-langPipeline :: LangPipeline Exp () ParseError [Exp]
+langPipeline :: LangPipeline Exp () Error [Exp]
 langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
 
-replEval :: String -> Either ParseError String
+replEval :: String -> Either Error String
 replEval = mkReplEval langPipeline
 
 repl :: IO ()

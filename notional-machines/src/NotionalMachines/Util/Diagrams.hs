@@ -1,7 +1,9 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE TypeFamilies     #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module NotionalMachines.Util.Diagrams where
 
@@ -9,13 +11,14 @@ module NotionalMachines.Util.Diagrams where
 import Data.List       (intersperse)
 import Data.List.Split (chunksOf)
 
-import           Diagrams.Backend.CmdLine            (DiagramLoopOpts (..), DiagramOpts (..),
-                                                      mainRender)
-import qualified Diagrams.Backend.Rasterific         as Rasterific (B)
-import           Diagrams.Backend.Rasterific.CmdLine ()
-import           Diagrams.Backend.SVG                (SVG, renderSVG)
-import           Diagrams.Prelude                    hiding (dot, trace, uncons)
-import           Diagrams.TwoD.Text                  (Text)
+import Diagrams.Prelude (Any, D, Diagram, Enveloped, Path, QDiagram, Renderable, SizeSpec,
+                         TrailLike, Transformable, V, V2, alignBR, alignT, boundingRect, centerX,
+                         centerXY, dims2D, fontSizeL, hcat, height, hrule, lw, lwO, mkWidth, rect,
+                         sized, text, vcat, vrule, vsep, width, withEnvelope, (#))
+
+import Diagrams.TwoD.Text (Text)
+
+import NotionalMachines.Lang.Error (Error)
 
 framed :: (Enveloped d, Transformable d, TrailLike d, Monoid d, V d ~ V2) => d -> d
 framed d = d <> boundingRect d
@@ -42,12 +45,11 @@ vDiaSeq spc fontS = vsep spc
           where innerRect = rect (width d - _spc) (height d - _spc) # lwO 0
                 idx j = text (show j) # fontSizeL _fontS
 
-renderDiagramSVG :: FilePath -> Int -> QDiagram SVG V2 Double Any -> IO ()
-renderDiagramSVG fileName w = renderSVG fileName (mkWidth (fromIntegral w))
-
--- Rendering with Rasterific
-renderDiagramRaster :: FilePath -> Int -> Diagram Rasterific.B -> IO ()
-renderDiagramRaster fileName w = mainRender dft
-  where dft = (DiagramOpts (Just w) Nothing fileName, DiagramLoopOpts False Nothing 0)
-
+renderD :: _ => (FilePath -> SizeSpec V2 Double -> QDiagram b V2 Double Any -> IO ())
+             -> FilePath
+             -> Int
+             -> IO (Either Error (Diagram b))
+             -> IO ()
+renderD renderer fileName w d = d >>=
+    either print (renderer fileName (mkWidth (fromIntegral w)))
 

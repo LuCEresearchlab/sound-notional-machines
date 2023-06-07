@@ -1,39 +1,39 @@
-{-# OPTIONS_GHC -Wall -Wno-orphans #-}
+{-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
 {-# LANGUAGE FlexibleContexts      #-}
-
-{-# LANGUAGE AllowAmbiguousTypes   #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree (
       bisim
     , nmToLang
 
     , repl
+
     , ascii
     , asciiTrace
-    , render
-    , renderTrace
+    , diagram
+    , diagramTrace
     ) where
 
-import Control.Monad ((<=<))
+import Diagrams.Backend.Cairo (renderCairo)
+import Diagrams.Prelude       (Diagram)
 
-import Text.Parsec (ParseError)
-
+import NotionalMachines.Lang.Error              (Error)
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
-import NotionalMachines.Machine.ExpressionTree.Diagram (ExpAsTreeBoxes (..), ExpAsTreeBubble (..),
-                                                        renderDiagram)
+import NotionalMachines.Machine.ExpressionTree.Diagram (toDiagramBoxes, toDiagramBoxesSeq,
+                                                        toDiagramBubble, toDiagramBubbleSeq)
 import NotionalMachines.Machine.ExpressionTree.Main    (ExpAsTree (..))
 
 import NotionalMachines.Meta.Bijective    (Bijective, fromNM)
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, mkStepBijNM)
-import NotionalMachines.Meta.Diagramable  (Diagramable (..))
 import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (Steppable, eval, step, trace)
 
-import Diagrams.Backend.Rasterific (B)
-import NotionalMachines.Util.REPL  (LangPipeline (..), mkCmd, mkLangReplOpts)
+import NotionalMachines.Util.Diagrams (renderD)
+import NotionalMachines.Util.REPL     (LangPipeline (..), mkCmd, mkLangReplOpts)
 
 langToNM :: Exp -> ExpAsTree
 langToNM (Var name)      = Box name
@@ -74,7 +74,7 @@ bisim = mkBijBisim
 
 
 
-langPipeline :: LangPipeline Exp () ParseError [Exp]
+langPipeline :: LangPipeline Exp () Error [Exp]
 langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
 
 -- TODO: Reduce code duplication between this and the other repls
@@ -82,12 +82,13 @@ repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("ascii",       ascii)
     , ("asciiTrace",  asciiTrace)
-    , ("renderBubble",      render      fileName w ExpAsTreeBubble)
-    , ("renderBubbleTrace", renderTrace fileName w ExpAsTreeBubble)
-    , ("renderBoxes",       render      fileName w ExpAsTreeBoxes)
-    , ("renderBoxesTrace",  renderTrace fileName w ExpAsTreeBoxes)
+    , ("renderBubble",      r . diagram      toDiagramBubble)
+    , ("renderBubbleTrace", r . diagramTrace toDiagramBubbleSeq)
+    , ("renderBoxes",       r . diagram      toDiagramBoxes)
+    , ("renderBoxesTrace",  r . diagramTrace toDiagramBoxesSeq)
     ] "ExpressionTree>" helpMsg langPipeline
   where helpMsg = "Play with the Expression as Tree notional machine for Untyped Lambda Calculus"
+        r = renderD renderCairo fileName w
 
 ascii :: String -> IO ()
 ascii =       mkCmd . fmap (: []) . str2NM
@@ -95,15 +96,12 @@ ascii =       mkCmd . fmap (: []) . str2NM
 asciiTrace :: String -> IO ()
 asciiTrace =  mkCmd . fmap trace  . str2NM
 
--- render :: Diagramable c b => FilePath -> Int -> (ExpAsTree -> c) -> String -> IO ()
-render :: Diagramable c B => FilePath -> Int -> (ExpAsTree -> c) -> String -> IO ()
-render fileName w wrapper =      either print (renderDiagram fileName w <=< toDiagram . wrapper) . str2NM
+diagram :: (ExpAsTree -> IO (Diagram b)) -> String -> IO (Either Error (Diagram b))
+diagram toDiagram = mapM toDiagram . str2NM
 
-renderTrace :: Diagramable c B => FilePath -> Int -> (ExpAsTree -> c) -> String -> IO ()
-renderTrace fileName w wrapper = either print (renderDiagram fileName w <=< toDiagramSeq . map wrapper . trace) . str2NM
+diagramTrace :: ([ExpAsTree] -> IO (Diagram b)) -> String -> IO (Either Error (Diagram b))
+diagramTrace toDiagramSeq = mapM toDiagramSeq . fmap trace . str2NM
 
------ Helpers -----
-
-str2NM :: String -> Either ParseError ExpAsTree
+str2NM :: String -> Either Error ExpAsTree
 str2NM = fmap langToNM . parse
 

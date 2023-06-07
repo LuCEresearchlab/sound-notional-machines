@@ -1,23 +1,28 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
+
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 module NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs where
 
-import Control.Monad ((<=<))
+import Diagrams.Backend.SVG (renderSVG)
+import Diagrams.Prelude     (Any, Diagram, QDiagram, V2)
 
-import Text.Parsec (ParseError)
-
+import NotionalMachines.Lang.Error              (Error)
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color (..))
-import NotionalMachines.Machine.AlligatorEggs.Diagram     (renderDiagram)
+import NotionalMachines.Machine.AlligatorEggs.Diagram     (toDiagram, toDiagramSeq)
 import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamily, AlligatorFamilyF (..),
                                                            deBruijnAlligators)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
-import NotionalMachines.Meta.Diagramable  (Diagramable (..))
 import NotionalMachines.Meta.Steppable    (Steppable (trace), eval, evalM)
 
-import NotionalMachines.Util.REPL (LangPipeline (LangPipeline), mkCmd, mkLangReplOpts)
+import NotionalMachines.Util.Diagrams (renderD)
+import NotionalMachines.Util.REPL     (LangPipeline (LangPipeline), mkCmd, mkLangReplOpts)
 
 -------------------------
 -- Lang to NM and back --
@@ -39,7 +44,7 @@ bisim = MkBisim { fLang  = eval
 -- REPL -----------------
 -------------------------
 
-langPipeline :: LangPipeline Exp () ParseError [Exp]
+langPipeline :: LangPipeline Exp () Error [Exp]
 langPipeline = LangPipeline parse (Right . eval) Nothing (Right . trace)
 
 -- | Start a REPL for tha Alligator Eggs notional machine.
@@ -50,10 +55,11 @@ repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("ascii",       ascii)
     , ("asciiTrace",  asciiTrace)
-    , ("render",      render fileName w)
-    , ("renderTrace", renderTrace fileName w)
+    , ("render",      r . diagram)
+    , ("renderTrace", r . diagramTrace)
     ] "Alligator>" helpMsg langPipeline
   where helpMsg = "Play with the Alligator Eggs notional machine for Lambda Calculus"
+        r = renderD renderSVG fileName w
 
 ascii :: String -> IO ()
 ascii =       mkCmd . fmap (: []) . str2NM
@@ -61,14 +67,12 @@ ascii =       mkCmd . fmap (: []) . str2NM
 asciiTrace :: String -> IO ()
 asciiTrace =  mkCmd . fmap trace  . str2NM
 
-render :: FilePath -> Int -> String -> IO ()
-render fileName w =      either print (renderDiagram fileName w <=< toDiagram) . str2NM
+diagram :: _ => String -> IO (Either Error (QDiagram b V2 Double Any))
+diagram = mapM toDiagram . str2NM
 
-renderTrace :: FilePath -> Int -> String -> IO ()
-renderTrace fileName w = either print ((renderDiagram fileName w <=< toDiagramSeq) . trace) . str2NM
+diagramTrace :: _ => String -> IO (Either Error (Diagram b))
+diagramTrace = mapM toDiagramSeq . fmap trace . str2NM
 
------ Helpers -----
-
-str2NM :: String -> Either ParseError [AlligatorFamily]
+str2NM :: String -> Either Error [AlligatorFamily]
 str2NM = fmap langToNm . parse
 

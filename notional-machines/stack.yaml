@@ -47,7 +47,7 @@ extra-deps:
 # - git: https://github.com/diagrams/diagrams-input.git
 #   commit: 14befea574750ea66881afc4f2bb815acec1d5d7
 - git: https://github.com/igormoreno/diagrams-input.git
-  commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+  commit: 6b97530048a83bd2a2d5461cc2231515e1c815d3
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

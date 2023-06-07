@@ -5,15 +5,15 @@
 
 packages:
 - completed:
-    commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+    commit: 6b97530048a83bd2a2d5461cc2231515e1c815d3
     git: https://github.com/igormoreno/diagrams-input.git
     name: diagrams-input
     pantry-tree:
-      sha256: d87aedd3ea17ce6446d8ca83d5b9b3b4dec6c285c3d7a842f61e75099e84e09f
+      sha256: 600ecd42558763d0ac81e1bfe604a482588a366d333eb4d0c83dca2733c215dc
       size: 1603
-    version: '0.1'
+    version: 0.1.0.1
   original:
-    commit: 67c84dbe212b1b5a333d9b9ff59e8eec57c291d9
+    commit: 6b97530048a83bd2a2d5461cc2231515e1c815d3
     git: https://github.com/igormoreno/diagrams-input.git
 snapshots:
 - completed:

@@ -1,8 +1,12 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TypeFamilies          #-}
 
 {-|
 Description : Render Alligator Eggs using @diagrams@.
@@ -25,39 +29,38 @@ module NotionalMachines.Machine.AlligatorEggs.Diagram where
 
 import Data.String (fromString)
 
-import Diagrams.Backend.SVG (B, SVG)
-import Diagrams.Prelude     (Diagram, alignT, bgFrame, centerX, centerXY, extrudeTop, hcat, mkWidth,
-                             rotateBy, sized, white, (#), (===))
+import Diagrams.Prelude     (Any, QDiagram, V2, alignT, bgFrame, centerX, centerXY, extrudeTop,
+                             hcat, mkWidth, rotateBy, sized, white, (#), (===))
 import Diagrams.SVG.ReadSVG (readSVGLBS)
 
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color, colorHexa)
 import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamilyF (..))
-import NotionalMachines.Meta.Diagramable                  (Diagramable (..), toDiagramSeq')
-import NotionalMachines.Util.Diagrams                     (diaSeq, renderDiagramSVG)
-import NotionalMachines.Util.Util                         (replace)
 
-instance Diagramable [AlligatorFamilyF Color] SVG where
-  toDiagram = toDiagram' 1
-  toDiagramSeq = toDiagramSeq' (diaSeq 6 0.9 0.5)
+import NotionalMachines.Util.Diagrams (diaSeq)
+import NotionalMachines.Util.Util     (replace)
 
-renderDiagram :: FilePath -> Int -> Diagram B -> IO ()
-renderDiagram = renderDiagramSVG
+toDiagram :: _ => [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
+toDiagram = toDiagram' 1
 
-bg :: Diagram B -> Diagram B
+toDiagramSeq :: _ => [[AlligatorFamilyF Color]] -> IO (QDiagram b V2 Double Any)
+toDiagramSeq = fmap (diaSeq 6 0.9 0.5) . mapM toDiagram
+
+
+bg :: _ => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
 bg = bgFrame 0.05 white
 
 -- | Returns the diagram of an alligator family.
-toDiagram' :: Double -> [AlligatorFamilyF Color] -> IO (Diagram B)
+toDiagram' :: _ => Double -> [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
 toDiagram' width = fmap (bg . mconcat) . _toDiagram width
 
 -- | Returns the diagram of an alligator family as a list to allow for
 -- post processing (e.g. to add a frame around each element,
 -- which can be done by calling `map framed` before `mconcat`).
 -- (See https://diagrams.github.io/doc/manual.html#delayed-composition)
-_toDiagram :: Double -> [AlligatorFamilyF Color] -> IO [Diagram B]
+_toDiagram :: _ => Double -> [AlligatorFamilyF Color] -> IO [QDiagram b V2 Double Any]
 _toDiagram maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (maxWidth * 0.9)
   where
-    go :: Double -> AlligatorFamilyF Color -> IO [Diagram B]
+    -- go :: _ => Double -> AlligatorFamilyF Color -> IO [QDiagram b V2 Double Any]
     go w (Egg c)                 = (\e -> [e] # sized (mkWidth (w * 0.9))) <$> egg (colorHexa c)
     go w (OldAlligator as')      = coverWith w oldAlligator as'
     go w (HungryAlligator c as') = coverWith w (hungryAlligator (colorHexa c)) as'
@@ -92,16 +95,16 @@ _toDiagram maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (ma
 --------------------------
 -- Sprites
 --------------------------
-egg :: String -> IO (Diagram B)
+egg :: _ => String -> IO (QDiagram b V2 Double Any)
 egg color = sprite "egg" (Just color)
 
-oldAlligator :: IO (Diagram B)
+oldAlligator :: _ => IO (QDiagram b V2 Double Any)
 oldAlligator = extrudeTop (-45) <$> sprite "oldAlligator" Nothing
 
-hungryAlligator :: String -> IO (Diagram B)
+hungryAlligator :: _ => String -> IO (QDiagram b V2 Double Any)
 hungryAlligator color = rotateBy 0.5 <$> sprite "hungryAlligator" (Just color)
 
-sprite :: String -> Maybe String -> IO (Diagram B)
+sprite :: _ => String -> Maybe String -> IO (QDiagram b V2 Double Any)
 sprite name mColor = ( fmap centerXY
                      . (=<<) readSVGLBS
                      . fmap (fromString . maybe id (\c -> replace "fill:red" ("fill:" ++ c)) mColor)

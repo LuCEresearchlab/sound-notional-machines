@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 97599a2c1567a7525a0833aa125c0fe40b5108a1143d261ba1e0859a2c35b6e2
+-- hash: a6d2d9318c6bc9ef5e76d42b7ca28752f67725e3d041e5ad9d34d66f064b3e9e
 
 name:           notional-machines
 version:        0.1.0.0
@@ -61,7 +61,6 @@ library
       NotionalMachines.Machine.TAPLMemoryDiagram.Main
       NotionalMachines.Meta.Bijective
       NotionalMachines.Meta.Bisimulation
-      NotionalMachines.Meta.Diagramable
       NotionalMachines.Meta.Injective
       NotionalMachines.Meta.LangToNM
       NotionalMachines.Meta.Steppable
@@ -78,8 +77,9 @@ library
     , bytestring
     , colour
     , containers
+    , diagrams-cairo
     , diagrams-contrib
-    , diagrams-input
+    , diagrams-input ==0.1.0.1
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -107,8 +107,9 @@ executable notional-machines-exe
     , bytestring
     , colour
     , containers
+    , diagrams-cairo
     , diagrams-contrib
-    , diagrams-input
+    , diagrams-input ==0.1.0.1
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -138,8 +139,9 @@ test-suite notional-machines-test
     , bytestring
     , colour
     , containers
+    , diagrams-cairo
     , diagrams-contrib
-    , diagrams-input
+    , diagrams-input ==0.1.0.1
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
