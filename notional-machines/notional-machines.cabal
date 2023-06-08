@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a6d2d9318c6bc9ef5e76d42b7ca28752f67725e3d041e5ad9d34d66f064b3e9e
+-- hash: a08d8910d61b078e86ad73a6bbae1041e699452e76afd3fadd47040a87cfcdc7
 
 name:           notional-machines
 version:        0.1.0.0
@@ -73,7 +73,8 @@ library
   hs-source-dirs:
       src
   build-depends:
-      base >=4.7 && <5
+      SVGFonts
+    , base >=4.7 && <5
     , bytestring
     , colour
     , containers
@@ -93,6 +94,7 @@ library
     , raw-strings-qq
     , repline
     , split
+    , text
   default-language: Haskell2010
 
 executable notional-machines-exe
@@ -103,7 +105,8 @@ executable notional-machines-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      SVGFonts
+    , base >=4.7 && <5
     , bytestring
     , colour
     , containers
@@ -124,6 +127,7 @@ executable notional-machines-exe
     , raw-strings-qq
     , repline
     , split
+    , text
   default-language: Haskell2010
 
 test-suite notional-machines-test
@@ -135,7 +139,8 @@ test-suite notional-machines-test
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      base >=4.7 && <5
+      SVGFonts
+    , base >=4.7 && <5
     , bytestring
     , colour
     , containers
@@ -159,4 +164,5 @@ test-suite notional-machines-test
     , tasty
     , tasty-hedgehog
     , tasty-hunit
+    , text
   default-language: Haskell2010

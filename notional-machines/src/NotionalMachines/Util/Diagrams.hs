@@ -7,18 +7,24 @@
 
 module NotionalMachines.Util.Diagrams where
 
-
 import Data.List       (intersperse)
 import Data.List.Split (chunksOf)
 
-import Diagrams.Prelude (Any, D, Diagram, Enveloped, Path, QDiagram, Renderable, SizeSpec,
-                         TrailLike, Transformable, V, V2, alignBR, alignT, boundingRect, centerX,
-                         centerXY, dims2D, fontSizeL, hcat, height, hrule, lw, lwO, mkWidth, rect,
-                         sized, text, vcat, vrule, vsep, width, withEnvelope, (#))
+import Prettyprinter               (LayoutOptions (..), PageWidth (..), layoutPretty, pretty)
+import Prettyprinter.Render.String (renderString)
 
+import Diagrams.Prelude   (Any, Colour, D, Diagram, Enveloped, Path, QDiagram, Renderable, SizeSpec,
+                           TrailLike, Transformable, V, V2, alignBR, alignT, boundingRect, centerX,
+                           centerXY, def, dims2D, fc, fontSizeL, hcat, height, hrule, lw, lwO,
+                           mkWidth, none, rect, red, sized, stroke, text, vcat, vrule, vsep, width,
+                           withEnvelope, (#))
 import Diagrams.TwoD.Text (Text)
 
+import Graphics.SVGFonts            (drop_rect, fit_height, set_envelope, svgText)
+import Graphics.SVGFonts.PathInRect (PathInRect)
+
 import NotionalMachines.Lang.Error (Error)
+
 
 framed :: (Enveloped d, Transformable d, TrailLike d, Monoid d, V d ~ V2) => d -> d
 framed d = d <> boundingRect d
@@ -52,4 +58,26 @@ renderD :: _ => (FilePath -> SizeSpec V2 Double -> QDiagram b V2 Double Any -> I
              -> IO ()
 renderD renderer fileName w d = d >>=
     either print (renderer fileName (mkWidth (fromIntegral w)))
+
+diagramWithError :: _ => IO (Either Error (QDiagram b V2 Double Any)) -> IO (QDiagram b V2 Double Any)
+diagramWithError = fmap (either (d . s) id)
+  where d = vcat . map (text' red 1) . lines
+        s = renderString . layoutPretty layoutOptions . pretty
+        layoutOptions = LayoutOptions { layoutPageWidth = AvailablePerLine maxCharsPerLine 1.0 }
+        maxCharsPerLine = 40
+
+text', tightText :: _ => Colour Double -> Double -> String -> QDiagram b V2 Double Any
+text'     = _text set_envelope
+tightText = _text (stroke . drop_rect)
+
+_text :: _ => (PathInRect Double -> QDiagram b V2 Double Any)
+           -> Colour Double
+           -> Double
+           -> String
+           -> QDiagram b V2 Double Any
+_text toDia c h s = s # svgText def
+                      # fit_height h
+                      # toDia
+                      # lw none
+                      # fc c
 

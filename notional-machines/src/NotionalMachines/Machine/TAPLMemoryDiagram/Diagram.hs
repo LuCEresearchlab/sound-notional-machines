@@ -29,13 +29,13 @@ import           Data.Tree  (Tree (Node))
 
 import Prettyprinter (Pretty (pretty))
 
-import Diagrams.Prelude          (Angle, Any, Applicative (liftA2), ArrowOpts, D, Diagram, IsName,
+import Diagrams.Prelude          (Angle, Any, Applicative (liftA2), ArrowOpts, Diagram, IsName,
                                   QDiagram, Trail, TypeableFloat, V2, alignB, alignT, applyAll, arc,
                                   arrowShaft, bgFrame, black, centerX, centerXY, circle,
                                   composeAligned, connectOutside', connectPerim', extentX, extentY,
                                   fc, fullTurn, hcat, headGap, headLength, height, hrule, hsep,
-                                  local, lw, lwO, named, normalized, opacity, pad, phantom, rad,
-                                  rect, roundedRect, shaftStyle, straightShaft, tau, text, turn,
+                                  local, lw, named, none, normalized, opacity, pad, rad, rect,
+                                  roundedRect, shaftStyle, straightShaft, tau, text, thin, turn,
                                   vcat, vsep, white, width, with, xDir, (#), (%~), (&), (.~), (@@),
                                   (|||), (~~))
 import Diagrams.TwoD.Layout.Tree (renderTree, slHSep, slHeight, slVSep, slWidth, symmLayout')
@@ -43,7 +43,7 @@ import Diagrams.TwoD.Layout.Tree (renderTree, slHSep, slHeight, slVSep, slWidth,
 import NotionalMachines.Machine.TAPLMemoryDiagram.Main (DLocation (..), DTerm (..),
                                                         TAPLMemoryDiagram (..))
 
-import NotionalMachines.Util.Diagrams (vDiaSeq)
+import NotionalMachines.Util.Diagrams (text', vDiaSeq)
 
 ---------------
 -- Tree Heap diagram
@@ -53,7 +53,7 @@ toDiagram    :: _ => TermToDiagram l b -> TAPLMemoryDiagram l -> IO (QDiagram b 
 toDiagram f = return . toDiagram' f 1
 
 toDiagramSeq :: _ => TermToDiagram l b -> [TAPLMemoryDiagram l] -> IO (QDiagram b V2 Double Any)
-toDiagramSeq f = fmap (vDiaSeq 1.5 0.5) . mapM (toDiagram f)
+toDiagramSeq f = fmap (vDiaSeq 0.5 0.2) . mapM (toDiagram f)
 
 
 
@@ -87,13 +87,13 @@ arrowConfig :: TypeableFloat n => n -> Trail V2 n -> ArrowOpts n
 arrowConfig ts shaft = with & arrowShaft .~ shaft
                             & headLength .~ local (ts * 0.5) `atLeast` normalized 0.008
                             & headGap    .~ local (ts * 0.3)
-                            & shaftStyle %~ lwO 1
+                            & shaftStyle %~ lw thin
           where atLeast = liftA2 max
 
 ---
 
 bg :: _ => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-bg = bgFrame 0.05 white
+bg = bgFrame 0.1 white
 
 toDiagram' :: (IsName l, _) => TermToDiagram l b
                             -> Double
@@ -105,7 +105,7 @@ toDiagram' termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia)
     connect :: ArrowInfo l _ -> Diagram _ -> Diagram _
     connect (ArrowInfo l1 l2 connector) = connector l1 l2
 
-    sepLine aRule size = aRule size # lwO 1 . opacity 0.2 -- . dashingL [ts * 0.03, ts * 0.03] 0
+    sepLine aRule size = aRule size # lw none . opacity 0.2 -- . dashingL [ts * 0.03, ts * 0.03] 0
     maxim f = foldr (max . f) 0
 
     -- allDia :: TAPLMemoryDiagram l -> State [ArrowInfo l _] (Diagram _)
@@ -117,7 +117,7 @@ toDiagram' termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia)
         --  let vline = sepLine vrule (maxim height memDiaParts)
          let memDia = (hsep (ts * 2)  # composeAligned alignT) memDiaParts # centerX --(intersperse vline memDiaParts) # centerX
          let hline = sepLine hrule (maxim width [t, memDia])
-         return $ vsep ts (t # centerX : if null memDiaParts then [] else [hline, memDia])
+         return $ vsep (ts * 0.5) (t # centerX : if null memDiaParts then [] else [hline, memDia])
         --  return $ vsep (ts * 0.1) (intersperse hline [t # centerX, memDia])
 
     -- nameEnvDia :: Map Name (DTerm l) -> State [ArrowInfo l _] (Maybe (Diagram _))
@@ -126,7 +126,7 @@ toDiagram' termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia)
             -- draw :: (Name, DTerm l) -> State [ArrowInfo l _] (Diagram _, Diagram _)
             draw (name, val) = (txt ts name, ) <$> termToDia ts (connectToLeft ts) val
             frameIt []   = Nothing
-            frameIt rows = Just $ table (ts * 2) (ts * 2) rows
+            frameIt rows = Just $ table (ts * 1.0) (ts * 1.0) rows
             -- frameIt rows = Just $ hsep (ts * 0.2) [ txt (ts * 0.3) "NameEnv"
             --                                       , table (ts * 2) (ts * 2) rows ]
 
@@ -140,7 +140,7 @@ toDiagram' termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia)
 
     -- storeDia :: _ => Map (DLocation l) (DTerm l) -> State [ArrowInfo l _] (Maybe (QDiagram b V2 Double Any))
     storeDia = fmap frameIt . mapM draw . Map.toList
-      where draw (loc, val) = named loc . framedRound (ts * 2) 0.9 <$> termToDia ts (connectToRight ts) val
+      where draw (loc, val) = named loc . framedRound (ts * 1.0) 0.4 <$> termToDia ts (connectToRight ts) val
             frameIt []    = Nothing
             frameIt items = Just $ vsep ts items
             -- frameIt items = Just $ hsep (ts * 0.2) [ vsep ts items
@@ -166,7 +166,7 @@ data NodeContentElem l = Val String
   deriving (Eq, Show)
 
 termToTreeDiagram :: _ => TermToDiagram l b
-termToTreeDiagram size conn = fmap (lwO 1) . renderT . termToTreeData
+termToTreeDiagram size conn = fmap (lw thin) . renderT . termToTreeData
   where
 
     termToTreeData :: DTerm l -> Tree [NodeContentElem l]
@@ -246,26 +246,22 @@ exampleSymmTree =
 -------
 -------
 
--- "boxed" text (with dimentions)
 txt :: _ => Double -> String -> QDiagram b V2 Double Any
--- txt scaleFactor t = text t <> rect w h
-txt scaleFactor t = text t <> phantom (rect w h :: D V2 Double)
-  where w = scaleFactor * fromIntegral (length t)
-        h = txtHeight scaleFactor
+txt = text' black
 
 textCentered :: _ => Double -> QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-textCentered size d = d <> rect size (txtHeight size) # lw 0
+textCentered size d = d <> rect size (0.3 * txtHeight size) # lw 0
 
 txtHeight :: Double -> Double
-txtHeight scaleFactor = 1.2 * scaleFactor
+txtHeight scaleFactor = 1.0 * scaleFactor
 
 boxed :: _ => Double -> Double -> QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-boxed w h d = d # centerXY <> rect w h # lwO 1
+boxed w h d = d # centerXY <> rect w h # lw thin
 
 framedRound :: _ => Double -> Double -> QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-framedRound spaceSize roundness d = d # centerXY <> roundedRect w h roundness # lwO 1 # fc white
+framedRound spaceSize roundness d = d # centerXY <> roundedRect w h roundness # lw thin # fc white
   where w = spaceSize + width  d
-        h = spaceSize + height d
+        h = 0.6 * spaceSize + height d
 
 point :: _ => QDiagram b V2 Double Any
 point = circle 0.05 # fc black

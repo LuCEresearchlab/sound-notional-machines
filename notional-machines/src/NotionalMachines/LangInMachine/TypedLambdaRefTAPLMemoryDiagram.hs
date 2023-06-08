@@ -80,7 +80,7 @@ pattern MDPred     :: DTerm l   -> DTerm l
 pattern MDIsZero   :: DTerm l   -> DTerm l
 
 pattern MDVarOrNum s        = Branch [Leaf s]
-pattern MDLambda name typ t = Branch [Leaf "(λ ", Leaf name, Leaf " : ", Leaf typ, Leaf ". ", t, Leaf ")"]
+pattern MDLambda name typ t = Branch [Leaf "(λ", Leaf name, Leaf " : ", Leaf typ, Leaf ". ", t, Leaf ")"]
 pattern MDApp         t1 t2 = Branch [t1, Space, t2]
 -- Unit
 pattern MDUnit              = Branch [Leaf "unit"]
