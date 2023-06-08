@@ -18,13 +18,10 @@ data Error = ParseError Parsec.ParseError
   deriving (Eq, Show)
 
 instance Pretty Error where
-    pretty (ParseError parsecError) =    "Parse error:" <+> pretty parsecError
+    pretty (ParseError parsecError) =    "Parse error:" <+> (reflow . T.pack . show) parsecError
     pretty (TypeError m)            =     "Type error:" <+> pretty m
     pretty (RuntimeError m)         =  "Runtime error:" <+> pretty m
     pretty (InternalError m)        = "Internal error:" <+> pretty m
-
-instance Pretty Parsec.ParseError where
-    pretty = reflow . T.pack . show
 
 typeOfEq :: (Pretty term, Pretty typ1, Pretty typ2, Eq typ1) =>
             (term -> Either Error typ1) -> term -> term -> typ1 -> typ2 -> Either Error typ2

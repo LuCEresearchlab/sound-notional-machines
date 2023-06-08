@@ -29,7 +29,6 @@ module NotionalMachines.Lang.TypedArith.Main (
   repl
   ) where
 
-import Data.Bifunctor (first)
 
 import Prettyprinter (Pretty, hsep, pretty, (<+>))
 
@@ -153,7 +152,7 @@ instance SteppableM Term (Either Error) where
   stepM t = step t <$ typeof t
 
 parse :: String -> Either Error Term
-parse = first ParseError . Untyped.parse
+parse = Untyped.parse
 
 --------------------
 -- REPL
