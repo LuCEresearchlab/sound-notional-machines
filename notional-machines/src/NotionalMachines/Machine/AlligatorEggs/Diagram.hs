@@ -39,6 +39,9 @@ import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamilyF (..)
 import NotionalMachines.Util.Diagrams (diaSeq)
 import NotionalMachines.Util.Util     (replace)
 
+import Paths_notional_machines (getDataFileName)
+
+
 toDiagram :: _ => [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
 toDiagram = toDiagram' 1
 
@@ -105,11 +108,15 @@ hungryAlligator :: _ => String -> IO (QDiagram b V2 Double Any)
 hungryAlligator color = rotateBy 0.5 <$> sprite "hungryAlligator" (Just color)
 
 sprite :: _ => String -> Maybe String -> IO (QDiagram b V2 Double Any)
-sprite name mColor = ( fmap centerXY
-                     . (=<<) readSVGLBS
-                     . fmap (fromString . maybe id (\c -> replace "fill:red" ("fill:" ++ c)) mColor)
-                     . readFile )
-                     ("sprites/" ++ name ++ ".svg")
+sprite name mColor = fmap centerXY
+                   . (=<<) readSVGLBS
+                   . fmap (fromString . changeColor mColor)
+                   . loadSVG
+                   $ name
+    where changeColor = maybe id (\c -> replace "fill:red" ("fill:" ++ c))
+
+loadSVG :: String -> IO String
+loadSVG name = readFile =<< getDataFileName ("data/sprites/" ++ name ++ ".svg")
 
 -- Height/Width of each sprite
 spriteHeightRatio :: Double
