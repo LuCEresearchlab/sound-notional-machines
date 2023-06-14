@@ -2,6 +2,7 @@
 
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
 
 module NotionalMachines.Lang.UntypedLambda.Main where
 
@@ -9,7 +10,7 @@ import qualified Text.ParserCombinators.Parsec as Parsec (parse)
 import           Text.ParserCombinators.Parsec (Parser, between, char, eof, letter, many1, sepBy1,
                                                 spaces, try, (<|>))
 
-import Prettyprinter (Pretty, backslash, dot, parens, pretty, (<+>))
+import Prettyprinter (Pretty, dot, parens, pretty, (<+>))
 
 import Data.Bifunctor (first)
 import Data.List      ((\\))
@@ -122,7 +123,7 @@ instance Pretty Exp where
   pretty = \case
     App e1 e2@(App {}) -> pretty e1 <+> parens (pretty e2)
     App e1 e2          -> pretty e1 <+>         pretty e2
-    Lambda name e      -> parens (mconcat [backslash, pretty name, dot, pretty e])
+    Lambda name e      -> parens (mconcat ["λ", pretty name, dot, pretty e])
     Var name           -> pretty name
 
 unparse :: Exp -> String

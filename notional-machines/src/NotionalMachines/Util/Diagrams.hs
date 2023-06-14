@@ -13,21 +13,24 @@ import Data.List.Split (chunksOf)
 import Prettyprinter               (LayoutOptions (..), PageWidth (..), layoutPretty, pretty)
 import Prettyprinter.Render.String (renderString)
 
-import Diagrams.Prelude   (Any, Colour, D, Diagram, Enveloped, Path, QDiagram, Renderable, SizeSpec,
-                           TrailLike, Transformable, V, V2, alignBR, alignT, boundingRect, centerX,
-                           centerXY, def, dims2D, fc, fontSizeL, hcat, height, hrule, lw, lwO,
-                           mkWidth, none, rect, red, sized, stroke, text, vcat, vrule, vsep, width,
-                           withEnvelope, (#))
+import Diagrams.Prelude   (Any, Colour, D, Diagram, Path, QDiagram, Renderable, SizeSpec, V2,
+                           alignBR, alignT, boundingRect, centerX, centerXY, def, dims2D, fc,
+                           fontSizeL, hcat, height, hrule, lw, lwO, mkWidth, none, rect, red, sized,
+                           stroke, text, vcat, vrule, vsep, width, withEnvelope, (#))
 import Diagrams.TwoD.Text (Text)
 
-import Graphics.SVGFonts            (drop_rect, fit_height, set_envelope, svgText)
+import Graphics.SVGFonts            (TextOpts (textFont), drop_rect, fit_height, set_envelope,
+                                     svgText)
 import Graphics.SVGFonts.PathInRect (PathInRect)
+import Graphics.SVGFonts.ReadFont   (PreparedFont, loadFont)
 
 import NotionalMachines.Lang.Error (Error)
 
+import Paths_notional_machines (getDataFileName)
 
-framed :: (Enveloped d, Transformable d, TrailLike d, Monoid d, V d ~ V2) => d -> d
-framed d = d <> boundingRect d
+
+framed :: _ => Diagram b -> Diagram b
+framed d = d <> boundingRect d # lwO 1
 
 diaSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
           Int -> Double -> Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any
@@ -66,18 +69,31 @@ diagramWithError = fmap (either (d . s) id)
         layoutOptions = LayoutOptions { layoutPageWidth = AvailablePerLine maxCharsPerLine 1.0 }
         maxCharsPerLine = 40
 
-text', tightText :: _ => Colour Double -> Double -> String -> QDiagram b V2 Double Any
-text'     = _text set_envelope
-tightText = _text (stroke . drop_rect)
+text', tightText :: _ => Colour Double
+                      -> Double
+                      -> String
+                      -> QDiagram b V2 Double Any
+text'     = _text def set_envelope
+tightText = _text def (stroke . drop_rect)
 
-_text :: _ => (PathInRect Double -> QDiagram b V2 Double Any)
+text'' :: _ => PreparedFont Double
+            -> Colour Double
+            -> Double
+            -> String
+            -> QDiagram b V2 Double Any
+text'' font = _text def { textFont = font } set_envelope
+
+_text :: _ => TextOpts Double
+           -> (PathInRect Double -> QDiagram b V2 Double Any)
            -> Colour Double
            -> Double
            -> String
            -> QDiagram b V2 Double Any
-_text toDia c h s = s # svgText def
-                      # fit_height h
-                      # toDia
-                      # lw none
-                      # fc c
+_text opts toDia c h s = s # svgText opts
+                           # fit_height h
+                           # toDia
+                           # lw none
+                           # fc c
 
+fontMono :: IO (PreparedFont Double)
+fontMono = loadFont =<< getDataFileName "data/fonts/DroidSansMonoDottedForPowerline.svg"

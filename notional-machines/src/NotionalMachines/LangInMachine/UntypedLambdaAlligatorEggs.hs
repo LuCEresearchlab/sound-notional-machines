@@ -8,20 +8,20 @@
 module NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs where
 
 import Diagrams.Backend.SVG (renderSVG)
-import Diagrams.Prelude     (Any, Diagram, QDiagram, V2)
+import Diagrams.Prelude     (Diagram)
 
 import NotionalMachines.Lang.Error              (Error)
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color (..))
-import NotionalMachines.Machine.AlligatorEggs.Diagram     (toDiagram, toDiagramSeq)
+import NotionalMachines.Machine.AlligatorEggs.Diagram     (toDiagram)
 import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamily, AlligatorFamilyF (..),
                                                            deBruijnAlligators)
 
 import NotionalMachines.Meta.Bisimulation (Bisimulation (..))
 import NotionalMachines.Meta.Steppable    (Steppable (trace), eval, evalM)
 
-import NotionalMachines.Util.Diagrams (renderD)
+import NotionalMachines.Util.Diagrams (diaSeq, renderD)
 import NotionalMachines.Util.REPL     (LangPipeline (LangPipeline), mkCmd, mkLangReplOpts)
 
 -------------------------
@@ -56,7 +56,7 @@ repl fileName w = mkLangReplOpts
     [ ("ascii",       ascii)
     , ("asciiTrace",  asciiTrace)
     , ("render",      r . diagram)
-    , ("renderTrace", r . diagramTrace)
+    , ("renderTrace", r . traceDiagram . diagramTrace)
     ] "Alligator>" helpMsg langPipeline
   where helpMsg = "Play with the Alligator Eggs notional machine for Lambda Calculus"
         r = renderD renderSVG fileName w
@@ -67,11 +67,14 @@ ascii =       mkCmd . fmap (: []) . str2NM
 asciiTrace :: String -> IO ()
 asciiTrace =  mkCmd . fmap trace  . str2NM
 
-diagram :: _ => String -> IO (Either Error (QDiagram b V2 Double Any))
+diagram :: _ => String -> IO (Either Error (Diagram b))
 diagram = mapM toDiagram . str2NM
 
-diagramTrace :: _ => String -> IO (Either Error (Diagram b))
-diagramTrace = mapM toDiagramSeq . fmap trace . str2NM
+diagramTrace :: _ => String -> IO (Either Error [Diagram b])
+diagramTrace = mapM (mapM toDiagram) . fmap trace . str2NM
+
+traceDiagram :: _ => IO (Either Error [Diagram b]) -> IO (Either Error (Diagram b))
+traceDiagram = fmap (fmap (diaSeq 6 0.9 0.5))
 
 str2NM :: String -> Either Error [AlligatorFamily]
 str2NM = fmap langToNm . parse

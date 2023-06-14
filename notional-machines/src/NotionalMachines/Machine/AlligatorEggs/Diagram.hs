@@ -36,17 +36,13 @@ import Diagrams.SVG.ReadSVG (readSVGLBS)
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color, colorHexa)
 import NotionalMachines.Machine.AlligatorEggs.Main        (AlligatorFamilyF (..))
 
-import NotionalMachines.Util.Diagrams (diaSeq)
-import NotionalMachines.Util.Util     (replace)
+import NotionalMachines.Util.Util (replace)
 
 import Paths_notional_machines (getDataFileName)
 
 
 toDiagram :: _ => [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
 toDiagram = toDiagram' 1
-
-toDiagramSeq :: _ => [[AlligatorFamilyF Color]] -> IO (QDiagram b V2 Double Any)
-toDiagramSeq = fmap (diaSeq 6 0.9 0.5) . mapM toDiagram
 
 
 bg :: _ => QDiagram b V2 Double Any -> QDiagram b V2 Double Any

@@ -43,7 +43,9 @@ dependencies:
 - split
 - optparse-applicative
 
-data-files: data/sprites/*.svg
+data-files:
+  - data/sprites/*.svg
+  - data/fonts/*.svg
 
 library:
   source-dirs: src

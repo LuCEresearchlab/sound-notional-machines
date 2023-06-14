@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 63f0986fe955ee6997a1f9dfe081231cff047914bb5d2b19877edd7e433b12f3
+-- hash: 1e5c3e8f09ce51f23174781f52053af5a8e23ec1415dc0bbb7b5cda7203ea805
 
 name:           notional-machines
 version:        0.1.0.0
@@ -24,6 +24,7 @@ data-files:
     data/sprites/egg.svg
     data/sprites/hungryAlligator.svg
     data/sprites/oldAlligator.svg
+    data/fonts/DroidSansMonoDottedForPowerline.svg
 
 source-repository head
   type: git
