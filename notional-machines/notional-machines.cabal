@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1e5c3e8f09ce51f23174781f52053af5a8e23ec1415dc0bbb7b5cda7203ea805
+-- hash: c0957f81c26e9ed3ef8d1a68459b7072c4c85fc3ab60013c8ac3d6659ba4616f
 
 name:           notional-machines
 version:        0.1.0.0
@@ -32,6 +32,7 @@ source-repository head
 
 library
   exposed-modules:
+      NotionalMachines.Examples.Diagrams
       NotionalMachines.Lang.Error
       NotionalMachines.Lang.TypedArith.Generators
       NotionalMachines.Lang.TypedArith.Main
@@ -83,9 +84,8 @@ library
     , bytestring
     , colour
     , containers
-    , diagrams-cairo
     , diagrams-contrib
-    , diagrams-input ==0.1.0.1
+    , diagrams-input
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -96,7 +96,6 @@ library
     , parsec
     , pretty-simple
     , prettyprinter
-    , raw-strings-qq
     , repline
     , split
     , text
@@ -115,9 +114,8 @@ executable notional-machines-exe
     , bytestring
     , colour
     , containers
-    , diagrams-cairo
     , diagrams-contrib
-    , diagrams-input ==0.1.0.1
+    , diagrams-input
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -129,7 +127,6 @@ executable notional-machines-exe
     , parsec
     , pretty-simple
     , prettyprinter
-    , raw-strings-qq
     , repline
     , split
     , text
@@ -149,9 +146,8 @@ test-suite notional-machines-test
     , bytestring
     , colour
     , containers
-    , diagrams-cairo
     , diagrams-contrib
-    , diagrams-input ==0.1.0.1
+    , diagrams-input
     , diagrams-lib
     , diagrams-rasterific
     , diagrams-svg
@@ -163,7 +159,6 @@ test-suite notional-machines-test
     , parsec
     , pretty-simple
     , prettyprinter
-    , raw-strings-qq
     , repline
     , split
     , tasty

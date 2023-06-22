@@ -6,7 +6,9 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
+
 
 {-|
 Description : Render Alligator Eggs using @diagrams@.
@@ -29,8 +31,8 @@ module NotionalMachines.Machine.AlligatorEggs.Diagram where
 
 import Data.String (fromString)
 
-import Diagrams.Prelude     (Any, QDiagram, V2, alignT, bgFrame, centerX, centerXY, extrudeTop,
-                             hcat, mkWidth, rotateBy, sized, white, (#), (===))
+import Diagrams.Prelude     (Any, Default (def), QDiagram, V2, alignT, bgFrame, centerX, centerXY,
+                             extrudeTop, hcat, mkWidth, rotateBy, sized, white, (#), (===))
 import Diagrams.SVG.ReadSVG (readSVGLBS)
 
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color, colorHexa)
@@ -41,55 +43,76 @@ import NotionalMachines.Util.Util (replace)
 import Paths_notional_machines (getDataFileName)
 
 
-toDiagram :: _ => [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
-toDiagram = toDiagram' 1
+data AlligatorOpts b = AlligatorOpts { _maxWidth :: Double
+                                       -- ^ Maximum width of the diagram.
+                                     , _f :: QDiagram b V2 Double Any -> QDiagram b V2 Double Any
+                                       -- ^ Function to apply to each alligator or egg
+                                       -- (e.g. `framed` to ddd a frame around each)
+                                     , _widths :: Double -> [AlligatorFamilyF Color] -> [(Double, AlligatorFamilyF Color)]
+                                       -- ^ Function to adjust the widths of the alligator families.
+                                       -- Given the with of a protector and a list proteges,
+                                       -- determine the width of each protege.
+                                     }
 
+instance Default (AlligatorOpts b) where
+    def = AlligatorOpts 1 id adjustedWidths
+
+toDiagram :: _ => [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
+toDiagram = toDiagram' def
 
 bg :: _ => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
 bg = bgFrame 0.05 white
 
 -- | Returns the diagram of an alligator family.
-toDiagram' :: _ => Double -> [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
-toDiagram' width = fmap (bg . mconcat) . _toDiagram width
+toDiagram' :: _ => AlligatorOpts b -> [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
+toDiagram' opts = fmap (bg . mconcat . map (_f opts)) . _toDiagram opts
 
 -- | Returns the diagram of an alligator family as a list to allow for
 -- post processing (e.g. to add a frame around each element,
 -- which can be done by calling `map framed` before `mconcat`).
 -- (See https://diagrams.github.io/doc/manual.html#delayed-composition)
-_toDiagram :: _ => Double -> [AlligatorFamilyF Color] -> IO [QDiagram b V2 Double Any]
-_toDiagram maxWidth = fmap (hcat . fmap alignT) . mapM (uncurry go) . widths (maxWidth * 0.9)
+_toDiagram :: _ => AlligatorOpts b -> [AlligatorFamilyF Color] -> IO [QDiagram b V2 Double Any]
+_toDiagram opts = fmap (hcat . fmap alignT)
+                . mapM (uncurry go)
+                . _widths opts (_maxWidth opts * 0.9)
   where
     -- go :: _ => Double -> AlligatorFamilyF Color -> IO [QDiagram b V2 Double Any]
     go w (Egg c)                 = (\e -> [e] # sized (mkWidth (w * 0.9))) <$> egg (colorHexa c)
     go w (OldAlligator as')      = coverWith w oldAlligator as'
     go w (HungryAlligator c as') = coverWith w (hungryAlligator (colorHexa c)) as'
 
-    coverWith w alligator as' = do proteges <- _toDiagram w as'
+    coverWith w alligator as' = do proteges <- _toDiagram (opts { _maxWidth = w }) as'
                                    al <- alligator
                                    return $ [al] # sized (mkWidth w) # centerX
                                              ===
                                            proteges # centerX
 
-    -- | Returns the width of each alligator family.
-    -- The widths are calculated so that:
-    -- - the sum of the widths of the families is equal to the width of the
-    --   alligator that is protecting them.
-    -- - the height of an egg is equal to the height of an alligator.
-    --
-    -- The full explanation is in the comments at the end of this file.
-    widths :: Double -> [AlligatorFamilyF c] -> [(Double, AlligatorFamilyF c)]
-    widths w _as = map (\a -> (width a, a)) _as
-      where count f = (fromIntegral . length . filter f) _as
-            numAlligators = count (not . isEgg)
-            numEggs = count isEgg
+adjustedWidths, equalWidths, constWidths :: Double -> [AlligatorFamilyF c] -> [(Double, AlligatorFamilyF c)]
 
-            isEgg = \case Egg {} -> True
-                          _      -> False
+equalWidths w _as = map (\a -> (width a, a)) _as
+    where width _ = w / (fromIntegral . length) _as
 
-            width :: AlligatorFamilyF c -> Double
-            width a = if isEgg a
-                      then w / (numEggs       + numAlligators * spriteHeightRatio)
-                      else w / (numAlligators + numEggs       * (1.0 / spriteHeightRatio))
+constWidths w = map (\a -> (width a, a))
+    where width = \case Egg {} -> w / 2
+                        _      -> w
+
+-- | Returns the width of each alligator family.
+-- The widths are calculated so that:
+-- - the sum of the widths of the families is equal to the width of the
+--   alligator that is protecting them.
+-- - the height of an egg is equal to the height of an alligator.
+--
+-- The full explanation is in the comments at the end of this file.
+adjustedWidths w _as = map (\a -> (width a, a)) _as
+    where width :: AlligatorFamilyF c -> Double
+          width a = if isEgg a
+                    then w / (numEggs       + numAlligators * spriteHeightRatio)
+                    else w / (numAlligators + numEggs       * (1.0 / spriteHeightRatio))
+              where count f = (fromIntegral . length . filter f) _as
+                    numAlligators = count (not . isEgg)
+                    numEggs = count isEgg
+                    isEgg = \case Egg {} -> True
+                                  _      -> False
 
 --------------------------
 -- Sprites

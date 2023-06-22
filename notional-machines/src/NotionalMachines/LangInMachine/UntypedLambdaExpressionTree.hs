@@ -17,8 +17,8 @@ module NotionalMachines.LangInMachine.UntypedLambdaExpressionTree (
     , diagramTrace
     ) where
 
-import Diagrams.Backend.Cairo (renderCairo)
-import Diagrams.Prelude       (Diagram)
+import Diagrams.Backend.Rasterific (renderRasterific)
+import Diagrams.Prelude            (Diagram)
 
 import NotionalMachines.Lang.Error              (Error)
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
@@ -88,7 +88,7 @@ repl fileName w = mkLangReplOpts
     , ("renderBoxesTrace",  r . diagramTrace toDiagramBoxesSeq)
     ] "ExpressionTree>" helpMsg langPipeline
   where helpMsg = "Play with the Expression as Tree notional machine for Untyped Lambda Calculus"
-        r = renderD renderCairo fileName w
+        r = renderD renderRasterific fileName w
 
 ascii :: String -> IO ()
 ascii =       mkCmd . fmap (: []) . str2NM

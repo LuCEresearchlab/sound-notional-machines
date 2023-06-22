@@ -33,13 +33,11 @@ dependencies:
 - diagrams-lib
 - diagrams-svg
 - diagrams-rasterific
-- diagrams-cairo
 - diagrams-contrib
-- diagrams-input == 0.1.0.1
+- diagrams-input
 - SVGFonts
 - palette
 - bytestring
-- raw-strings-qq
 - split
 - optparse-applicative
 

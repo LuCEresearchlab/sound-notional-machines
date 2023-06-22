@@ -15,8 +15,8 @@ import Prettyprinter.Render.String (renderString)
 
 import Diagrams.Prelude   (Any, Colour, D, Diagram, Path, QDiagram, Renderable, SizeSpec, V2,
                            alignBR, alignT, boundingRect, centerX, centerXY, def, dims2D, fc,
-                           fontSizeL, hcat, height, hrule, lw, lwO, mkWidth, none, rect, red, sized,
-                           stroke, text, vcat, vrule, vsep, width, withEnvelope, (#))
+                           fontSizeL, hcat, height, hrule, hsep, lw, lwO, mkWidth, none, rect, red,
+                           sized, stroke, text, vcat, vrule, vsep, width, withEnvelope, (#))
 import Diagrams.TwoD.Text (Text)
 
 import Graphics.SVGFonts            (TextOpts (textFont), drop_rect, fit_height, set_envelope,
@@ -53,6 +53,13 @@ vDiaSeq spc fontS = vsep spc
         addIndex _spc _fontS i d = d # centerXY <> (innerRect # alignBR <> idx i) # centerXY
           where innerRect = rect (width d - _spc) (height d - _spc) # lwO 0
                 idx j = text (show j) # fontSizeL _fontS
+
+hSepRule :: _ => Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any
+hSepRule spc ds = hsep spc . intersperse (vrule (height ds) # lwO 0.5) $ ds
+
+vSepRule :: _ => Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any
+vSepRule spc ds = vsep spc . intersperse (hrule (width ds) # lwO 0.5) $ ds
+
 
 renderD :: _ => (FilePath -> SizeSpec V2 Double -> QDiagram b V2 Double Any -> IO ())
              -> FilePath
