@@ -7,7 +7,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
-module NotionalMachines.Machine.ExpressionTree.Diagram where
+module NotionalMachines.Machine.ExpressionTree.BoxesDiagram where
 
 import Control.Monad.State (State, gets, modify, runState)
 
@@ -16,67 +16,36 @@ import Data.Maybe     (fromMaybe)
 import Data.Monoid    (Any)
 import Data.Tree      (Tree (Node))
 
-import Diagrams.Prelude          (Angle, Colour, IsName, Path, QDiagram, Renderable, V2, applyAll,
+import Diagrams.Prelude          (Angle, Colour, Default (def), IsName, QDiagram, V2, applyAll,
                                   bgFrame, black, centerXY, circle, connectPerim', extentX, extentY,
-                                  fc, gray, hcat, hsep, lc, lw, named, pad, rad, rect, roundedRect,
-                                  shaftStyle, tau, text, thin, white, width, with, (#), (%~), (&),
-                                  (.~), (@@), (~~))
+                                  fc, hcat, lw, named, pad, rad, rect, roundedRect, shaftStyle, tau,
+                                  text, thin, white, width, with, (#), (%~), (&), (.~), (@@), (~~))
 import Diagrams.TwoD.Layout.Tree (renderTree, renderTree', slHSep, slHeight, slVSep, slWidth,
                                   symmLayout')
-import Diagrams.TwoD.Text        (Text)
 
 import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..))
 
-import NotionalMachines.Util.Diagrams (tightText, vDiaSeq)
-
-toDiagramBubble :: _ => ExpAsTree -> IO (QDiagram b V2 Double Any)
-toDiagramBubble = return . _toDiagramBubble 1
-
-toDiagramBubbleSeq :: _ => [ExpAsTree] -> IO (QDiagram b V2 Double Any)
-toDiagramBubbleSeq = toDiagramSeq toDiagramBubble
-
-toDiagramBoxes :: _ => ExpAsTree -> IO (QDiagram b V2 Double Any)
-toDiagramBoxes = return . _toDiagramBoxes 1
-
-toDiagramBoxesSeq :: _ => [ExpAsTree] -> IO (QDiagram b V2 Double Any)
-toDiagramBoxesSeq = toDiagramSeq toDiagramBoxes
-
-toDiagramSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b, Monad f) => (a -> f (QDiagram b V2 Double Any)) -> [a] -> f (QDiagram b V2 Double Any)
-toDiagramSeq f = fmap (vDiaSeq 1.5 0.5) . mapM f
+import NotionalMachines.Util.Diagrams (tightText)
 
 
-bg :: _ => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-bg = bgFrame 0.1 white
+data DiagramBoxesOpts = DiagramBoxesOpts { _fontSize     :: Double
+                                         , _framePadding :: Double
+                                         }
 
-_toDiagramBubble :: _ => Double -> ExpAsTree -> QDiagram b V2 Double Any
-_toDiagramBubble size = bg . renderT . go
+instance Default DiagramBoxesOpts where
+    def = DiagramBoxesOpts 1 0.1
+
+toDiagram :: _ => ExpAsTree -> IO (QDiagram b V2 Double Any)
+toDiagram = return . _toDiagram def
+
+toDiagram' :: _ => DiagramBoxesOpts -> ExpAsTree -> IO (QDiagram b V2 Double Any)
+toDiagram' opts = return . _toDiagram opts
+
+_toDiagram :: _ => DiagramBoxesOpts -> ExpAsTree -> QDiagram b V2 Double Any
+_toDiagram opts = bg . renderT . flip runState (0, []) . go
   where
-    go :: _ => ExpAsTree -> Tree (QDiagram b V2 Double Any)
-    go = \case
-      Box n           -> Node (framed n)     []
-      BinaryBox e1 e2 -> Node (framed "App") [go e1, go e2]
-      LambdaBox n e   ->
-          Node (surround $ hsep (0.3 * padding)
-                                [txt black size "λ" # centerXY, nameDef n]) [go e]
-      where framed t = surround (txt black size t)
-            surround = framedRoundText padding 0.2 size
-            padding = 1.0 * txtHeight size
-            nameDef t = framedText (0.3 * padding) (0.8 * size) (txt white size t)
-                      # fc gray
-                      # lc gray
-
-    -- renderT :: Tree (QDiagram b V2 Double Any) -> QDiagram b V2 Double Any
-    renderT = drawTree
-      where
-        -- drawTree :: Tree (QDiagram b V2 Double Any) -> QDiagram b V2 Double Any
-        drawTree = renderTree id (\a b -> a ~~ b # lw thin)
-                 . symmLayout' (with & slWidth  .~ addGap (0 * size) . fromMaybe (0,0) . extentX
-                                     & slHeight .~ addGap (0 * size) . fromMaybe (0,0) . extentY)
-            where addGap gap = bimap (+ (-gap)) (+ gap)
-
-_toDiagramBoxes :: _ => Double -> ExpAsTree -> QDiagram b V2 Double Any
-_toDiagramBoxes size = bg . renderT . flip runState (0, []) . go
-  where
+    size = _fontSize opts
+    bg = bgFrame (_framePadding opts) white
     go :: _ => ExpAsTree -> State (Int, [(String, String)]) (Tree (Int, QDiagram b V2 Double Any))
     go = \case
       Box n           -> do i <- inc

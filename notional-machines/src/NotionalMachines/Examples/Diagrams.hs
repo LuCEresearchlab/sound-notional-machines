@@ -21,19 +21,25 @@ import Graphics.SVGFonts.ReadFont (PreparedFont)
 import           NotionalMachines.Lang.Error              (Error)
 import qualified NotionalMachines.Lang.UntypedLambda.Main as Lambda
 
-import NotionalMachines.Machine.AlligatorEggs.Diagram  (AlligatorOpts (_widths), _f, constWidths,
-                                                        equalWidths, toDiagram')
-import NotionalMachines.Machine.ExpressionTree.Diagram (toDiagramBubble)
+import           NotionalMachines.Machine.AlligatorEggs.Diagram        (AlligatorOpts (_f, _widths),
+                                                                        constWidths, equalWidths,
+                                                                        toDiagram')
+import qualified NotionalMachines.Machine.ExpressionTree.BubbleDiagram as Bubble (toDiagram,
+                                                                                  toDiagram')
 
-import           NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs  (diagramTrace, str2NM)
+import           NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs  (str2NM)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree as ETree
 
 import NotionalMachines.Meta.Steppable (trace)
 
-import NotionalMachines.Util.Diagrams (diagramWithError, fontMono, framed, hSepRule, text'')
+import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs as A
+import           NotionalMachines.Machine.ExpressionTree.BubbleDiagram     (DiagramBubbleOpts (_fontSize))
+import           NotionalMachines.Util.Diagrams                            (diagramWithError,
+                                                                            fontMono, framed,
+                                                                            hSepRule, text'')
 
 -- renderD renderSVG "a.svg" 400 $ A.diagram "(\\a.a) c"
--- renderD renderCairo "a.pdf" 400 $ ETree.diagram toDiagramBubble "(\\a.a) c"
+-- renderD renderCairo "a.pdf" 400 $ ETree.diagram toDiagram "(\\a.a) c"
 -- renderD renderCairo "a.pdf" 400 $ ETree.diagram toDiagramBoxes "(\\a.a) c"
 -- renderD renderCairo "a.pdf" 400 $ LambdaRefTAPLDia.diagramTrace TAPLDia.termToTextDiagram "(\\x: Ref Nat. { x, x }) (ref 0)"
 -- renderCairo "a.pdf" (mkWidth 400) =<< (diagramWithError $ LambdaRefTAPLDia.diagramTrace TAPLDia.termToTextDiagram "(\\x: Ref Nat.  x, x }) (ref 0)")
@@ -81,25 +87,48 @@ alligatorFixedWidths = mapM (toDiagram' (def { _widths = constWidths })) . str2N
 
 
 alligatorTraceExample :: IO ()
-alligatorTraceExample = renderEitherExample $ alligatorTrace "(\\t. \\f. t) a b"
+alligatorTraceExample = renderEitherExample $ langAndNMTrace 0.05 A.diagramTrace (fmap trace . Lambda.parse)
+                        "(\\t. \\f. t) a b"
 
-alligatorTrace :: _ => String -> IO (Either Error (QDiagram b V2 Double Any))
-alligatorTrace e = runExceptT
-    (do alligators <- (ExceptT . diagramTrace) e
-        terms <- (ExceptT . return . fmap trace . Lambda.parse) e
+expTreesTraceExample :: IO ()
+expTreesTraceExample = renderEitherExample $ langAndNMTrace 0.1 (ETree.diagramTrace (Bubble.toDiagram' (def { _fontSize = 0.3 }))) (fmap trace . Lambda.parse)
+                       "(\\t. \\f. t) a b"
+
+langAndNMTrace :: _ => Double
+                    -> (String -> IO (Either Error [QDiagram b V2 Double Any]))
+                    -> (String -> Either Error [t])
+                    -> String
+                    -> IO (Either Error (QDiagram b V2 Double Any))
+langAndNMTrace s nmTracer langTracer e = runExceptT
+    (do alligators <- (ExceptT . nmTracer) e
+        terms <- (ExceptT . return . langTracer) e
         font <- lift fontMono
-        return . hsep 0.1 $ zipWith3 (stepInTaace font) [0..] terms alligators)
+        return . hsep (2.0 * s) $ zipWith3 (stepInTrace s font) [0..] terms alligators)
 
-stepInTaace :: _ => PreparedFont Double -> Integer -> Lambda.Exp -> QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-stepInTaace font i e d = vsep 0.1 . map centerX $ [s i, p e, d]
-  where txt t = text t # fontSizeL 0.1
-             <> rect 0.2 0.2 # lw none
-        txt' = text'' font black 0.2
-        s = txt . ("step " ++) . show
+stepInTrace :: _ => Double
+                 -> PreparedFont Double
+                 -> Int
+                 -> t
+                 -> QDiagram b V2 Double Any
+                 -> QDiagram b V2 Double Any
+stepInTrace s font i e d = vsep s . map centerX $ [header i, term e, nm d]
+  where header = txt . ("Step " ++) . show
+        term = txt' . show . pretty
+        nm = id
+        txt t = text t # fontSizeL (1.2 * s)
+             <> rect (2.0 *s) (2.0 *s) # lw none
+        txt' = text'' font black (2.4 * s)
+
+dStep font i e d = (vsep 0.05 . map centerX) [s i, p e, d]
+  where txt t = text t # fontSizeL 0.06
+             <> rect 0.1 0.1 # lw none
+        txt' = text'' font black 0.12
+        s = txt . ("Step " ++) . show
         p = txt' . show . pretty
+
 
 
 bubbleWithError :: _ => IO (QDiagram b V2 Double Any)
 bubbleWithError =
-    (diagramWithError . ETree.diagram toDiagramBubble) "(\\a.a) b"
+    (diagramWithError . ETree.diagram Bubble.toDiagram) "(\\a.a) b"
 

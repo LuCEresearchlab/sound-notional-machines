@@ -2,6 +2,7 @@
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 
@@ -23,16 +24,16 @@ import Diagrams.Prelude            (Diagram)
 import NotionalMachines.Lang.Error              (Error)
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse)
 
-import NotionalMachines.Machine.ExpressionTree.Diagram (toDiagramBoxes, toDiagramBoxesSeq,
-                                                        toDiagramBubble, toDiagramBubbleSeq)
-import NotionalMachines.Machine.ExpressionTree.Main    (ExpAsTree (..))
+import           NotionalMachines.Machine.ExpressionTree.BoxesDiagram  as Boxes (toDiagram)
+import qualified NotionalMachines.Machine.ExpressionTree.BubbleDiagram as Bubble (toDiagram)
+import           NotionalMachines.Machine.ExpressionTree.Main          (ExpAsTree (..))
 
 import NotionalMachines.Meta.Bijective    (Bijective, fromNM)
 import NotionalMachines.Meta.Bisimulation (Bisimulation, mkBijBisim, mkStepBijNM)
 import NotionalMachines.Meta.LangToNM     (LangToNM (..))
 import NotionalMachines.Meta.Steppable    (Steppable, eval, step, trace)
 
-import NotionalMachines.Util.Diagrams (renderD)
+import NotionalMachines.Util.Diagrams (renderD, vDiaSeq)
 import NotionalMachines.Util.REPL     (LangPipeline (..), mkCmd, mkLangReplOpts)
 
 langToNM :: Exp -> ExpAsTree
@@ -82,10 +83,10 @@ repl :: FilePath -> Int -> IO ()
 repl fileName w = mkLangReplOpts
     [ ("ascii",       ascii)
     , ("asciiTrace",  asciiTrace)
-    , ("renderBubble",      r . diagram      toDiagramBubble)
-    , ("renderBubbleTrace", r . diagramTrace toDiagramBubbleSeq)
-    , ("renderBoxes",       r . diagram      toDiagramBoxes)
-    , ("renderBoxesTrace",  r . diagramTrace toDiagramBoxesSeq)
+    , ("renderBubble",      r . diagram Bubble.toDiagram)
+    , ("renderBubbleTrace", r . traceDiagram . diagramTrace Bubble.toDiagram)
+    , ("renderBoxes",       r . diagram Bubble.toDiagram)
+    , ("renderBoxesTrace",  r . traceDiagram . diagramTrace Bubble.toDiagram)
     ] "ExpressionTree>" helpMsg langPipeline
   where helpMsg = "Play with the Expression as Tree notional machine for Untyped Lambda Calculus"
         r = renderD renderRasterific fileName w
@@ -97,10 +98,13 @@ asciiTrace :: String -> IO ()
 asciiTrace =  mkCmd . fmap trace  . str2NM
 
 diagram :: (ExpAsTree -> IO (Diagram b)) -> String -> IO (Either Error (Diagram b))
-diagram toDiagram = mapM toDiagram . str2NM
+diagram toDia = mapM toDia . str2NM
 
-diagramTrace :: ([ExpAsTree] -> IO (Diagram b)) -> String -> IO (Either Error (Diagram b))
-diagramTrace toDiagramSeq = mapM toDiagramSeq . fmap trace . str2NM
+diagramTrace :: (ExpAsTree -> IO (Diagram b)) -> String -> IO (Either Error [Diagram b])
+diagramTrace toDia = mapM (mapM toDia) . fmap trace . str2NM
+
+traceDiagram :: _ => IO (Either Error [Diagram b]) -> IO (Either Error (Diagram b))
+traceDiagram = fmap (fmap (vDiaSeq 1.5 0.5))
 
 str2NM :: String -> Either Error ExpAsTree
 str2NM = fmap langToNM . parse

@@ -6,7 +6,6 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeFamilies          #-}
 
 
@@ -52,20 +51,19 @@ data AlligatorOpts b = AlligatorOpts { _maxWidth :: Double
                                        -- ^ Function to adjust the widths of the alligator families.
                                        -- Given the with of a protector and a list proteges,
                                        -- determine the width of each protege.
+                                     , _framePadding :: Double
                                      }
 
 instance Default (AlligatorOpts b) where
-    def = AlligatorOpts 1 id adjustedWidths
+    def = AlligatorOpts 1 id adjustedWidths 0.05
 
 toDiagram :: _ => [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
 toDiagram = toDiagram' def
 
-bg :: _ => QDiagram b V2 Double Any -> QDiagram b V2 Double Any
-bg = bgFrame 0.05 white
-
 -- | Returns the diagram of an alligator family.
 toDiagram' :: _ => AlligatorOpts b -> [AlligatorFamilyF Color] -> IO (QDiagram b V2 Double Any)
 toDiagram' opts = fmap (bg . mconcat . map (_f opts)) . _toDiagram opts
+  where bg = bgFrame (_framePadding opts) white
 
 -- | Returns the diagram of an alligator family as a list to allow for
 -- post processing (e.g. to add a frame around each element,

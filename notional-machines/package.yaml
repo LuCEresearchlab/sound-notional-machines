@@ -22,20 +22,20 @@ description:         Please see the README on GitHub at <https://github.com/LuCE
 dependencies:
 - base >= 4.7 && < 5
 - text
-- parsec
 - containers
 - mtl
-- hedgehog
+- parsec
 - prettyprinter
 - pretty-simple
 - repline
-- colour
+- hedgehog
 - diagrams-lib
 - diagrams-svg
 - diagrams-rasterific
 - diagrams-contrib
 - diagrams-input
 - SVGFonts
+- colour
 - palette
 - bytestring
 - split

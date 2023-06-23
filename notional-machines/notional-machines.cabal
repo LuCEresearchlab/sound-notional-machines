@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c0957f81c26e9ed3ef8d1a68459b7072c4c85fc3ab60013c8ac3d6659ba4616f
+-- hash: 790a6d42f3aea860510b65a93cea62f589a61e30b9f73d2eb29f466fb671d1d6
 
 name:           notional-machines
 version:        0.1.0.0
@@ -58,7 +58,8 @@ library
       NotionalMachines.Machine.AlligatorEggs.ColorAsName
       NotionalMachines.Machine.AlligatorEggs.Diagram
       NotionalMachines.Machine.AlligatorEggs.Main
-      NotionalMachines.Machine.ExpressionTree.Diagram
+      NotionalMachines.Machine.ExpressionTree.BoxesDiagram
+      NotionalMachines.Machine.ExpressionTree.BubbleDiagram
       NotionalMachines.Machine.ExpressionTree.Main
       NotionalMachines.Machine.ExpressionTutor.Generators
       NotionalMachines.Machine.ExpressionTutor.Main
