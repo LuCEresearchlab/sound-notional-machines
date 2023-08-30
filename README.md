@@ -1,11 +1,7 @@
-# structured-notional-machines
+# sound-notional-machines
 
 Foundations for correct-by-construction notional machines.
 
-## Paper
-
-We work on the POPL submission in Overleaf:
-https://www.overleaf.com/project/606d69ee5dd3039f53edf23e
 
 ## What's here?
 
