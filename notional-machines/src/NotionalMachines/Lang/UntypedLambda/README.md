@@ -22,13 +22,21 @@ Use the REPL to show the trace of the evaluation:
 
 ```sh
 Lambda> :trace (\x.x) y
-[ App
-    ( Lambda "x"
-        ( Var "x" )
-    )
-    ( Var "y" )
-, Var "y"
-]
+[(λx.x) y, y]
+```
+
+Lambdas can be written with a back slash or de UTF-8 symbol.
+
+An example with Church booleans:
+
+```sh
+Lambda> :trace (λl. λm. λn. l m n) (λt. λf. t) v w
+[ (λl.(λm.(λn.l m n))) (λt.(λf.t)) v w
+, (λm.(λn.(λt.(λf.t)) m n)) v w
+, (λn.(λt.(λf.t)) v n) w
+, (λt.(λf.t)) v w
+, (λf.v) w
+, v ]
 ```
 
 The parser is specified in `Main.hs` (see `parse = ...`).
