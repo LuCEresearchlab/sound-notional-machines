@@ -452,19 +452,19 @@ alligatorTest = testGroup "Alligators" [
             [HungryAlligator 0 [Egg 0]] -- expected
             (deBruijnAlligators [HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]])
         , testCase "c0" $ assertEqual ""
-            (Just "(\\0.(\\0.0))") -- expected
+            (Just "(λ0.(λ0.0))") -- expected
             (f "\\s.\\z.z")
         , testCase "c2" $ assertEqual ""
-            (Just "(\\0.(\\0.1 (1 0)))") -- expected
+            (Just "(λ0.(λ0.1 (1 0)))") -- expected
             (f "\\s.\\z.s(s z)")
         , testCase "plus" $ assertEqual ""
-            (Just "(\\0.(\\0.(\\0.(\\0.3 1 (2 0 1)))))") -- expected
+            (Just "(λ0.(λ0.(λ0.(λ0.3 1 (2 0 1)))))") -- expected
             (f "(\\m.(\\n.(\\s.\\z.m s (n z s))))")
         , testCase "fix" $ assertEqual ""
-            (Just "(\\0.(\\0.1 (\\0.1 1 0)) (\\0.1 (\\0.1 1 0)))") -- expected
+            (Just "(λ0.(λ0.1 (λ0.1 1 0)) (λ0.1 (λ0.1 1 0)))") -- expected
             (f "\\f.(\\x.f (\\y.(x x) y)) (\\x.f (\\y.(x x) y))")
         , testCase "foo" $ assertEqual ""
-            (Just "(\\0.(\\0.0)) (\\0.0)") -- expected
+            (Just "(λ0.(λ0.0)) (λ0.0)") -- expected
             (f "(\\x.(\\x.x)) (\\x.x)")
       ])
     , testGroup "Alligator rules stepping" (
@@ -480,10 +480,10 @@ alligatorTest = testGroup "Alligators" [
             (evolve [ OldAlligator [HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")]]
                     , HungryAlligator (MkColorFromName "a") [Egg (MkColorFromName "a")] ])
         , testCase "old alligator in the right" $ assertEqual ""
-            (Just "(\\a.a) c") -- expected
+            (Just "(λa.a) c") -- expected
             (f "(\\a.a) ((\\b.b) c)")
         , testCase "color rule" $ assertEqual ""
-            (Just "(\\a.a) (\\b.b)") -- expected
+            (Just "(λa.a) (λb.b)") -- expected
             (f "(\\a.a) (\\a.a)")
       ])
     , testProperty "asciiAlligator nm == asciiAlligators lambda" $

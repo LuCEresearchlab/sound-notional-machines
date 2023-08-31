@@ -110,7 +110,7 @@ pExp = try pLambda
    <|> try pApp
    <|> pAtom
   where
-    pLambda =     Lambda <$> between (char '\\') (char '.' <* spaces) pName <*> pExp
+    pLambda =     Lambda <$> between (char '\\' <|> char 'λ') (char '.' <* spaces) pName <*> pExp
     pApp    = foldl1 App <$> pAtom `sepBy1` spaces
     pVar    =        Var <$> pName
     pAtom = pVar <|> between (char '(') (char ')') pExp
