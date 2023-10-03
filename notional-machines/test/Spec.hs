@@ -376,21 +376,21 @@ expressionTutorTest = testGroup "Expressiontutor" [
     testGroup "ET with Untyped Lambda" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf LambdaGen.genExp (Inj.fromNM :: ExpTutorDiagram -> Maybe Lambda.Exp) (toNM :: Lambda.Exp -> ExpTutorDiagram)
-      , testProperty "commutation proof" $
+      , testProperty "soundness condition" $
           bisimulationCommutes LambdaGen.genExp LambdaET.bisim
     ],
     testGroup "ET with Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf ArithGen.genTerm (Inj.fromNM :: ExpTutorDiagram -> Maybe Arith.Term) (toNM :: Arith.Term -> ExpTutorDiagram)
-      , testProperty "commutation proof" $
+      , testProperty "soundness condition" $
           bisimulationCommutes ArithGen.genTerm ArithET.bisim
     ],
     testGroup "ET with Typed Arith" [
         testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf TypedArithGen.genTypedTerm (Inj.fromNM :: ExpTutorDiagram -> Maybe TypedArith.TypedTerm) (toNM :: TypedArith.TypedTerm -> ExpTutorDiagram)
-      , testProperty "commutation proof for typeof bisim (ask for type of term)" $
+      , testProperty "soundness condition for typeof bisim (ask for type of term)" $
           bisimulationCommutes ArithGen.genTerm TypedArithET.typeOfBisim
-      , testProperty "commutation proof for type annotated diagram" $
+      , testProperty "soundness condition for type annotated diagram" $
           bisimulationCommutes TypedArithGen.genTypedTerm TypedArithET.annotateTypeBisim
     ],
     testGroup "Malformed ETs" [
@@ -421,7 +421,7 @@ expTreeTest :: TestTree
 expTreeTest = testGroup "Expression Trees" [
       testProperty "nmToLang is inverse of langToNm" $
         isEquivalentTo LambdaGen.genExp (Bij.fromNM . toNM) id
-    , testProperty "commutation proof" $
+    , testProperty "soundness condition" $
         bisimulationCommutes LambdaGen.genExp ETree.bisim
   ]
 
@@ -429,7 +429,7 @@ reductTest :: TestTree
 reductTest = testGroup "Reduct" [
       testProperty "nmToLang is left inverse of langToNm" $
         isLeftInverseOf LambdaGen.genExp (Inj.fromNM :: ReductExp -> Maybe Lambda.Exp) (toNM :: Lambda.Exp -> ReductExp)
-    , testProperty "commutation proof" $
+    , testProperty "soundness condition" $
         bisimulationCommutes LambdaGen.genExp R.bisim
     , testProperty "reduct trees have unique ids"
         prop_uniqids
@@ -439,7 +439,7 @@ alligatorTest :: TestTree
 alligatorTest = testGroup "Alligators" [
       -- testProperty "nmToLang is left inverse of langToNm" $
       --   isLeftInverseOf LambdaGen.genExp Inj.fromNM (toNM :: Lambda.Exp -> AlligatorFamilies)
-      testProperty "commutation proof" $
+      testProperty "soundness condition" $
         bisimulationCommutes LambdaGen.genCombinator A.bisim
     , testProperty "color rule"
         colorRuleProp
@@ -506,7 +506,7 @@ taplMemeryDiagramTest :: TestTree
 taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
       testProperty "nmToLang is left inverse of langToNm" $
           isLeftInverseOf LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.nmToLang LambdaRefTAPLDia.langToNM
-    , testProperty "commutation proof for eval" $
+    , testProperty "soundness condition for eval" $
         bisimulationCommutes LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.bisim
   ]
 
