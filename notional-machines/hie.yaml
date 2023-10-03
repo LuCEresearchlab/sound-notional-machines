@@ -1,2 +1,19 @@
 cradle:
-  stack:
+  cabal:
+    - path: "./src"
+      component: "lib:notional-machines"
+
+    - path: "./diagram-playground/Main.hs"
+      component: "notional-machines:exe:diagram-playground-exe"
+
+    - path: "./diagram-playground/Paths_notional_machines.hs"
+      component: "notional-machines:exe:diagram-playground-exe"
+
+    - path: "./app/Main.hs"
+      component: "notional-machines:exe:notional-machines-exe"
+
+    - path: "./app/Paths_notional_machines.hs"
+      component: "notional-machines:exe:notional-machines-exe"
+
+    - path: "./test"
+      component: "notional-machines:test:notional-machines-test"

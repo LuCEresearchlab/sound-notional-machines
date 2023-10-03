@@ -128,6 +128,18 @@ LambdaRef> :trace (\r:Ref Nat.(\s:Ref Nat. s := 82; !r) r) (ref 13)
 ]
 ```
 
+
+### Run the diagram playground
+
+This is used to conveniently generate diagrams (concrete representations of notional machines) leveraging the continuous compilation feature provided by the Haskell [diagrams](https://diagrams.github.io/) library, demonstrated for example in their [quick start tutorial](https://diagrams.github.io/doc/quickstart.html).
+
+Run it for example was:
+
+```sh
+stack exec diagram-playground-exe -- -o circle.svg -w 400 -l -s diagram-playground/Main.hs
+```
+
+
 ### Play with a notional machine
 
 We currently have four notional machines:

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 790a6d42f3aea860510b65a93cea62f589a61e30b9f73d2eb29f466fb671d1d6
+-- hash: 16afab1dcfb5d7fc9144343003a898e221668f8b014ef6058a0256bcfe5b69c0
 
 name:           notional-machines
 version:        0.1.0.0
@@ -92,6 +92,37 @@ library
     , diagrams-svg
     , hedgehog
     , mtl
+    , optparse-applicative
+    , palette
+    , parsec
+    , pretty-simple
+    , prettyprinter
+    , repline
+    , split
+    , text
+  default-language: Haskell2010
+
+executable diagram-playground-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_notional_machines
+  hs-source-dirs:
+      diagram-playground
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      SVGFonts
+    , base >=4.7 && <5
+    , bytestring
+    , colour
+    , containers
+    , diagrams-contrib
+    , diagrams-input
+    , diagrams-lib
+    , diagrams-rasterific
+    , diagrams-svg
+    , hedgehog
+    , mtl
+    , notional-machines
     , optparse-applicative
     , palette
     , parsec

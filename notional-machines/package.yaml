@@ -58,6 +58,15 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - notional-machines
+  diagram-playground-exe:
+    main:                Main.hs
+    source-dirs:         diagram-playground
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - notional-machines
 
 tests:
   notional-machines-test:
