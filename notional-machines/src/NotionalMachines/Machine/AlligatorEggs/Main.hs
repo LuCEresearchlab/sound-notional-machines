@@ -11,6 +11,7 @@ module NotionalMachines.Machine.AlligatorEggs.Main (
       AlligatorFamilyF (..)
     , AlligatorFamily
     , evolve
+    , wrongEvolve
     , recolor
     , deBruijnAlligators
 
@@ -78,6 +79,9 @@ instance (Eq a, Enum a) => SteppableM [AlligatorFamilyF a] Maybe where
 evolve :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
 evolve = applyRules [oldAgeRule, colorRule, eatingRule]
 
+wrongEvolve :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
+wrongEvolve = applyRules [oldAgeRule, colorRule, wrongEatingRule]
+
 -- | Given a list of functions, apply each one in sequence until one of them
 -- returns a different value.
 applyRules :: Eq a => [a -> a] -> a -> a
@@ -89,11 +93,20 @@ applyRules (f:fs) a = if f a == a then applyRules fs a else f a
 eatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
 eatingRule ((HungryAlligator c proteges):family:rest) = map hatch proteges ++ rest
   where hatch (Egg c1)                | c == c1 = family
-        -- hatch (HungryAlligator c1 ys)           = HungryAlligator c1 (map hatch ys)
+        -- hatch (HungryAlligator c1 ys)           = HungryAlligator c1 (map hatch ys) -- wrong!
         hatch (HungryAlligator c1 ys) | c /= c1 = HungryAlligator c1 (map hatch ys) -- NM fix
         hatch (OldAlligator ys)                 = OldAlligator (map hatch ys)
         hatch protege                           = protege
 eatingRule families = families
+
+wrongEatingRule :: (Enum a, Eq a) => [AlligatorFamilyF a] -> [AlligatorFamilyF a]
+wrongEatingRule ((HungryAlligator c proteges):family:rest) = map hatch proteges ++ rest
+  where hatch (Egg c1)                | c == c1 = family
+        hatch (HungryAlligator c1 ys)           = HungryAlligator c1 (map hatch ys) -- wrong!
+        -- hatch (HungryAlligator c1 ys) | c /= c1 = HungryAlligator c1 (map hatch ys) -- NM fix
+        hatch (OldAlligator ys)                 = OldAlligator (map hatch ys)
+        hatch protege                           = protege
+wrongEatingRule families = families
 
 -- "If an alligator is about to eat a family, and there's a color that appears
 -- in both families, we need to change that color in one family to something
@@ -183,6 +196,7 @@ guess a testCases colors = all check testCases
                                     -- put the rest back in the state to be used next.
                                     x:xs -> put xs >> return x
 
+-- In de Bruijn notation, lambdas are not annotated with indeces like here.
 deBruijnAlligators :: [AlligatorFamilyF Color] -> [AlligatorFamilyF Int]
 deBruijnAlligators = fmap (go (-1) 0 Map.empty)
   where
