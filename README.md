@@ -1,6 +1,6 @@
 # sound-notional-machines
 
-Foundations for correct-by-construction notional machines.
+Foundations for sound-by-construction notional machines.
 
 
 ## What's here?
@@ -11,20 +11,7 @@ Foundations for correct-by-construction notional machines.
   * `LangInMachine/` - bisimulation relation between language and NM
   * `Meta/` - high-level machinery to aid implementations
 * [expressiontutor-backend](https://github.com/LuCEresearchlab/structured-notional-machines/tree/main/expressiontutor-backend): web backend exposing some of the functionality in `notional-machines` as micro services.
-* references: other code we've been looking at.
-* Other folders and files: each standalone haskell file was an attempt to write a bisimulation for a given notional machine. The other folders are stack projects trying to take specific cases. Now we want to move everything into `notional-machines` and try to make that a library to write bisimulations for language and notional machines.
-  * `imperative/`
-    * Other implementations for small imperative languages
-  * `paper-linked-lists/`
-    * Old attempt by Igor to model an NM
-  * `variable-as-a-box/`
-    * Old attempt by Igor to model an NM
-  * `control-flow-as-graph.hs`
-    * Old, incomplete attempt by Matthias to model an NM
-  * `grammarAsTrain.hs`
-    * Old attempt by Johan to model an NM
-  * `variable-as-parking-space.hs`
-    * Old, incomplete attempt by Matthias to model an NM
+
 
 ## Run
 
