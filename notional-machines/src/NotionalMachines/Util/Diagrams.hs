@@ -16,7 +16,7 @@ import Prettyprinter.Render.String (renderString)
 import Diagrams.Prelude   (Any, Colour, D, Diagram, Path, QDiagram, Renderable, SizeSpec, V2,
                            alignBR, alignT, boundingRect, centerX, centerXY, def, dims2D, fc,
                            fontSizeL, hcat, height, hrule, hsep, lw, lwO, mkWidth, none, rect, red,
-                           sized, stroke, text, vcat, vrule, vsep, width, withEnvelope, (#))
+                           sized, stroke, text, vcat, vrule, vsep, width, withEnvelope, (#), TypeableFloat, IsName, ArrowOpts, Point, translate, withName, location, Affine ((.-.), (.+^)), (^/), traceP, negated, atop, arrowAt', scale, Metric (signorm), perp, moveTo)
 import Diagrams.TwoD.Text (Text)
 
 import Graphics.SVGFonts            (TextOpts (textFont), drop_rect, fit_height, set_envelope,
@@ -27,6 +27,8 @@ import Graphics.SVGFonts.ReadFont   (PreparedFont, loadFont)
 import NotionalMachines.Lang.Error (Error)
 
 import Paths_notional_machines (getDataFileName)
+import Data.Typeable (Typeable)
+import Data.Maybe (fromMaybe)
 
 
 framed :: _ => Diagram b -> Diagram b
@@ -34,8 +36,8 @@ framed d = d <> boundingRect d # lwO 1
 
 diaSeq :: (Renderable (Path V2 Double) b, Renderable (Text Double) b) =>
           Int -> Double -> Double -> [QDiagram b V2 Double Any] -> QDiagram b V2 Double Any
-diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds)) ds)
-             . map (vcat .              (\ds -> intersperse (hrule (width  ds)) ds))
+diaSeq n w h =      hcat . map alignT . (\ds -> intersperse (vrule (height ds) # lw 1) ds)
+             . map (vcat .              (\ds -> intersperse (hrule (width  ds) # lw 1) ds))
              . chunksOf n
              . zipWith (addIndex 0.9) [(0 :: Integer)..]
              . map withSpacing
@@ -104,3 +106,34 @@ _text opts toDia c h s = s # svgText opts
 
 fontMono :: IO (PreparedFont Double)
 fontMono = loadFont =<< getDataFileName "data/fonts/DroidSansMonoDottedForPowerline.svg"
+
+
+---------------------
+-- | Similar to @connectOutside''@ but adding a diagram as a label next to the arrow separated by a gap.
+connectOutside'' :: (TypeableFloat n, Renderable (Path V2 n) b, IsName n1, IsName n2) =>
+    ArrowOpts n -> n1 -> n2 -> n -> QDiagram b V2 n Any -> QDiagram b V2 n Any -> QDiagram b V2 n Any
+connectOutside'' opts n1 n2 gap labelD =
+  withName n1 $ \b1 ->
+  withName n2 $ \b2 ->
+    let v = location b2 .-. location b1
+        midpoint = location b1 .+^ (v ^/ 2)
+        s' = fromMaybe (location b1) $ traceP midpoint (negated v) b1
+        e' = fromMaybe (location b2) $ traceP midpoint v b2
+    in
+      atop (arrowBetween'' opts s' e' gap labelD)
+
+-- | Similar to @arrowBetween''@ but adding a diagram as a label next to the arrow separated by a gap.
+arrowBetween'' :: (TypeableFloat n, Renderable (Path V2 n) b) =>
+     ArrowOpts n -> Point V2 n -> Point V2 n -> n -> QDiagram b V2 n Any -> QDiagram b V2 n Any
+arrowBetween'' opts s e gap labelD = arrowAt' opts s v
+                                  <> arrowLabel s v gap labelD
+  where v = e .-. s
+
+
+arrowLabel :: (Typeable n, RealFloat n, Renderable (Path V2 n) b) =>
+  Point V2 n -> V2 n -> n -> QDiagram b V2 n Any -> QDiagram b V2 n Any
+arrowLabel s v gap dia = dia # moveTo s # translate (v2 + v3)
+                    --   <> arrowAt s (v2 + v3)
+    where v2 = v / 2
+          v3 = scale gap . signorm . perp $ v2
+---------------
