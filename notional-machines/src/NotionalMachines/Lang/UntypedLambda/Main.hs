@@ -62,9 +62,9 @@ isValue _         = False
 -- Interpreter for Untyped Lambda Calculus
 --------------------
 instance Steppable Exp where
+  step (App e1@(App {}) e2)             = App (step e1) e2
   step (App e1@(Lambda {}) e2@(App {})) = App e1 (step e2)
   step (App (Lambda name e1) e2)        = subst name e2 e1
-  step (App e1 e2)                      = App (step e1) e2
   step p                                = p
 
 -- substitution
