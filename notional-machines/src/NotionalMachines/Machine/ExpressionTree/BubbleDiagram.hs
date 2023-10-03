@@ -11,14 +11,13 @@ module NotionalMachines.Machine.ExpressionTree.BubbleDiagram where
 
 
 import Data.Bifunctor (bimap)
-import Data.Maybe     (fromMaybe)
 import Data.Monoid    (Any)
 import Data.Tree      (Tree (Node))
 
 import Diagrams.Prelude          (Colour, Default (def), QDiagram, V2, bgFrame, black, centerXY,
-                                  circle, extentX, extentY, fc, gray, hsep, lc, lw, pad, rect,
-                                  roundedRect, text, thin, white, width, with, (#), (&), (.~), (~~))
-import Diagrams.TwoD.Layout.Tree (renderTree, slHSep, slHeight, slVSep, slWidth, symmLayout')
+                                  circle, fc, gray, hsep, lc, lw, pad, rect, roundedRect, text,
+                                  thin, white, width, with, (#), (&), (.~), (~~))
+import Diagrams.TwoD.Layout.Tree (renderTree, slHSep, slVSep, symmLayout')
 
 import NotionalMachines.Machine.ExpressionTree.Main (ExpAsTree (..))
 
