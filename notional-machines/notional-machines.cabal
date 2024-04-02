@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 16afab1dcfb5d7fc9144343003a898e221668f8b014ef6058a0256bcfe5b69c0
+-- hash: b4c430082eb41a2bf909307616c08e2438efa05820710f0b9556d81838314f60
 
 name:           notional-machines
 version:        0.1.0.0
@@ -34,6 +34,8 @@ library
   exposed-modules:
       NotionalMachines.Examples.Diagrams
       NotionalMachines.Lang.Error
+      NotionalMachines.Lang.List.Generators
+      NotionalMachines.Lang.List.Main
       NotionalMachines.Lang.TypedArith.Generators
       NotionalMachines.Lang.TypedArith.Main
       NotionalMachines.Lang.TypedLambdaArith.Generators
@@ -47,6 +49,7 @@ library
       NotionalMachines.Lang.UntypedLambda.AsciiAlligatorSyntax
       NotionalMachines.Lang.UntypedLambda.Generators
       NotionalMachines.Lang.UntypedLambda.Main
+      NotionalMachines.LangInMachine.ListAsStackOfBoxes
       NotionalMachines.LangInMachine.TypedArithExpressionTutor
       NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram
       NotionalMachines.LangInMachine.UntypedArithExpressionTutor
@@ -63,6 +66,8 @@ library
       NotionalMachines.Machine.ExpressionTree.Main
       NotionalMachines.Machine.ExpressionTutor.Generators
       NotionalMachines.Machine.ExpressionTutor.Main
+      NotionalMachines.Machine.ListAsStackOfBoxes.Diagram
+      NotionalMachines.Machine.ListAsStackOfBoxes.Main
       NotionalMachines.Machine.Reduct.Main
       NotionalMachines.Machine.TAPLMemoryDiagram.Diagram
       NotionalMachines.Machine.TAPLMemoryDiagram.Main

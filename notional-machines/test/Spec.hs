@@ -36,6 +36,8 @@ import qualified NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax as LambdaRe
 import qualified NotionalMachines.Lang.TypedLambdaRef.Main           as LambdaRef
 -- import qualified NotionalMachines.Lang.TypedLambdaRefExpressionTutor as LambdaRefET
 import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as LambdaRefGen
+import qualified NotionalMachines.Lang.List.Main       as List
+import qualified NotionalMachines.Lang.List.Generators as ListGen
 
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName
@@ -45,6 +47,7 @@ import NotionalMachines.Machine.ExpressionTutor.Main       (Edge (..), ExpTutorD
                                                             Node (..), NodeContentElem (..),
                                                             Plug (..))
 import NotionalMachines.Machine.Reduct.Main                (ReductExp, ReductExpF (..), updateUids)
+import NotionalMachines.Machine.ListAsStackOfBoxes.Main (Stack (..))
 
 import qualified NotionalMachines.LangInMachine.TypedArithExpressionTutor       as TypedArithET (annotateTypeBisim,
                                                                                                  typeOfBisim)
@@ -55,6 +58,7 @@ import qualified NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs      
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     as ETree (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
+import qualified NotionalMachines.LangInMachine.ListAsStackOfBoxes              as ListAsStack (consBisim, nilBisim, unconsBisim)
 
 import qualified NotionalMachines.Meta.Bijective    as Bij
 import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
@@ -510,10 +514,21 @@ taplMemeryDiagramTest = testGroup "TAPL Memory Diagram" [
         bisimulationCommutes LambdaRefGen.genTermStateRacket LambdaRefTAPLDia.bisim
   ]
 
+listAsStackOfBoxesTest :: TestTree
+listAsStackOfBoxesTest = testGroup "List as Stack of Boxes" [
+      testProperty "soundness condition for nil" $
+        bisimulationCommutes ListGen.genNilInput
+          (ListAsStack.nilBisim :: Bisimulation () (List.List Char) () Stack)
+    , testProperty "soundness condition for cons" $
+        bisimulationCommutes ListGen.genConsInput ListAsStack.consBisim
+    , testProperty "soundness condition for uncons" $
+        bisimulationCommutes ListGen.genUnconsInput ListAsStack.unconsBisim
+  ]
+
 tests :: TestTree
 tests = testGroup "Tests" [
             testGroup "Languages"         [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest]
-          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest, taplMemeryDiagramTest]
+          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest, taplMemeryDiagramTest, listAsStackOfBoxesTest]
         ]
 
 defaultNumberOfTests :: TestLimit

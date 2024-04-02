@@ -3,14 +3,22 @@
 {-# LANGUAGE TypeFamilies              #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Main where
 
-import Diagrams.Prelude hiding (Color, trace)
+import Data.Maybe (fromMaybe)
+import Data.Typeable (Typeable)
+
+import Diagrams.Prelude hiding (Box, Color, trace)
 import Diagrams.Backend.SVG.CmdLine
+import Diagrams.SVG.Path (PathCommand(H))
 
 import NotionalMachines.Lang.UntypedLambda.Main (Exp (..), parse, unparse)
 import NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs (diagramTrace, traceDiagram, diagram, str2NM, langToNm)
+import qualified NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram as TAPL (diagramTrace)
+import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree as ULExpTree (diagramTrace)
+
 import NotionalMachines.Meta.Steppable (Steppable (trace), allPoints, step)
 import NotionalMachines.Util.Diagrams (diagramWithError, text', tightText, fontMono, text'', connectOutside'')
 import NotionalMachines.Examples.Diagrams (langAndNMTrace)
@@ -18,10 +26,17 @@ import NotionalMachines.Machine.AlligatorEggs.Diagram
     ( toDiagram, egg, oldAlligator, hungryAlligator )
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName (Color(MkColor, MkColorFromName))
 import NotionalMachines.Machine.AlligatorEggs.Main (AlligatorFamilyF(OldAlligator, HungryAlligator, Egg), evolve, wrongEvolve)
-import Diagrams.SVG.Path (PathCommand(H))
+
+import qualified NotionalMachines.Machine.ExpressionTree.BubbleDiagram as Bubble (toDiagram, toDiagram', _fontSize, _framePadding)
+
+import NotionalMachines.Machine.TAPLMemoryDiagram.Diagram (termToTextDiagram, termToTreeDiagram)
+
+import NotionalMachines.Lang.List.Main
+import qualified NotionalMachines.LangInMachine.ListAsStackOfBoxes as ListAsStack
+import NotionalMachines.Machine.ListAsStackOfBoxes.Main
+import qualified NotionalMachines.Machine.ListAsStackOfBoxes.Diagram as ListAsStackDiagram
+
 import NotionalMachines.Lang.Error (Error)
-import Data.Maybe (fromMaybe)
-import Data.Typeable (Typeable)
 
 alligatorRenderTrace = traceDiagram . diagramTrace
 
@@ -149,8 +164,48 @@ wrongAlligatorDiagram = do
         e1 = App (Lambda "t" (Lambda "t" (Var "t"))) (Lambda "a" (Var "a"))
 
 
-main = mainWith . prep =<< wrongAlligatorDiagram
-    where prep = bgFrame 0.05 white
+-- TAPL
+tapl :: IO (Either Error (Diagram B))
+tapl = TAPL.diagramTrace termToTreeDiagram "(\\r:Ref Nat.(\\s:Ref Nat.s := 82; !r) r) (ref 13)"
+
+
+-- exp tree
+toDia = Bubble.toDiagram' (def { Bubble._fontSize = 0.12, Bubble._framePadding = 0.04 })
+expTreeTrace = langAndNMTrace 0.05
+                   (ULExpTree.diagramTrace toDia)
+                   (fmap trace . parse)
+
+expTreeDia :: IO (Either Error (Diagram B))
+expTreeDia = (expTreeTrace)
+      "(\\t. \\f. t) a b"
+
+
+-- list as stack of boxes
+listAsStackOfBoxes :: Diagram B
+listAsStackOfBoxes = scale 0.5 . toDiagram . ListAsStack.langToNM . haskellListToList $ ["a", "b", "c"]
+  where
+    -- | Convert a "List as stack of boxes" to a diagram.
+    toDiagram :: _ => Stack -> QDiagram b V2 Double Any
+    toDiagram = frame 0.1 . scale 0.2 . toDiagram'
+
+    toDiagram' ::  _ => Stack -> QDiagram b V2 Double Any
+    toDiagram' Pallet            = a
+                                  ===
+                       (b ||| s ||| b ||| s ||| b) # centerX
+      where a = rect w (h/4)
+            b = rect   ((1/7) * w) (h/2)
+            s = strutX ((2/7) * w)
+            h = 0.2 * w
+    toDiagram' (Stack (Box b) s) = box b
+                                    ===
+                                toDiagram' s
+      where box b = rect bw bw <> text (show b) # fontSizeL (0.2 * w)
+            bw = 0.6 * w
+
+w = 1
+
+main = mainWith . prep =<< return listAsStackOfBoxes
+    where prep = bgFrame 0.04 white
 
 
 
