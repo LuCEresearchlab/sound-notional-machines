@@ -75,7 +75,7 @@ subst x v e@(Var y)
   | otherwise            = e
 subst x v e1@(Lambda y e2)
   | x == y               = e1
-  | y `notElem` freeVs v = Lambda y    (subst x v e2                     )
+  | y `notElem` freeVs v = Lambda y (subst x v e2)
   | otherwise            = let newY = until (`notElem` freeVs v) fresh y
                             in Lambda newY (subst x v (subst y (Var newY) e2))
 
