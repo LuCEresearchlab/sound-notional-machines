@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
 
-module NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (
+module NotionalMachines.Lang.TypedLambdaArray.ParserUnparser (
   parse,
   parseType,
   unparse
@@ -15,7 +15,7 @@ import qualified Text.ParserCombinators.Parsec.Token as Tok
 
 
 import NotionalMachines.Lang.Error                         (Error (..))
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Term (..), Type (..))
+import NotionalMachines.Lang.TypedLambdaArray.AbstractSyntax (Term (..), Type (..))
 import NotionalMachines.Util.Util                          (prettyToString)
 
 
@@ -33,7 +33,7 @@ langDef = Tok.LanguageDef
   , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~;"
   , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~;"
   , Tok.reservedNames   = ["if", "then", "else", "true", "false", "succ",
-                           "pred", "iszero", "unit", "Bool", "Nat"]
+                           "pred", "iszero", "unit", "Bool", "Nat", "array", "null"]
   , Tok.reservedOpNames = []
   , Tok.caseSensitive   = True
   }
@@ -45,9 +45,10 @@ contents :: Parser a -> Parser a
 contents p = do Tok.whiteSpace lexer
                 p <* eof
 
-parens, braces :: Parser a -> Parser a
+parens, braces, brackets :: Parser a -> Parser a
 parens = Tok.parens lexer
 braces = Tok.braces lexer
+brackets = Tok.brackets lexer
 
 commaSep :: Parser a -> Parser [a]
 commaSep = Tok.commaSep lexer
@@ -66,9 +67,11 @@ factor :: Parser Term
 factor = Tru  <$ reserved "true"
      <|> Fls  <$ reserved "false"
      <|> Unit <$ reserved "unit"
+     <|> Null <$ reserved "null"
      <|> Zero <$ reserved "0"
      <|> pIf
      <|> pLambda
+     <|> pArrayAlloc
      <|> Var <$> identifier
      <|> decToPeano <$> decimal
      <|> decToPeano <$> decimal
@@ -83,6 +86,10 @@ factor = Tru  <$ reserved "true"
                reserved "then"; t <- pTerm;
                reserved "else"; f <- pTerm;
                return $ If c t f }
+    pArrayAlloc = do { reserved "array";
+                       typ  <- pTyp;
+                       size <- brackets pTerm;
+                       return $ ArrayAlloc typ size }
 
 pTerm :: Parser Term
 pTerm = Ex.buildExpressionParser table factor
@@ -94,6 +101,7 @@ pTerm = Ex.buildExpressionParser table factor
                   , Ex.Prefix  (IsZero <$ reserved   "iszero")
                   , Ex.Prefix  (Ref    <$ reserved   "ref") ]
                 , [ Ex.Infix   (App    <$ reservedOp "")       Ex.AssocLeft  ]
+                , [ Ex.Infix   (ArrayAccess <$ reservedOp "|")       Ex.AssocLeft  ]
                 , [ Ex.Infix   (Assign <$ reservedOp ":=")     Ex.AssocRight ]
                 , [ Ex.Infix   (Seq    <$ reservedOp ";")      Ex.AssocRight ] ]
 
@@ -109,7 +117,8 @@ pTypAtom = TyBool  <$ reserved "Bool"
 pTyp :: Parser Type
 pTyp = Ex.buildExpressionParser table pTypAtom
   where table = [ [ Ex.Infix  (TyFun <$ reservedOp "->")  Ex.AssocRight
-                  , Ex.Prefix (TyRef <$ reservedOp "Ref") ] ]
+                  , Ex.Prefix (TyRef <$ reserved "Ref")
+                  , Ex.Prefix (TyArray <$ reserved "Array") ] ]
 
 decToPeano :: Integer -> Term
 decToPeano 0 = Zero

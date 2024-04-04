@@ -4,12 +4,12 @@
 {-# LANGUAGE FlexibleInstances #-}
 
 {-|
-Description : Simply-Typed Lambda Calculus with References, Unit, Booleans, and Natural numbers based on TAPL Ch.3
+Description : Simply-Typed Lambda Calculus with Unit, Booleans, Natural numbers, References, and Arrays based on TAPL Ch.3
 Stability   : experimental
 
 -}
 
-module NotionalMachines.Lang.TypedLambdaRef.Main (
+module NotionalMachines.Lang.TypedLambdaArray.Main (
   Term(..),
   Type(..),
   Trace(..),
@@ -38,14 +38,14 @@ import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
 
 import Prettyprinter (Pretty (pretty), align, line, list, vsep)
 
-import NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax (Error, Location, NameEnv,
+import NotionalMachines.Lang.TypedLambdaArray.AbstractSyntax (Error, Location, NameEnv,
                                                             StateRacket (StateRacket), Store,
                                                             Term (..), Type (..),
                                                             emptyStateAlaRacket,
                                                             emptyStateAlaWadler, emptyStore, evalM',
                                                             evalMAlaRacket, evalMAlaWadler, isValue,
                                                             typecheck, typeof)
-import NotionalMachines.Lang.TypedLambdaRef.ParserUnparser (parse, unparse)
+import NotionalMachines.Lang.TypedLambdaArray.ParserUnparser (parse, unparse)
 import NotionalMachines.Meta.Steppable                     (SteppableM, traceM)
 import NotionalMachines.Util.REPL                          (LangPipeline (LangPipeline), _eval,
                                                             mkCmd, mkLangReplOpts, mkReplEval,
@@ -104,7 +104,7 @@ replEvalAlaRacket = mkReplEval langPipeline { _eval = evalMAlaRacket }
 repl :: IO ()
 repl = mkLangReplOpts [ ("traceAlaWadler", mkCmd . traceAlaWadler)
                       , ("traceAlaRacket", mkCmd . traceAlaRacket) ]
-                      "LambdaRef>" (taplBookMsg "13") langPipeline
+                      "LambdaArray>" (taplBookMsg "13") langPipeline
 
 traceAlaWadler :: String -> Either Error (Trace MachineStateAlaWadler)
 traceAlaWadler = trace' emptyStateAlaWadler MachineStateAlaWadler <=< parse

@@ -71,3 +71,5 @@ shortPrint = pPrintOpt CheckColorTty defaultOutputOptionsDarkBg {outputOptionsCo
 showRGB :: RGB Double -> String
 showRGB = sRGB24show . uncurryRGB sRGB
 
+nextKey :: (Enum k, Ord k, Num k) => Map k v -> k
+nextKey = succ . foldl max (-1) . Map.keys

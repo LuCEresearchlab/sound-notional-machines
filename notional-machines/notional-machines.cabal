@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b4c430082eb41a2bf909307616c08e2438efa05820710f0b9556d81838314f60
+-- hash: 820f4a553b3867903a18a03954827b9eebdbe9af8fc81585c133cbcfc01a0369
 
 name:           notional-machines
 version:        0.1.0.0
@@ -40,6 +40,10 @@ library
       NotionalMachines.Lang.TypedArith.Main
       NotionalMachines.Lang.TypedLambdaArith.Generators
       NotionalMachines.Lang.TypedLambdaArith.Main
+      NotionalMachines.Lang.TypedLambdaArray.AbstractSyntax
+      NotionalMachines.Lang.TypedLambdaArray.Generators
+      NotionalMachines.Lang.TypedLambdaArray.Main
+      NotionalMachines.Lang.TypedLambdaArray.ParserUnparser
       NotionalMachines.Lang.TypedLambdaRef.AbstractSyntax
       NotionalMachines.Lang.TypedLambdaRef.Generators
       NotionalMachines.Lang.TypedLambdaRef.Main
@@ -51,6 +55,7 @@ library
       NotionalMachines.Lang.UntypedLambda.Main
       NotionalMachines.LangInMachine.ListAsStackOfBoxes
       NotionalMachines.LangInMachine.TypedArithExpressionTutor
+      NotionalMachines.LangInMachine.TypedLambdaArrayParkingSpaces
       NotionalMachines.LangInMachine.TypedLambdaRefTAPLMemoryDiagram
       NotionalMachines.LangInMachine.UntypedArithExpressionTutor
       NotionalMachines.LangInMachine.UntypedLambdaAlligatorEggs
@@ -61,6 +66,7 @@ library
       NotionalMachines.Machine.AlligatorEggs.ColorAsName
       NotionalMachines.Machine.AlligatorEggs.Diagram
       NotionalMachines.Machine.AlligatorEggs.Main
+      NotionalMachines.Machine.ArrayAsParkingSpaces.Main
       NotionalMachines.Machine.ExpressionTree.BoxesDiagram
       NotionalMachines.Machine.ExpressionTree.BubbleDiagram
       NotionalMachines.Machine.ExpressionTree.Main
