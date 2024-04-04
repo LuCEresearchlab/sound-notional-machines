@@ -126,7 +126,7 @@ toDiagram' termToDia ts taplDia = let (d, arrowLocs) = runState (allDia taplDia)
             -- draw :: (Name, DTerm l) -> State [ArrowInfo l _] (Diagram _, Diagram _)
             draw (name, val) = (txt ts name, ) <$> termToDia ts (connectToLeft ts) val
             frameIt []   = Nothing
-            frameIt rows = Just $ table (ts * 1.0) (ts * 1.0) rows
+            frameIt rows = Just $ table (ts * 1.0) (ts * 0.5) rows
             -- frameIt rows = Just $ hsep (ts * 0.2) [ txt (ts * 0.3) "NameEnv"
             --                                       , table (ts * 2) (ts * 2) rows ]
 
@@ -189,7 +189,7 @@ termToTreeDiagram size conn = fmap (lw thin) . renderT . termToTreeData
           where
             drawContentElem (Val s) = return $ b (txt size s)
                where b v = v -- boxed (1 + width v) (1 + height v) v
-            drawContentElem Hole = return $ roundedRect size size (size/3) # fc black # alignB
+            drawContentElem Hole = return $ roundedRect (size/2) (size/2) (size/6) # fc black # alignB
             drawContentElem (LLoc l) = alignB <$> locDia conn l -- circle (size/2) # fc green # alignB
 
 
