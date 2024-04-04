@@ -58,7 +58,7 @@ import Prettyprinter (Doc, Pretty, align, comma, concatWith, encloseSep, hardlin
 
 import NotionalMachines.Lang.Error     (Error (..), mismatch, typeOfEq)
 import NotionalMachines.Meta.Steppable (SteppableM, evalM, stepM)
-import NotionalMachines.Util.Util      (mapFirstM, maybeAt, maybeToEither, stateToStateT, nextKey)
+import NotionalMachines.Util.Util      (mapFirstM, maybeAt, maybeToEither, stateToStateT, nextKey, stateEq)
 
 --------------------
 -- Simply-Typed Lambda Calculus
@@ -279,6 +279,10 @@ evalMAlaWadler t = evalStateT (evalM t) emptyStateAlaWadler
 instance SteppableM Term (StateT (NameEnv, Store Location) (Either Error)) where
   stepM = stepAlaWadler
 
+-- Required for tracing because StateTs have to be compared for eq.
+instance Eq (StateT (NameEnv, Store Location) (Either Error) Term) where
+  (==) = stateEq emptyStateAlaWadler
+
 augmentState :: Monad m => StateT s1 m t -> StateT (s2, s1) m t
 augmentState st = StateT (\(s1, s2) -> second (s1, ) <$> runStateT st s2)
 
@@ -348,6 +352,10 @@ evalMAlaRacket t = evalStateT (evalM t) emptyStateAlaRacket
 instance SteppableM Term (StateT StateRacket (Either Error)) where
   stepM = stepAlaRacket
 
+-- Required for tracing because StateTs have to be compared for eq.
+instance Eq (StateT StateRacket (Either Error) Term) where
+  (==) = stateEq emptyStateAlaRacket
+
 storeToStateRacket :: Monad m => StateT (Store Location) m t -> StateT StateRacket m t
 storeToStateRacket st = StateT (\(StateRacket env store) -> second (StateRacket env) <$> runStateT st store)
 
@@ -398,6 +406,10 @@ stepAlaRacket = \case
 ----------------------
 instance SteppableM Term (StateT (Store Location) (Either Error)) where
   stepM = step'
+
+-- Required for tracing because StateTs have to be compared for eq.
+instance Eq (StateT (Store Location) (Either Error) Term) where
+  (==) = stateEq emptyStore
 
 evalM' :: Term -> Either Error Term
 evalM' t = evalStateT (evalM t) emptyStore

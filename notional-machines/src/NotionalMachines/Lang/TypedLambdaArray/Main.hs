@@ -77,17 +77,6 @@ trace' initState format = fmap (Trace . fmap format) . runTrace . traceM . fst <
   where runTrace = mapM (`runStateT` initState)
 
 
--- These instance are required for tracing because StateTs have to be compared for eq.
-instance Eq (StateT (Store Location) (Either Error) Term) where
-  (==) = stateEq emptyStore
-instance Eq (StateT (NameEnv, Store Location) (Either Error) Term) where
-  (==) = stateEq emptyStateAlaWadler
-instance Eq (StateT StateRacket (Either Error) Term) where
-  (==) = stateEq emptyStateAlaRacket
-
-stateEq :: (Eq (m a), Monad m) => s -> StateT s m a -> StateT s m a -> Bool
-stateEq empty s1 s2 = evalStateT s1 empty == evalStateT s2 empty
-
 
 langPipeline :: LangPipeline Term Type Error (Trace MachineState)
 langPipeline = LangPipeline parse evalM' (Just typeof) (trace' emptyStore MachineState)

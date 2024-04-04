@@ -5,7 +5,7 @@
 
 module NotionalMachines.Util.Util where
 
-import Control.Monad.State.Lazy (State, StateT (StateT), runState, runStateT, state)
+import Control.Monad.State.Lazy (State, StateT (StateT), runState, runStateT, state, evalStateT)
 
 import Data.List       (intercalate, uncons)
 import Data.List.Split (splitOn)
@@ -61,6 +61,9 @@ tupleToState f a = StateT (curry f a)
 
 stateToStateT :: Monad m => State s a -> StateT s m a
 stateToStateT = state . runState
+
+stateEq :: (Eq (m a), Monad m) => s -> StateT s m a -> StateT s m a -> Bool
+stateEq empty s1 s2 = evalStateT s1 empty == evalStateT s2 empty
 
 prettyToString :: Pretty a => a -> String
 prettyToString = show . pretty

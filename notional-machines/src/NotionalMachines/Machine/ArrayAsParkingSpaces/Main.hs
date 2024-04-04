@@ -23,7 +23,7 @@ data Type = TyNat
 
 data Term = PrimValue String
           | Loc Location
-          | ArrayAlloc Type Int
+          | ArrayAlloc Type Int Id
           | ArrayWrite Term Int Term
           | ArrayAccess Term Int
           | Unit
@@ -32,6 +32,7 @@ data Term = PrimValue String
   deriving (Eq, Show)
 
 type Location = Int
+type Id = String
 
 isValue :: Term -> Bool
 isValue = \case
@@ -57,13 +58,11 @@ emptyParkingSpace = Map.empty
 problem = lift . Left . Problem
 
 ----- Parking space manipulation -----
-nextLocation :: Map Address [Spot] -> Location
-nextLocation = nextKey
 
 -- allocate
-addSpots :: Type -> Int -> StateT ParkingSpace (Either Problem) Location
-addSpots ty size = do
-  loc <- nextLocation <$> get
+addSpots :: Type -> Int -> Id -> StateT ParkingSpace (Either Problem) Location
+addSpots ty size id = do
+  let loc = read id
   modify (Map.insert loc (replicate size . termToParkingSpot . defaultVal $ ty))
   return loc
 
@@ -91,13 +90,7 @@ getSpot loc i = do
 
 -- assign
 setSpot :: Location -> Int -> Term -> StateT ParkingSpace (Either Problem) ()
-setSpot loc i v = do
-  ps <- get
-  case Map.lookup loc ps of
-    Nothing -> problem "no such location"
-    Just spots -> case spots !! i of
-      Nothing -> problem "no such spot"
-      Just _ -> modify (Map.adjust (replace i (termToParkingSpot v)) loc)
+setSpot loc i v = getSpot loc i *> modify (Map.adjust (replace i (termToParkingSpot v)) loc)
 
 replace :: Int -> a -> [a] -> [a]
 replace i x xs = take i xs ++ [x] ++ drop (i + 1) xs
@@ -106,11 +99,15 @@ replace i x xs = take i xs ++ [x] ++ drop (i + 1) xs
 
 fNM :: Term -> StateT ParkingSpace (Either Problem) Term
 fNM t = case t of
-  ArrayAlloc ty size -> Loc <$> addSpots ty size
+  ArrayAlloc ty size id    -> Loc <$> addSpots ty size id
   ArrayWrite (Loc loc) i v -> setSpot loc i v >> return Unit
-  ArrayWrite Null _ _ -> problem "null dereference"
+  ArrayWrite Null _ _      -> problem "null dereference"
     -- careful with "spot already taken" miscon
     -- "no such location" is good
-  ArrayAccess (Loc loc) i -> getSpot loc i
-  ArrayAccess Null _ -> problem "null dereference"
-  _ -> return Other
+  ArrayAccess (Loc loc) i  -> getSpot loc i
+  ArrayAccess Null _       -> problem "null dereference"
+  _                        -> return Other
+
+
+fNM_Replay :: [Term] -> StateT ParkingSpace (Either Problem) Term
+fNM_Replay [] = problem "no replay"
