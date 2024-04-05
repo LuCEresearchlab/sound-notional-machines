@@ -38,6 +38,8 @@ import qualified NotionalMachines.Lang.TypedLambdaRef.Main           as LambdaRe
 import qualified NotionalMachines.Lang.TypedLambdaRef.Generators as LambdaRefGen
 import qualified NotionalMachines.Lang.List.Main       as List
 import qualified NotionalMachines.Lang.List.Generators as ListGen
+import qualified NotionalMachines.Lang.TypedLambdaArray.Main       as LambdaArray
+import qualified NotionalMachines.Lang.TypedLambdaArray.Generators as LambdaArrayGen
 
 import NotionalMachines.Machine.AlligatorEggs.AsciiSyntax
 import NotionalMachines.Machine.AlligatorEggs.ColorAsName
@@ -59,6 +61,7 @@ import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTree     
 import qualified NotionalMachines.LangInMachine.UntypedLambdaExpressionTutor    as LambdaET (bisim)
 import qualified NotionalMachines.LangInMachine.UntypedLambdaReduct             as R (bisim)
 import qualified NotionalMachines.LangInMachine.ListAsStackOfBoxes              as ListAsStack (consBisim, nilBisim, unconsBisim)
+import qualified NotionalMachines.LangInMachine.TypedLambdaArrayParkingSpaces   as LambdaArrayParkingSpaces (bisimEval)
 
 import qualified NotionalMachines.Meta.Bijective    as Bij
 import           NotionalMachines.Meta.Bisimulation (Bisimulation (..))
@@ -375,6 +378,17 @@ typLambdaRefTest = testGroup "Typed Lambda Ref" [
     ]
   ]
 
+typLambdaArrayTest :: TestTree
+typLambdaArrayTest = testGroup "Typed Lambda Array" [
+      testProperty "parse is left inverse of unparse" $
+        isLeftInverseOf LambdaArrayGen.genTerm LambdaArray.parse LambdaArray.unparse
+    , testGroup "Evaluation" [
+          evalTo "(\\a:Array (Array Nat). a|3 := array Nat[3]; a|3|2 := 9; a|3|2) (array (Array Nat)[5])" "9 : Nat"
+            LambdaArray.replEval
+    ]
+  ]
+
+
 expressionTutorTest :: TestTree
 expressionTutorTest = testGroup "Expressiontutor" [
     testGroup "ET with Untyped Lambda" [
@@ -525,10 +539,34 @@ listAsStackOfBoxesTest = testGroup "List as Stack of Boxes" [
         bisimulationCommutes ListGen.genUnconsInput ListAsStack.unconsBisim
   ]
 
+arrayAsParkingSpacesTest :: TestTree
+arrayAsParkingSpacesTest = testGroup "Array as Parking Spaces" [
+      testProperty "soundness condition" $
+        bisimulationCommutes LambdaArrayGen.genTerm bisim
+    , testGroup "Cases of commutation" [
+        bisimTestCase "alloc array"
+                      "(\\a:Array Nat. a|3 := 1) (array Nat[5])"
+      , bisimTestCase "alloc, write, and read array"
+                      "(\\a:Array Nat. a|3 := 1; a|3) (array Nat[5])"
+      , bisimTestCase "array of arrays: alloc"
+                      "(\\a:Array (Array Nat). a|3 := array Nat[4]) (array (Array Nat)[5])"
+      , bisimTestCase "array of arrays: read null"
+                      "(\\a:Array (Array Nat). a|3 := array Nat[4]; a|1) (array (Array Nat)[5])"
+      , bisimTestCase "array of arrays"
+                      "(\\a:Array (Array Nat). a|3 := array Nat[4] ; a|3|2 := 9; a|3|2) (array (Array Nat)[5])"
+    ]
+  ]
+      where bisim = LambdaArrayParkingSpaces.bisimEval
+            nmPath s = (alphaB bisim . fLang bisim) <$> LambdaArray.parse s
+            langPath s = (fNM bisim . alphaA bisim) <$> LambdaArray.parse s
+            bisimTestCase title e = testCase title $ assertEqual ""
+                                        (nmPath e) -- expected
+                                        (langPath e)
+
 tests :: TestTree
 tests = testGroup "Tests" [
-            testGroup "Languages"         [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest]
-          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest, taplMemeryDiagramTest, listAsStackOfBoxesTest]
+            testGroup "Languages"         [lambdaTest, arithTest, typLambdaTest, typLambdaRefTest, typLambdaArrayTest]
+          , testGroup "Notional Machines" [expressionTutorTest, expTreeTest, reductTest, alligatorTest, taplMemeryDiagramTest, listAsStackOfBoxesTest, arrayAsParkingSpacesTest]
         ]
 
 defaultNumberOfTests :: TestLimit

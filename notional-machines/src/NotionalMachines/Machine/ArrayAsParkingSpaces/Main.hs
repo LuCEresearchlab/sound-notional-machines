@@ -10,8 +10,6 @@ import qualified Data.Map as Map
 
 import Control.Monad.State.Lazy (StateT, get, modify, lift)
 
-import NotionalMachines.Util.Util (nextKey)
-
 
 ---- Sublanguage needed for the parking space nm
 
@@ -44,7 +42,7 @@ isValue = \case
 -------------------------------
 
 data Problem = Problem String
-  deriving (Show)
+  deriving (Eq, Show)
 
 type ParkingSpace = Map Address [Spot]
 type Address = Location
@@ -55,6 +53,7 @@ newtype Car = Car Term
 emptyParkingSpace :: ParkingSpace
 emptyParkingSpace = Map.empty
 
+problem :: String -> StateT ParkingSpace (Either Problem) a
 problem = lift . Left . Problem
 
 ----- Parking space manipulation -----
@@ -83,9 +82,9 @@ getSpot :: Location -> Int -> StateT ParkingSpace (Either Problem) Term
 getSpot loc i = do
   ps <- get
   case Map.lookup loc ps of
-    Nothing -> problem "no such location"
+    Nothing -> problem $ "no such location: " ++ show loc
     Just spots -> case spots !! i of
-      Nothing -> problem "no such spot"
+      Nothing -> return Null
       Just (Car v) -> return v
 
 -- assign
@@ -106,8 +105,13 @@ fNM t = case t of
     -- "no such location" is good
   ArrayAccess (Loc loc) i  -> getSpot loc i
   ArrayAccess Null _       -> problem "null dereference"
+  -- Values
+  Loc _                    -> return t
+  Unit                     -> return t
+  Null                     -> return t
+  PrimValue _              -> return t
   _                        -> return Other
 
 
 fNM_Replay :: [Term] -> StateT ParkingSpace (Either Problem) Term
-fNM_Replay [] = problem "no replay"
+fNM_Replay = foldl (\s t -> s >>= const (fNM t)) (return Unit)

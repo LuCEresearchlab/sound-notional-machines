@@ -34,7 +34,7 @@ module NotionalMachines.Lang.TypedLambdaArray.Main (
   traceAlaRacket) where
 
 import Control.Monad            ((<=<))
-import Control.Monad.State.Lazy (StateT, evalStateT, runStateT)
+import Control.Monad.State.Lazy (StateT, runStateT)
 
 import Prettyprinter (Pretty (pretty), align, line, list, vsep)
 
@@ -54,7 +54,7 @@ import NotionalMachines.Util.REPL                          (LangPipeline (LangPi
 -------------------
 -- REPL
 --------------------
-newtype Trace s = Trace [s]
+newtype Trace s = Trace { rawTrace :: [s] }
 instance Pretty s => Pretty (Trace s) where
   pretty (Trace ss) = list (map (align . (<>) line . pretty) ss)
 

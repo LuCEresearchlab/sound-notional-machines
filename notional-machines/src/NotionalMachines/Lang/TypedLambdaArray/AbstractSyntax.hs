@@ -417,50 +417,50 @@ evalM' t = evalStateT (evalM t) emptyStore
 step' :: Term -> StateT (Store Location) (Either Error) Term
 step' = \case
   -- Lambdas
-  App t1 t2 | not (isValue t1)    -> (\t1' -> App t1' t2 ) <$> rec t1           -- E-App1
-  App v1 t2 | not (isValue t2)    -> (\t2' -> App v1  t2') <$> rec t2           -- E-App2
-  App (Lambda name _ t1) t2       -> return $ subst name t2 t1                  -- E-AppAbs
+  App t1 t2 | not (isValue t1)         -> (\t1' -> App t1' t2 ) <$> rec t1           -- E-App1
+  App v1 t2 | not (isValue t2)         -> (\t2' -> App v1  t2') <$> rec t2           -- E-App2
+  App (Lambda name _ t1) t2            -> return $ subst name t2 t1                  -- E-AppAbs
   -- Sequence
-  Seq Unit t2                     -> return t2                                  -- E-NextSeq
-  Seq t1   t2                     -> (\t1' -> Seq t1' t2) <$> rec t1            -- E-Seq
+  Seq Unit t2                          -> return t2                                  -- E-NextSeq
+  Seq t1   t2                          -> (\t1' -> Seq t1' t2) <$> rec t1            -- E-Seq
   -- References
-  Ref v | isValue v               -> stateToStateT $ Loc <$> alloc v            -- E-RefV
-  Ref t | otherwise               -> Ref   <$> rec t                            -- E-Ref
-  Deref (Loc l)                   -> deref l                                    -- E-DerefLoc
-  Deref Null                      -> err "can't dereference null"               -- E-DerefNull
-  Deref t                         -> Deref <$> rec t                            -- E-Deref
-  Assign (Loc l) v | isValue v    -> assign l v                                 -- E-RefAssign
-  Assign Null _                   -> err "can't assign to null"                 -- E-AssignNull
+  Ref v | isValue v                    -> stateToStateT $ Loc <$> alloc v            -- E-RefV
+  Ref t | otherwise                    -> Ref   <$> rec t                            -- E-Ref
+  Deref (Loc l)                        -> deref l                                    -- E-DerefLoc
+  Deref Null                           -> err "can't dereference null"               -- E-DerefNull
+  Deref t                              -> Deref <$> rec t                            -- E-Deref
+  Assign (Loc l) v | isValue v         -> assign l v                                 -- E-RefAssign
+  Assign Null _                        -> err "can't assign to null"                 -- E-AssignNull
   -- Arrays
-  ArrayAlloc ty i | isValue i     -> Loc <$> allocArray ty i    -- E-ArrayAlloc1
-  ArrayAlloc ty t | otherwise     -> ArrayAlloc ty <$> rec t                    -- E-ArrayAlloc2
+  ArrayAlloc ty i | isNumVal i         -> Loc <$> allocArray ty i                    -- E-ArrayAlloc1
+  ArrayAlloc ty t | otherwise          -> ArrayAlloc ty <$> rec t                    -- E-ArrayAlloc2
   Assign (ArrayAccess (Loc l) i) v
-    | isValue i && isValue v      -> assignArray l i v                          -- E-ArrayAssign1
+    | isNumVal i && isValue v          -> assignArray l i v                          -- E-ArrayAssign1
   Assign a@(ArrayAccess (Loc _) i) t
-    | isValue i && not (isValue t) -> Assign a <$> rec t                        -- E-ArrayAssign2
-  Assign (ArrayAccess Null _) _   -> err "can't dereference null"               -- E-ArrayAssignNull
-  Assign t1 t2 | not (isValue t1) -> (\t1' -> Assign t1' t2 ) <$> rec t1        -- E-Assign1
-  Assign v1 t2 | otherwise        -> (\t2' -> Assign v1  t2') <$> rec t2        -- E-Assign2
-  ArrayAccess (Loc l) i | isValue i -> derefArray l i                          -- E-ArrayAccess1
-  ArrayAccess Null _               -> err "can't dereference null"             -- E-ArrayAccessNull
-  ArrayAccess t1 t2 | not (isValue t1) -> (\t1' -> ArrayAccess t1' t2) <$> rec t1 -- E-ArrayAccess2
-  ArrayAccess v1 t2 | otherwise    -> (\t2' -> ArrayAccess v1  t2') <$> rec t2 -- E-ArrayAccess3
+    | isNumVal i && not (isValue t)    -> Assign a <$> rec t                         -- E-ArrayAssign2
+  Assign (ArrayAccess Null _) _        -> err "can't dereference null"               -- E-ArrayAssignNull
+  Assign t1 t2 | not (isValue t1)      -> (\t1' -> Assign t1' t2 ) <$> rec t1        -- E-Assign1
+  Assign v1 t2 | otherwise             -> (\t2' -> Assign v1  t2') <$> rec t2        -- E-Assign2
+  ArrayAccess (Loc l) i | isNumVal i   -> derefArray l i                             -- E-ArrayAccess1
+  ArrayAccess Null _                   -> err "can't dereference null"               -- E-ArrayAccessNull
+  ArrayAccess t1 t2 | not (isValue t1) -> (\t1' -> ArrayAccess t1' t2) <$> rec t1    -- E-ArrayAccess2
+  ArrayAccess v1 t2 | otherwise        -> (\t2' -> ArrayAccess v1  t2') <$> rec t2   -- E-ArrayAccess3
   -- Compound data
-  Tuple ts                        -> Tuple <$> mapFirstM (not . isValue) rec ts -- E-Tuple
-  Proj i t@(Tuple vs) | isValue t -> proj i vs                                  -- E-ProjTuple
-  Proj i t                        -> Proj i <$> rec t                           -- E-Proj
+  Tuple ts                             -> Tuple <$> mapFirstM (not . isValue) rec ts -- E-Tuple
+  Proj i t@(Tuple vs) | isValue t      -> proj i vs                                  -- E-ProjTuple
+  Proj i t                             -> Proj i <$> rec t                           -- E-Proj
   -- Booleans + Arith
-  If Tru t2 _                     -> return t2                                  -- E-IfTrue
-  If Fls _  t3                    -> return t3                                  -- E-IfFalse
-  If t1  t2 t3                    -> (\t1' -> If t1' t2 t3)   <$> rec t1        -- E-If
-  Succ t                          -> Succ   <$> rec t                           -- E-Succ
-  Pred Zero                       -> return Zero                                -- E-PredZero
-  Pred (Succ v) | isNumVal v      -> return v                                   -- E-PredSucc
-  Pred t                          -> Pred   <$> rec t                           -- E-Pred
-  IsZero Zero                     -> return Tru                                 -- E-IsZeroZero
-  IsZero (Succ v) | isNumVal v    -> return Fls                                 -- E-IsZeroSucc
-  IsZero t                        -> IsZero <$> rec t                           -- E-IsZero
-  t                               -> return t
+  If Tru t2 _                          -> return t2                                  -- E-IfTrue
+  If Fls _  t3                         -> return t3                                  -- E-IfFalse
+  If t1  t2 t3                         -> (\t1' -> If t1' t2 t3)   <$> rec t1        -- E-If
+  Succ t                               -> Succ   <$> rec t                           -- E-Succ
+  Pred Zero                            -> return Zero                                -- E-PredZero
+  Pred (Succ v) | isNumVal v           -> return v                                   -- E-PredSucc
+  Pred t                               -> Pred   <$> rec t                           -- E-Pred
+  IsZero Zero                          -> return Tru                                 -- E-IsZeroZero
+  IsZero (Succ v) | isNumVal v         -> return Fls                                 -- E-IsZeroSucc
+  IsZero t                             -> IsZero <$> rec t                           -- E-IsZero
+  t                                    -> return t
   where rec = step'
         err = lift . Left . RuntimeError
 
@@ -522,7 +522,7 @@ fresh a = "_" ++ a
 peanoToDec :: Term -> Integer
 peanoToDec Zero     = 0
 peanoToDec (Succ n) = succ (peanoToDec n)
-peanoToDec t        = error $ "internal error: can't show term as number: " ++ show t
+peanoToDec t        = error $ "internal error: can't make Integer out of: " ++ show t
 
 instance Pretty Term where
   pretty = \case
@@ -595,15 +595,15 @@ instance Pretty NameEnv where
 ----------------------
 -- Other utilities
 
-redex :: Term -> Term
+redex :: Term                          -> Term
 redex e = case e of
   -- Lambdas
   App t1 _  | not (isValue t1)         -> rec t1
   App _  t2 | not (isValue t2)         -> rec t2
-  App (Lambda _ _ _) _            -> e
+  App (Lambda _ _ _) _                 -> e
   -- Sequence
-  Seq Unit _                          -> e
-  Seq t1   _                          -> rec t1
+  Seq Unit _                           -> e
+  Seq t1   _                           -> rec t1
   -- References
   Ref v | isValue v                    -> e
   Ref t | otherwise                    -> rec t
@@ -613,8 +613,8 @@ redex e = case e of
   Assign (Loc _) v | isValue v         -> e
   Assign Null _                        -> e -- err "can't assign to null"
   -- Arrays
-  ArrayAlloc _ i | isValue i          -> e
-  ArrayAlloc _ t | otherwise          -> rec t
+  ArrayAlloc _ i | isValue i           -> e
+  ArrayAlloc _ t | otherwise           -> rec t
   Assign (ArrayAccess (Loc _) i) v
     | isValue i && isValue v           -> e
   Assign (ArrayAccess (Loc _) i) t
@@ -629,12 +629,12 @@ redex e = case e of
   -- Compound data
   Tuple ts | all isValue ts            -> e
   Tuple ts | otherwise                 -> rec (head (filter (not . isValue) ts))
-  Proj _ t@(Tuple _) | isValue t      -> e
+  Proj _ t@(Tuple _) | isValue t       -> e
   Proj _ t                             -> rec t
   -- Booleans + Arith
-  If Tru _ _                          -> e
-  If Fls _ _                         -> e
-  If t1  _ _                         -> rec t1
+  If Tru _ _                           -> e
+  If Fls _ _                           -> e
+  If t1  _ _                           -> rec t1
   Succ t                               -> rec t
   Pred Zero                            -> e
   Pred (Succ v) | isNumVal v           -> e
