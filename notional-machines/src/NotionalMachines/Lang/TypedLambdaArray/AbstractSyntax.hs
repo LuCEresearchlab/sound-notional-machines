@@ -574,9 +574,10 @@ instance Pretty Type where
     TyFun t1 t2 -> hsep [p t1, "->", pretty t2]
     TyTuple ts  -> encloseSep lbrace rbrace comma (map pretty ts)
     TyVar name  -> pretty name
-    where p = parenIf $ \case TyFun {} -> True
-                              TyRef {} -> True
-                              _        -> False
+    where p = parenIf $ \case TyFun {}   -> True
+                              TyRef {}   -> True
+                              TyArray {} -> True
+                              _          -> False
 
 parenIf :: Pretty a => (a -> Bool) -> a -> Doc b
 parenIf f t = (if f t then parens else id) (pretty t)

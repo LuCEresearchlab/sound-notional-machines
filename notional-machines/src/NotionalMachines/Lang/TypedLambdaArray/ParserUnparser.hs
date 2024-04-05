@@ -32,8 +32,13 @@ langDef = Tok.LanguageDef
   , Tok.identLetter     = alphaNum <|> oneOf "_'"
   , Tok.opStart         = oneOf ":!#$%&*+./<=>?@\\^|-~;"
   , Tok.opLetter        = oneOf ":!#$%&*+./<=>?@\\^|-~;"
-  , Tok.reservedNames   = ["if", "then", "else", "true", "false", "succ",
-                           "pred", "iszero", "unit", "Bool", "Nat", "array", "null"]
+  , Tok.reservedNames   = ["if", "then", "else", "true", "false",
+                           "succ", "pred", "iszero",
+                           "Bool", "Nat",
+                           "unit", "Unit",
+                           "ref", "Ref",
+                           "array", "Array",
+                           "null", "NullType"]
   , Tok.reservedOpNames = []
   , Tok.caseSensitive   = True
   }
@@ -101,7 +106,7 @@ pTerm = Ex.buildExpressionParser table factor
                   , Ex.Prefix  (IsZero <$ reserved   "iszero")
                   , Ex.Prefix  (Ref    <$ reserved   "ref") ]
                 , [ Ex.Infix   (App    <$ reservedOp "")       Ex.AssocLeft  ]
-                , [ Ex.Infix   (ArrayAccess <$ reservedOp "|")       Ex.AssocLeft  ]
+                , [ Ex.Infix   (ArrayAccess <$ reservedOp "|") Ex.AssocLeft  ]
                 , [ Ex.Infix   (Assign <$ reservedOp ":=")     Ex.AssocRight ]
                 , [ Ex.Infix   (Seq    <$ reservedOp ";")      Ex.AssocRight ] ]
 
@@ -111,13 +116,14 @@ pTypAtom :: Parser Type
 pTypAtom = TyBool  <$ reserved "Bool"
        <|> TyNat   <$ reserved "Nat"
        <|> TyUnit  <$ reserved "Unit"
+       <|> TyNull  <$ reserved "NullType"
        <|> TyTuple <$> braces (commaSep pTyp)
        <|> parens pTyp
 
 pTyp :: Parser Type
 pTyp = Ex.buildExpressionParser table pTypAtom
-  where table = [ [ Ex.Infix  (TyFun <$ reservedOp "->")  Ex.AssocRight
-                  , Ex.Prefix (TyRef <$ reserved "Ref")
+  where table = [ [ Ex.Infix  (TyFun   <$ reservedOp "->")  Ex.AssocRight
+                  , Ex.Prefix (TyRef   <$ reserved "Ref")
                   , Ex.Prefix (TyArray <$ reserved "Array") ] ]
 
 decToPeano :: Integer -> Term
